@@ -26,7 +26,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
 
-from cogu.tools.base import Tool, ToolResult
+from cogu.tools.base import ToolSpec, ToolResult
 
 # ---------------------------------------------------------------------------
 # Connection type
@@ -66,7 +66,7 @@ def get_mcp_timeout() -> MCPTimeoutConfig:
 # COGU MCP Tool wrapper
 # ---------------------------------------------------------------------------
 
-class MCPTool(Tool):
+class MCPTool(ToolSpec):
     """COGU Tool wrapping one MCP server tool call."""
 
     def __init__(self, name: str, description: str, parameters: dict[str, Any],
@@ -77,23 +77,25 @@ class MCPTool(Tool):
         self._session = session
         self._execute_timeout = execute_timeout
 
-    @property
     def name(self) -> str:
         return self._name
 
-    @property
     def description(self) -> str:
         return self._description
+
+    def input_schema(self) -> dict:
+        return self._parameters
 
     @property
     def parameters(self) -> dict[str, Any]:
         return self._parameters
 
-    async def execute(self, **kwargs) -> ToolResult:
+    async def execute(self, input: dict = None, **kwargs) -> ToolResult:
+        call_args = input if input else kwargs
         timeout = self._execute_timeout or _default_timeout.execute_timeout
         try:
             async with asyncio.timeout(timeout):
-                result = await self._session.call_tool(self._name, arguments=kwargs)
+                result = await self._session.call_tool(self._name, arguments=call_args)
             parts: list[str] = []
             for item in (result.content or []):
                 if hasattr(item, "text"):
@@ -214,7 +216,7 @@ def _resolve_config(path: str) -> Path | None:
     return None
 
 
-async def load_mcp_tools(config_path: str = "mcp.json") -> list[Tool]:
+async def load_mcp_tools(config_path: str = "mcp.json") -> list[ToolSpec]:
     config_file = _resolve_config(config_path)
     if config_file is None:
         print(f"[MCP] config not found: {config_path}")
@@ -234,7 +236,7 @@ async def load_mcp_tools(config_path: str = "mcp.json") -> list[Tool]:
         print("[MCP] no mcpServers configured")
         return []
 
-    all_tools: list[Tool] = []
+    all_tools: list[ToolSpec] = []
     for name, cfg in servers.items():
         if cfg.get("disabled"):
             continue

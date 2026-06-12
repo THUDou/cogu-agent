@@ -11,6 +11,8 @@ from cogu.tools.lazy import (
     LazyToolRef,
     LazyFunctionRef,
 )
+from cogu.tools.scheduler import ToolScheduler
+from cogu.tools.mcp_adapter import MCPTool, MCPServerConnection, MCPTimeoutConfig
 
 __all__ = [
     "ToolResult",
@@ -22,4 +24,8 @@ __all__ = [
     "LazyFunctionRef",
     "ApprovalRequirement",
     "ToolCapability",
+    "ToolScheduler",
+    "MCPTool",
+    "MCPServerConnection",
+    "MCPTimeoutConfig",
 ]

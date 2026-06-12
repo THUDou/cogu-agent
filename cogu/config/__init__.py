@@ -8,9 +8,11 @@ from cogu.config.settings import (
     ToolConfig,
     TUIConfig,
 )
+from cogu.config.manager import ConfigManager
 
 __all__ = [
     "Settings",
+    "ConfigManager",
     "ProviderConfig",
     "DeepSeekConfig",
     "MemoryConfig",

@@ -10,6 +10,7 @@ from cogu.core.runner import Runner
 from cogu.core.agent import ReActAgent
 from cogu.core.session import Session
 from cogu.config.settings import Settings
+from cogu.config.manager import ConfigManager
 from cogu.memory import EnhancedSuperMemory, EnhancedMemoryConfig, RecallStrategy
 from cogu.debate import DebateOrchestrator, DebateConfig, DebateMode
 from cogu.skills import SkillRegistry, SkillExecutor, SkillExecStatus
@@ -33,6 +34,8 @@ Examples:
   cogu skills install https://github.com/user/skill/archive/main.zip
   cogu skills run hello-world --input '{"name":"World"}'
   cogu skills uninstall hello-world
+  cogu config set deepseek sk-xxxx
+  cogu config list
   cogu serve --port 8080
         """,
     )
@@ -92,6 +95,19 @@ Examples:
     serve_parser.add_argument("--port", type=int, default=8080, help="Port to listen on")
     serve_parser.add_argument("--host", default="127.0.0.1", help="Host to bind")
 
+    config_parser = sub.add_parser("config", help="Manage API keys and settings")
+    config_sub = config_parser.add_subparsers(dest="config_command")
+    config_sub.add_parser("list", help="List configured providers")
+    config_sub.add_parser("env", help="Show environment config path")
+    set_parser = config_sub.add_parser("set", help="Set API key for a provider")
+    set_parser.add_argument("provider", help="Provider name (deepseek/openai/claude/zhipu/qwen/moonshot/siliconflow)")
+    set_parser.add_argument("api_key", help="API key")
+    remove_parser = config_sub.add_parser("remove", help="Remove API key for a provider")
+    remove_parser.add_argument("provider", help="Provider name")
+    model_parser = config_sub.add_parser("model", help="Set default model")
+    model_parser.add_argument("model", help="Model name")
+    model_parser.add_argument("--provider", default="deepseek", help="Provider name")
+
     sub.add_parser("version", help="Show version")
 
     tui_parser = sub.add_parser("tui", help="Launch interactive TUI")
@@ -104,7 +120,8 @@ class CLI:
     def __init__(self, args: argparse.Namespace):
         self.args = args
         self.workspace = args.workspace
-        self.settings = Settings.load(self.workspace)
+        self.config_mgr = ConfigManager(self.workspace)
+        self.settings = self.config_mgr.load_settings()
         self._init_memory()
         self._init_skills()
         self._init_debate()
@@ -131,7 +148,7 @@ class CLI:
         )
 
     def _init_agent(self):
-        api_key = os.environ.get("DEEPSEEK_API_KEY", "")
+        api_key = self.config_mgr.get_api_key("deepseek") or os.environ.get("DEEPSEEK_API_KEY", "")
         client = DeepSeekClient(
             api_key=api_key,
             model=self.args.model,
@@ -344,6 +361,43 @@ class CLI:
         print(f"cogu v{__version__}")
         return 0
 
+    async def cmd_config(self) -> int:
+        cc = self.args.config_command
+        if cc == "list":
+            providers = self.config_mgr.list_providers()
+            print(f"{'Provider':<15} {'Configured':<12} {'Key':<16} {'Models'}")
+            print("-" * 72)
+            for p in providers:
+                status = "Yes" if p["configured"] else "No"
+                key_info = p["key_preview"] or "-"
+                models = ", ".join(p["models"][:3])
+                print(f"{p['name']:<15} {status:<12} {key_info:<16} {models}")
+        elif cc == "set":
+            provider = self.args.provider
+            key = self.args.api_key
+            self.config_mgr.set_api_key(provider, key)
+            print(f"API key set for {provider}")
+        elif cc == "remove":
+            provider = self.args.provider
+            self.config_mgr.remove_api_key(provider)
+            print(f"API key removed for {provider}")
+        elif cc == "model":
+            model = self.args.model
+            provider = getattr(self.args, "provider", "deepseek")
+            self.config_mgr.set_default_model(provider, model)
+            print(f"Default model set: {model} (provider: {provider})")
+        elif cc == "env":
+            cfg_dir = self.config_mgr.config_dir
+            print(f"Config directory: {cfg_dir}")
+            print(f"Secrets file:    {cfg_dir / 'secrets.json'}")
+            print(f"Config file:     {cfg_dir / 'config.json'}")
+            dotenv_path = Path(self.workspace) / ".env"
+            print(f".env file:       {dotenv_path} {'(exists)' if dotenv_path.exists() else '(not found)'}")
+        else:
+            print("Usage: cogu config {list|set|remove|model|env}")
+            return 1
+        return 0
+
     async def run(self) -> int:
         if not self.args.command:
             print("COGU AGENT v{__version__}")
@@ -358,6 +412,7 @@ class CLI:
             "serve": self.cmd_serve,
             "tui": self.cmd_tui,
             "version": self.cmd_version,
+            "config": self.cmd_config,
         }
 
         handler = handlers.get(self.args.command)

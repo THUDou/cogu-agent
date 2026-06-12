@@ -30,6 +30,19 @@ from cogu.memory.enhanced_memory import (
     RecallStrategy,
     MemoryLevel,
 )
+from cogu.memory.memory_pyramid import MemoryPyramid, PyramidLevel, Atom, Scenario, PersonaStore
+from cogu.memory.compression_pipeline import (
+    CompressionPipeline as MemoryCompressionPipeline,
+    CompressionLevel,
+    CompressionResult,
+    BaseCompressionStrategy,
+    MicroCompressor,
+    CompactCompressor,
+    ReactiveCompressor,
+)
+from cogu.memory.context_offloader import ContextOffloader, OffloadEntry
+from cogu.memory.rrf_ranker import RRFRanker, BM25Scorer
+from cogu.memory.task_canvas import TaskCanvas, CanvasNode
 
 __all__ = [
     "SuperMemory",
@@ -63,4 +76,22 @@ __all__ = [
     "RecallResult",
     "RecallStrategy",
     "MemoryLevel",
+    "MemoryPyramid",
+    "PyramidLevel",
+    "Atom",
+    "Scenario",
+    "PersonaStore",
+    "MemoryCompressionPipeline",
+    "CompressionLevel",
+    "CompressionResult",
+    "BaseCompressionStrategy",
+    "MicroCompressor",
+    "CompactCompressor",
+    "ReactiveCompressor",
+    "ContextOffloader",
+    "OffloadEntry",
+    "RRFRanker",
+    "BM25Scorer",
+    "TaskCanvas",
+    "CanvasNode",
 ]

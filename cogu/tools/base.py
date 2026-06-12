@@ -169,6 +169,7 @@ class ToolRegistry:
         self._api_cache: Optional[list[dict]] = None
         self._groups: dict[str, ToolGroup] = {}
         self._active_group: Optional[str] = None
+        self._scheduler = None
 
     def register(self, tool: ToolSpec) -> None:
         self._tools[tool.name()] = tool
@@ -229,6 +230,14 @@ class ToolRegistry:
             return ToolResult.err(f"Tool '{name}' not found")
         return await tool.execute(arguments)
 
-    async def execute_parallel(self, calls: list[tuple[str, str, dict]]) -> list[ToolResult]:
-        tasks = [self.execute(name, args) for _, name, args in calls]
-        return await asyncio.gather(*tasks)
+    def get_scheduler(self):
+        if self._scheduler is None:
+            from cogu.tools.scheduler import ToolScheduler
+            self._scheduler = ToolScheduler(self)
+        return self._scheduler
+
+    async def execute_parallel(self, calls: list[tuple[str, str, dict]], ordered: bool = False) -> list[ToolResult]:
+        scheduler = self.get_scheduler()
+        if ordered:
+            return await scheduler.execute_ordered(calls)
+        return await scheduler.execute_batch(calls)

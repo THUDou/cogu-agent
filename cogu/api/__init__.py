@@ -6,9 +6,11 @@ from cogu.api.client import (
     StreamEventType,
     RetryConfig,
 )
+from cogu.api.claude import ClaudeClient
 
 __all__ = [
     "DeepSeekClient",
+    "ClaudeClient",
     "MultiProviderClient",
     "LLMResponse",
     "StreamEvent",
