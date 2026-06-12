@@ -1,0 +1,57 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "cogu-agent"
+version = "0.1.0"
+description = "COGU AGENT - 融合华为JiuwenCLAW基座+小米MiMo超级记忆+百度LoongFlow专家思辨+DeepSeek优化的国产AGENT框架"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [
+    {name = "COGU Team"}
+]
+keywords = ["agent", "ai", "llm", "deepseek", "memory", "rag"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+
+dependencies = [
+    "httpx>=0.28.0",
+    "pydantic>=2.0",
+    "openai>=1.0",
+    "rich>=13.0",
+    "textual>=0.80",
+    "sqlite-fts4",
+    "pyyaml>=6.0",
+    "watchfiles>=0.24",
+    "anyio>=4.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.8",
+]
+tui = [
+    "textual>=0.80",
+    "textual-dev>=1.0",
+]
+
+[project.scripts]
+cogu = "cogu.cli.main:main"
+cogu-tui = "cogu.tui.app:run_tui"
+
+[tool.hatch.build.targets.wheel]
+packages = ["cogu"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"

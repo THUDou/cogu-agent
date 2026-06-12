@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+.cogu/
+.DS_Store
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
