@@ -2,7 +2,7 @@
 !define APPVERSION "0.9.1"
 !define APPPUBLISHER "COGU Team"
 !define APPEXE "COGU-Loong.exe"
-!define APPURL "https://github.com/cogu-agent/cogu-loong"
+!define APPURL "https://github.com/THUDou/cogu-agent"
 
 Name "${APPNAME} ${APPVERSION}"
 OutFile "COGU-Loong-${APPVERSION}-Setup.exe"
@@ -13,9 +13,6 @@ RequestExecutionLevel admin
 SetCompressor /SOLID lzma
 
 !include "MUI2.nsh"
-
-!define MUI_ICON ""
-!define MUI_UNICON ""
 
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_DIRECTORY
@@ -29,9 +26,6 @@ SetCompressor /SOLID lzma
 
 !insertmacro MUI_LANGUAGE "SimpChinese"
 !insertmacro MUI_LANGUAGE "English"
-
-LangString APP_DESC ${LANG_SIMPCHINESE} "COGU Loong - 国产认知统一智能体桌面版"
-LangString APP_DESC ${LANG_ENGLISH} "COGU Loong - Cognitive Unified Agent Desktop"
 
 VIProductVersion "0.9.1.0"
 VIAddVersionKey /LANG=${LANG_SIMPCHINESE} "ProductName" "${APPNAME}"
@@ -64,8 +58,9 @@ Section -Post
 SectionEnd
 
 Section Uninstall
-  Delete "$INSTDIR\*.*"
-  RMDir /r "$INSTDIR"
+  Delete "$INSTDIR\COGU-Loong.exe"
+  Delete "$INSTDIR\uninstall.exe"
+  RMDir "$INSTDIR"
   Delete "$SMPROGRAMS\${APPNAME}\*.*"
   RMDir "$SMPROGRAMS\${APPNAME}"
   Delete "$DESKTOP\${APPNAME}.lnk"
