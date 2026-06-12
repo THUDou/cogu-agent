@@ -26,6 +26,7 @@ from cogu.memory.grade_memory import (
 from cogu.memory.entity_graph import EntityGraph, Entity, Relation
 from cogu.memory.memory_store import MemoryStore, MemoryLocator, SearchResult, SCOPE_GLOBAL, SCOPE_PROJECTS, SCOPE_SESSIONS
 from cogu.memory.memory_graph import MemoryGraph, GraphNode, GraphEdge
+from cogu.memory.experience_kb import AgenticKnowledgeBase, WorkflowInstance, KBSearchResult
 
 
 class RecallStrategy(str, Enum):
@@ -67,6 +68,7 @@ class EnhancedMemoryConfig:
 
     semantic_weight: float = 0.3
     graph_weight: float = 0.1
+    experience_kb_enabled: bool = True
 
 
 @dataclass
@@ -134,6 +136,13 @@ class EnhancedSuperMemory:
                 auto_compress=self._config.auto_compress,
             ),
         )
+
+        if self._config.experience_kb_enabled:
+            self._experience_kb = AgenticKnowledgeBase(
+                db_path=os.path.join(self._config.db_dir, "experience_kb.db")
+            )
+        else:
+            self._experience_kb = None
 
     def _ensure_dirs(self):
         os.makedirs(self._config.db_dir, exist_ok=True)
@@ -284,6 +293,21 @@ class EnhancedSuperMemory:
                         level=MemoryLevel.LTM,
                     )
 
+        if self._experience_kb and strategy in (RecallStrategy.HYBRID, RecallStrategy.COMPREHENSIVE):
+            kb_results = self._experience_kb.search(query=query, top_k=limit)
+            for kr in kb_results:
+                rid = f"kb:{kr.workflow_id}"
+                content = f"[经验] {kr.query}\n规划: {kr.planning}\n经验: {kr.experience}"
+                if rid not in results:
+                    results[rid] = RecallResult(
+                        entry_id=rid,
+                        content=content,
+                        score=kr.score * 0.8,
+                        source="experience_kb",
+                        level=MemoryLevel.LTM,
+                        metadata={"domain": kr.domain, "tags": kr.tags},
+                    )
+
         if level:
             results = {k: v for k, v in results.items() if v.level == level}
 
@@ -312,6 +336,44 @@ class EnhancedSuperMemory:
             self._memory_graph.apply_decay()
             result["graph_decay"] = "applied"
         return result
+
+    def deposit_experience(
+        self,
+        query: str,
+        planning: str = "",
+        experience: str = "",
+        domain: str = "",
+        tags: list[str] | None = None,
+        success: bool = True,
+    ) -> str:
+        if not self._experience_kb:
+            return ""
+        return self._experience_kb.add_experience(
+            query=query,
+            planning=planning,
+            experience=experience,
+            domain=domain,
+            tags=tags,
+            success=success,
+        )
+
+    def search_experience(
+        self,
+        query: str,
+        top_k: int = 5,
+        strategy: str = "hybrid",
+        domain: str | None = None,
+        tags: list[str] | None = None,
+    ) -> list[KBSearchResult]:
+        if not self._experience_kb:
+            return []
+        return self._experience_kb.search(
+            query=query,
+            top_k=top_k,
+            strategy=strategy,
+            domain=domain,
+            tags=tags,
+        )
 
     def build_context(
         self,
