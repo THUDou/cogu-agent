@@ -51,6 +51,14 @@ class ToolSpec(ABC):
     def capabilities(self) -> set[ToolCapability]:
         return set()
 
+    @property
+    def concurrency_safe(self) -> bool:
+        return False
+
+    @property
+    def tool_group(self) -> str:
+        return ""
+
     @abstractmethod
     async def execute(self, input: dict) -> ToolResult: ...
 
@@ -63,6 +71,8 @@ class FunctionTool(ToolSpec):
         self._schema = schema or self._extract_schema(func)
         self._approval = ApprovalRequirement.AUTO
         self._capabilities: set[ToolCapability] = set()
+        self._concurrency_safe = False
+        self._tool_group = ""
 
     def name(self) -> str:
         return self._name
@@ -79,12 +89,28 @@ class FunctionTool(ToolSpec):
     def capabilities(self) -> set[ToolCapability]:
         return self._capabilities
 
+    @property
+    def concurrency_safe(self) -> bool:
+        return self._concurrency_safe
+
+    @property
+    def tool_group(self) -> str:
+        return self._tool_group
+
     def require_approval(self) -> "FunctionTool":
         self._approval = ApprovalRequirement.REQUIRED
         return self
 
     def with_capability(self, cap: ToolCapability) -> "FunctionTool":
         self._capabilities.add(cap)
+        return self
+
+    def mark_concurrency_safe(self) -> "FunctionTool":
+        self._concurrency_safe = True
+        return self
+
+    def with_group(self, group: str) -> "FunctionTool":
+        self._tool_group = group
         return self
 
     @staticmethod
@@ -129,10 +155,20 @@ class FunctionTool(ToolSpec):
             return ToolResult.err(str(e))
 
 
+@dataclass
+class ToolGroup:
+    name: str
+    description: str = ""
+    tools: list[str] = field(default_factory=list)
+    default_active: bool = False
+
+
 class ToolRegistry:
     def __init__(self):
         self._tools: dict[str, ToolSpec] = {}
         self._api_cache: Optional[list[dict]] = None
+        self._groups: dict[str, ToolGroup] = {}
+        self._active_group: Optional[str] = None
 
     def register(self, tool: ToolSpec) -> None:
         self._tools[tool.name()] = tool
@@ -148,9 +184,30 @@ class ToolRegistry:
     def list_tools(self) -> list[str]:
         return list(self._tools.keys())
 
-    def to_openai_tools(self) -> list[dict]:
-        if self._api_cache is None:
-            self._api_cache = [
+    def register_group(self, group: ToolGroup) -> None:
+        self._groups[group.name] = group
+
+    def activate_group(self, group_name: str) -> None:
+        if group_name in self._groups:
+            self._active_group = group_name
+            self._api_cache = None
+
+    def deactivate_group(self) -> None:
+        self._active_group = None
+        self._api_cache = None
+
+    def to_openai_tools(self, group: str = None) -> list[dict]:
+        group = group or self._active_group
+        if group:
+            if group not in self._groups:
+                return []
+            allowed = set(self._groups[group].tools)
+            tools = {k: v for k, v in self._tools.items() if k in allowed}
+        else:
+            tools = self._tools
+
+        if self._api_cache is None or group:
+            result = [
                 {
                     "type": "function",
                     "function": {
@@ -159,8 +216,11 @@ class ToolRegistry:
                         "parameters": t.input_schema(),
                     },
                 }
-                for t in self._tools.values()
+                for t in tools.values()
             ]
+            if not group:
+                self._api_cache = result
+            return result
         return self._api_cache
 
     async def execute(self, name: str, arguments: dict) -> ToolResult:
