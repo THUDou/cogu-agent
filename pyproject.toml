@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "cogu-agent"
-version = "0.1.0"
+version = "0.7.0"
 description = "COGU AGENT - 融合华为JiuwenCLAW基座+小米MiMo超级记忆+百度LoongFlow专家思辨+DeepSeek优化的国产AGENT框架"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -33,6 +33,9 @@ dependencies = [
     "watchfiles>=0.24",
     "anyio>=4.0",
     "tiktoken>=0.5",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "sse-starlette>=2.0",
 ]
 
 [project.optional-dependencies]
@@ -66,6 +69,11 @@ s3 = [
 ]
 state = [
     "boto3>=1.34",
+]
+server = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "sse-starlette>=2.0",
 ]
 
 [project.scripts]
