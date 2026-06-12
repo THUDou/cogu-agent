@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import subprocess
+import sys
 import tempfile
 import time
 import traceback
@@ -110,7 +111,15 @@ class SkillExecutor:
         started = time.time()
 
         try:
-            cmd = [str(full_path)] + (args or [])
+            ext = full_path.suffix.lower()
+            if ext == ".py":
+                cmd = [sys.executable, str(full_path)] + (args or [])
+            elif ext == ".sh":
+                cmd = ["/bin/sh", str(full_path)] + (args or [])
+            elif ext in (".bat", ".cmd"):
+                cmd = [str(full_path)] + (args or [])
+            else:
+                cmd = [str(full_path)] + (args or [])
             proc_env = {**os.environ, **(env or {})}
             proc = await asyncio.create_subprocess_exec(
                 *cmd,

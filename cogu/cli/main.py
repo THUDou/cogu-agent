@@ -12,7 +12,8 @@ from cogu.core.session import Session
 from cogu.config.settings import Settings
 from cogu.memory import EnhancedSuperMemory, EnhancedMemoryConfig, RecallStrategy
 from cogu.debate import DebateOrchestrator, DebateConfig, DebateMode
-from cogu.skills import SkillRegistry, SkillExecutor
+from cogu.skills import SkillRegistry, SkillExecutor, SkillExecStatus
+from cogu.core.skills_system import get_builtin_skill_registry
 from cogu.api.client import DeepSeekClient, MultiProviderClient
 from cogu.tools.base import ToolRegistry
 from cogu.tools.builtin import register_builtin_tools
@@ -29,6 +30,7 @@ Examples:
   cogu debate "Should we use async or sync architecture?"
   cogu skills list
   cogu skills install /path/to/skill
+  cogu skills run hello-world --input '{"name":"World"}'
   cogu serve --port 8080
         """,
     )
@@ -53,12 +55,26 @@ Examples:
 
     skills_parser = sub.add_parser("skills", help="Manage skills")
     skills_sub = skills_parser.add_subparsers(dest="skills_command")
-    skills_sub.add_parser("list", help="List installed skills")
+    list_parser = skills_sub.add_parser("list", help="List installed skills")
+    list_parser.add_argument("--all", action="store_true", help="Include builtin skills")
     install_parser = skills_sub.add_parser("install", help="Install a skill")
     install_parser.add_argument("source", help="Path or URL to skill")
     skills_sub.add_parser("discover", help="Discover skills from search paths")
     info_parser = skills_sub.add_parser("info", help="Show skill info")
     info_parser.add_argument("name", help="Skill name")
+    run_parser = skills_sub.add_parser("run", help="Execute a Markdown skill")
+    run_parser.add_argument("name", help="Skill name")
+    run_parser.add_argument("--input", default="{}", help="JSON input data for the skill")
+    run_parser.add_argument("--context", default="", help="Context string passed to skill")
+    run_parser.add_argument("--script", default="", help="Script path within skill to execute")
+    run_parser.add_argument("--script-args", nargs="*", help="Arguments for the script")
+    builtin_parser = skills_sub.add_parser("builtin", help="Manage builtin skills")
+    builtin_sub = builtin_parser.add_subparsers(dest="builtin_command")
+    builtin_sub.add_parser("list", help="List builtin skills")
+    builtin_run = builtin_sub.add_parser("run", help="Execute a builtin skill")
+    builtin_run.add_argument("name", help="Skill name")
+    builtin_run.add_argument("--action", default="", help="Skill action")
+    builtin_run.add_argument("--params", default="{}", help="JSON params")
 
     memory_parser = sub.add_parser("memory", help="Memory operations")
     memory_sub = memory_parser.add_subparsers(dest="memory_command")
@@ -192,15 +208,43 @@ class CLI:
     async def cmd_skills(self) -> int:
         sc = self.args.skills_command
         if sc == "list":
+            show_all = getattr(self.args, "all", False)
             names = self.skill_registry.list_all()
+
+            if show_all:
+                print("=== Builtin Skills ===")
+                builtin = get_builtin_skill_registry()
+                await builtin.initialize()
+                for s in builtin.list_all():
+                    print(f"  [{s.manifest.category.value}] {s.manifest.name}: {s.manifest.description[:60]}")
+                print(f"\n=== Installed Skills ===")
+
             if names:
                 print(f"Installed skills ({len(names)}):")
                 for name in names:
                     spec = self.skill_registry.load(name)
                     desc = spec.description[:60] if spec and spec.description else ""
                     print(f"  - {name}: {desc}")
-            else:
+            elif not show_all:
                 print("No skills installed. Use 'cogu skills discover' or 'cogu skills install <path>'")
+                print("Use 'cogu skills list --all' to see builtin skills")
+        elif sc == "builtin":
+            bc = self.args.builtin_command
+            builtin = get_builtin_skill_registry()
+            await builtin.initialize()
+            if bc == "list":
+                for s in builtin.list_all():
+                    print(f"  [{s.manifest.category.value:15s}] {s.manifest.name:25s} [{s.manifest.level.value}] {s.manifest.description[:60]}")
+                print(f"\nTotal: {len(builtin.list_all())} builtin skills")
+            elif bc == "run":
+                name = self.args.name
+                action = self.args.action
+                import json as _json
+                params = _json.loads(self.args.params)
+                if action:
+                    params["action"] = action
+                result = await builtin.execute(name, **params)
+                print(_json.dumps(result, indent=2, ensure_ascii=False))
         elif sc == "discover":
             found = self.skill_registry.discover()
             print(f"Discovered {len(found)} skills:")
@@ -221,6 +265,22 @@ class CLI:
                 print(f"\nBody preview: {spec.body[:200]}...")
             else:
                 print(f"Skill not found: {self.args.name}")
+                return 1
+        elif sc == "run":
+            executor = SkillExecutor(registry=self.skill_registry)
+            name = self.args.name
+            inputs = json.loads(getattr(self.args, "input", "{}"))
+            context = getattr(self.args, "context", "")
+            script = getattr(self.args, "script", "")
+            script_args = getattr(self.args, "script_args", None)
+
+            if script:
+                result = await executor.execute_script(name, script, script_args)
+            else:
+                result = await executor.execute(name, inputs=inputs, context=context)
+
+            print(json.dumps(result.to_dict(), indent=2, ensure_ascii=False))
+            if result.status != SkillExecStatus.COMPLETED:
                 return 1
         return 0
 
