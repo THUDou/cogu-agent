@@ -1,10 +1,21 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import APIRouter
+from fastapi.responses import HTMLResponse
 
 from cogu.core.runner import Runner
 
 tool_router = APIRouter(prefix="/api/tools", tags=["tools"])
+
+
+@tool_router.get("/dashboard", response_class=HTMLResponse, include_in_schema=False)
+async def dashboard():
+    html_path = Path(__file__).resolve().parent.parent.parent / "web" / "workbuddy.html"
+    if html_path.exists():
+        return HTMLResponse(content=html_path.read_text(encoding="utf-8"))
+    return HTMLResponse(content="<h1>Dashboard not found</h1>", status_code=404)
 
 
 @tool_router.get("")
