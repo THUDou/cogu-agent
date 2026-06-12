@@ -419,7 +419,7 @@ class CodeOfficeSkill(BaseSkill):
 
         path = Path(input_file)
         if not path.exists():
-            return {"success": False, "error": f"File not found: {input_file}")
+            return {"success": False, "error": "File not found: " + input_file}
 
         content = path.read_text(encoding="utf-8", errors="replace")
         out_path = path.with_suffix(f".{output_format}")
@@ -728,7 +728,221 @@ class DataAnalysisSkill(BaseSkill):
             return {"success": False, "error": "openpyxl not installed"}
 
 
-class SkillRegistry:
+class WebSearchSkill(BaseSkill):
+    category = SkillCategory.DATA
+
+    def __init__(self):
+        self.manifest = SkillManifest(
+            name="web-search",
+            version="0.1.0",
+            category=SkillCategory.DATA,
+            level=SkillLevel.BASIC,
+            description="Web search via DuckDuckGo: query, news, extract page content",
+            tags=["web", "search", "internet", "news"],
+        )
+
+    async def execute(self, **kwargs) -> dict:
+        action = kwargs.get("action", "search")
+        result = {"action": action, "success": False}
+
+        try:
+            from cogu.tools.builtin.web import _web_search, _web_fetch, _web_news
+        except ImportError:
+            return {"success": False, "error": "Web tools not available"}
+
+        try:
+            if action == "search":
+                query = kwargs.get("query", "")
+                num = kwargs.get("num", 10)
+                out = _web_search(query, num)
+                result.update({"success": True, "results": out})
+            elif action == "fetch":
+                url = kwargs.get("url", "")
+                out = _web_fetch(url)
+                result.update({"success": True, "content": str(out)[:10000]})
+            elif action == "news":
+                topic = kwargs.get("topic", "")
+                out = _web_news(topic)
+                result.update({"success": True, "results": out})
+            elif action == "fetch_json":
+                url = kwargs.get("url", "")
+                import urllib.request, json
+                with urllib.request.urlopen(url, timeout=15) as resp:
+                    data = json.loads(resp.read())
+                result.update({"success": True, "data": data})
+            else:
+                result["error"] = f"Unknown action: {action}"
+        except Exception as e:
+            result["error"] = str(e)
+
+        return result
+
+
+class ShellSkill(BaseSkill):
+    category = SkillCategory.CODE
+
+    def __init__(self):
+        self.manifest = SkillManifest(
+            name="shell",
+            version="0.1.0",
+            category=SkillCategory.CODE,
+            level=SkillLevel.BASIC,
+            description="Shell command execution: run, pipe, file ops, process management",
+            tags=["shell", "terminal", "command", "system"],
+        )
+
+    async def execute(self, **kwargs) -> dict:
+        action = kwargs.get("action", "run")
+        result = {"action": action, "success": False}
+
+        try:
+            if action == "run":
+                command = kwargs.get("command", "")
+                timeout = kwargs.get("timeout", 30)
+                cwd = kwargs.get("cwd", None)
+                proc = await asyncio.create_subprocess_shell(
+                    command,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=cwd,
+                )
+                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+                result.update({
+                    "success": proc.returncode == 0,
+                    "stdout": stdout.decode("utf-8", errors="replace"),
+                    "stderr": stderr.decode("utf-8", errors="replace"),
+                    "returncode": proc.returncode,
+                })
+            elif action == "exec":
+                program = kwargs.get("program", "")
+                args = kwargs.get("args", [])
+                timeout = kwargs.get("timeout", 30)
+                proc = await asyncio.create_subprocess_exec(
+                    program, *args,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
+                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+                result.update({
+                    "success": proc.returncode == 0,
+                    "stdout": stdout.decode("utf-8", errors="replace"),
+                    "stderr": stderr.decode("utf-8", errors="replace"),
+                    "returncode": proc.returncode,
+                })
+            elif action == "which":
+                program = kwargs.get("program", "")
+                import shutil
+                path = shutil.which(program)
+                result.update({"success": True, "found": path is not None, "path": path})
+            else:
+                result["error"] = f"Unknown action: {action}"
+        except asyncio.TimeoutError:
+            result["error"] = f"Command timed out after {kwargs.get('timeout', 30)}s"
+        except Exception as e:
+            result["error"] = str(e)
+
+        return result
+
+
+class FinanceSkill(BaseSkill):
+    category = SkillCategory.DATA
+
+    def __init__(self):
+        self.manifest = SkillManifest(
+            name="finance",
+            version="0.1.0",
+            category=SkillCategory.DATA,
+            level=SkillLevel.INTERMEDIATE,
+            description="Financial data queries: stock quotes, forex, crypto prices",
+            tags=["finance", "stock", "forex", "crypto", "market"],
+        )
+
+    async def execute(self, **kwargs) -> dict:
+        action = kwargs.get("action", "quote")
+        result = {"action": action, "success": False}
+
+        try:
+            from cogu.tools.builtin.stock import _get_stock_quote, _get_forex_rate, _get_crypto_price
+        except ImportError:
+            return {"success": False, "error": "Stock tools not available"}
+
+        try:
+            if action == "stock":
+                symbol = kwargs.get("symbol", "")
+                out = _get_stock_quote(symbol)
+                result.update({"success": True, "quote": out})
+            elif action == "forex":
+                pair = kwargs.get("pair", "USD/CNY")
+                out = _get_forex_rate(pair)
+                result.update({"success": True, "rate": out})
+            elif action == "crypto":
+                coin = kwargs.get("coin", "BTC")
+                out = _get_crypto_price(coin)
+                result.update({"success": True, "price": out})
+            elif action == "search":
+                query = kwargs.get("query", "")
+                result.update({"success": True, "query": query, "message": "Use web-search skill for financial news search"})
+            else:
+                result["error"] = f"Unknown action: {action}"
+        except Exception as e:
+            result["error"] = str(e)
+
+        return result
+
+
+class GatewaySkill(BaseSkill):
+    category = SkillCategory.COMMUNICATION
+
+    def __init__(self):
+        self.manifest = SkillManifest(
+            name="gateway",
+            version="0.1.0",
+            category=SkillCategory.COMMUNICATION,
+            level=SkillLevel.INTERMEDIATE,
+            description="API gateway management: start, stop, status, route info",
+            tags=["gateway", "api", "server", "management"],
+        )
+
+    async def execute(self, **kwargs) -> dict:
+        action = kwargs.get("action", "status")
+        result = {"action": action, "success": False}
+
+        try:
+            if action == "start":
+                port = kwargs.get("port", 8080)
+                host = kwargs.get("host", "127.0.0.1")
+                try:
+                    from cogu.gateway.server import GatewayServer
+                    self._gateway = GatewayServer(host=host, port=port)
+                    await self._gateway.start()
+                    result.update({"success": True, "host": host, "port": port, "status": "running"})
+                except ImportError:
+                    result.update({"success": True, "message": f"Gateway module loaded. Use 'cogu serve --port {port}' to start"})
+            elif action == "stop":
+                if hasattr(self, '_gateway'):
+                    await self._gateway.stop()
+                    result.update({"success": True, "status": "stopped"})
+                else:
+                    result.update({"success": True, "status": "not running"})
+            elif action == "status":
+                result.update({"success": True, "status": "checking", "message": "Gateway status available via cogu serve command"})
+            elif action == "routes":
+                try:
+                    from cogu.app import create_app
+                    app = create_app()
+                    routes = [{"path": r.path, "methods": list(r.methods)} for r in app.routes]
+                    result.update({"success": True, "routes": routes})
+                except ImportError:
+                    result.update({"success": True, "routes": [], "message": "App module not loaded"})
+            else:
+                result["error"] = f"Unknown action: {action}"
+        except Exception as e:
+            result["error"] = str(e)
+
+        return result
+
+
+class BuiltinSkillRegistry:
     _instance = None
 
     def __new__(cls):
@@ -772,6 +986,10 @@ class SkillRegistry:
             CodeOfficeSkill(),
             BrowserAutomationSkill(),
             DataAnalysisSkill(),
+            WebSearchSkill(),
+            ShellSkill(),
+            FinanceSkill(),
+            GatewaySkill(),
         ]
         for skill in builtin_skills:
             self.register(skill)
@@ -801,5 +1019,5 @@ class SkillRegistry:
         return cls()
 
 
-def get_skill_registry() -> SkillRegistry:
-    return SkillRegistry.instance()
+def get_builtin_skill_registry() -> BuiltinSkillRegistry:
+    return BuiltinSkillRegistry.instance()

@@ -34,7 +34,7 @@ from cogu.tools.base import ToolRegistry, ToolResult
 if TYPE_CHECKING:
     from cogu.core.two_level_planner import TwoLevelPlanner, PlanMode, WorkIntent, WorkPlan, DAGExecutor
     from cogu.core.api_config import MultiProviderClient, Provider
-    from cogu.core.skills_system import SkillRegistry
+    from cogu.core.skills_system import BuiltinSkillRegistry
     from cogu.memory.enhanced_memory import EnhancedSuperMemory, RecallResult
 
 
@@ -109,7 +109,7 @@ class ReActAgent:
         rail_registry: "RailRegistry" = None,
         memory: "EnhancedSuperMemory" = None,
         planner: "TwoLevelPlanner" = None,
-        skill_registry: "SkillRegistry" = None,
+        skill_registry: "BuiltinSkillRegistry" = None,
         multi_provider_client: "MultiProviderClient" = None,
     ):
         from cogu.config.settings import AgentConfig, Settings as S
@@ -138,7 +138,7 @@ class ReActAgent:
 
         self._memory: Optional[EnhancedSuperMemory] = memory
         self._planner: Optional[TwoLevelPlanner] = planner
-        self._skill_registry: Optional[SkillRegistry] = skill_registry
+        self._skill_registry: Optional[BuiltinSkillRegistry] = skill_registry
         self._multi_provider: Optional[MultiProviderClient] = multi_provider_client
 
         self._cached_memory_context: str = ""
