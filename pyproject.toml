@@ -45,6 +45,28 @@ tui = [
     "textual>=0.80",
     "textual-dev>=1.0",
 ]
+websocket = [
+    "websockets>=12.0",
+]
+matrix = [
+    "matrix-nio>=0.24",
+    "markdown-it-py>=3.0",
+]
+grpc = [
+    "grpcio>=1.60",
+    "grpcio-tools>=1.60",
+]
+comm = [
+    "websockets>=12.0",
+    "matrix-nio>=0.24",
+    "grpcio>=1.60",
+]
+s3 = [
+    "boto3>=1.34",
+]
+state = [
+    "boto3>=1.34",
+]
 
 [project.scripts]
 cogu = "cogu.cli.main:main"

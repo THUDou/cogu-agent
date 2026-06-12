@@ -4,7 +4,7 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, AsyncGenerator, AsyncIterator, Optional
+from typing import Any, AsyncGenerator, AsyncIterator, Optional, TYPE_CHECKING
 
 from cogu.api.client import DeepSeekClient, LLMResponse, StreamEvent, StreamEventType
 from cogu.config.settings import AgentConfig, Settings
@@ -27,9 +27,15 @@ from cogu.core.tool_guard import (
     ToolGuardEngine,
     ToolGuardResult,
 )
-from cogu.memory.compression_pipeline import CompressionPipeline
+from cogu.memory.compression_pipeline import CompressionPipeline, CompressionLevel
 from cogu.memory.context_offloader import ContextOffloader
 from cogu.tools.base import ToolRegistry, ToolResult
+
+if TYPE_CHECKING:
+    from cogu.core.two_level_planner import TwoLevelPlanner, PlanMode, WorkIntent, WorkPlan, DAGExecutor
+    from cogu.core.api_config import MultiProviderClient, Provider
+    from cogu.core.skills_system import SkillRegistry
+    from cogu.memory.enhanced_memory import EnhancedSuperMemory, RecallResult
 
 
 class TurnStatus(Enum):
@@ -101,6 +107,10 @@ class ReActAgent:
         tool_registry: "ToolRegistry" = None,
         session: "Session" = None,
         rail_registry: "RailRegistry" = None,
+        memory: "EnhancedSuperMemory" = None,
+        planner: "TwoLevelPlanner" = None,
+        skill_registry: "SkillRegistry" = None,
+        multi_provider_client: "MultiProviderClient" = None,
     ):
         from cogu.config.settings import AgentConfig, Settings as S
 
@@ -126,6 +136,15 @@ class ReActAgent:
         self._compression = CompressionPipeline()
         self._offloader: Optional[ContextOffloader] = None
 
+        self._memory: Optional[EnhancedSuperMemory] = memory
+        self._planner: Optional[TwoLevelPlanner] = planner
+        self._skill_registry: Optional[SkillRegistry] = skill_registry
+        self._multi_provider: Optional[MultiProviderClient] = multi_provider_client
+
+        self._cached_memory_context: str = ""
+        self._active_plan: Optional[WorkPlan] = None
+        self._dag_executor: Optional[DAGExecutor] = None
+
         workspace = ""
         if self._settings:
             workspace = self._settings.workspace
@@ -133,11 +152,20 @@ class ReActAgent:
             self._offloader = ContextOffloader(
                 offload_dir=str(Path(workspace) / ".cogu" / "offload"),
             )
+            if self._memory:
+                import os
+                mem_ws = os.path.join(workspace, ".cogu", "memory")
+                mem_file_root = os.path.join(workspace, ".cogu", "memory_files")
+                os.makedirs(mem_ws, exist_ok=True)
+                os.makedirs(mem_file_root, exist_ok=True)
 
         self._turn_counter = 0
         self._mode: AgentMode = AgentMode.DEFAULT
         self._mission_prd: Optional[str] = None
         self._mission_phase = "planning"
+
+        if self._skill_registry:
+            self._register_skills_as_tools()
 
     def _get_system_prompt(self) -> str:
         if self._agent_config.system_prompt:
@@ -147,7 +175,75 @@ class ReActAgent:
     def _get_client(self) -> DeepSeekClient:
         if self._client:
             return self._client
-        raise RuntimeError("No LLM client configured. Set client in constructor.")
+        if self._multi_provider:
+            return self._multi_provider
+        raise RuntimeError("No LLM client configured. Set client or multi_provider_client in constructor.")
+
+    def _register_skills_as_tools(self):
+        if not self._skill_registry:
+            return
+        for skill in self._skill_registry.list_all():
+            manifest = skill.manifest
+            self._tool_registry.register_function(
+                name=manifest.name,
+                description=manifest.description,
+                func=lambda _s=skill, **kwargs: asyncio.run(_s.execute(**kwargs)),
+                tags=[manifest.category.value] + manifest.tags,
+            )
+
+    async def _inject_memory_context(self, query: str) -> str:
+        if not self._memory:
+            return ""
+        try:
+            results = await self._memory.recall(
+                query=query,
+                strategy=self._memory.RecallStrategy.HYBRID if hasattr(self._memory, 'RecallStrategy') else "hybrid",
+                limit=5,
+            )
+            if not results:
+                return ""
+            parts = ["[Relevant Memory Context]"]
+            for r in results[:5]:
+                parts.append(f"- [{r.source}/{r.level.value if hasattr(r.level, 'value') else r.level}] (score={r.score:.2f}) {r.content[:300]}")
+            self._cached_memory_context = "\n".join(parts)
+            return self._cached_memory_context
+        except Exception:
+            return ""
+
+    async def _apply_context_compression(self):
+        if not self._session:
+            return
+        token_estimate = self._session.estimate_tokens()
+        if token_estimate > self._agent_config.context_max_tokens * 0.85:
+            content = json.dumps(self._session.conversation, ensure_ascii=False)
+            result = await self._compression.auto_compress(
+                content,
+                token_budget=self._agent_config.context_max_tokens,
+                context={"messages": self._session.conversation},
+            )
+            if result.compressed_tokens < token_estimate:
+                self._session.compress(result.content)
+
+    async def _remember_tool_result(self, tool_name: str, result_content: str):
+        if not self._memory:
+            return
+        try:
+            await self._memory.remember(
+                content=f"[{tool_name}]: {result_content[:500]}",
+                role="tool",
+                metadata={"tool": tool_name},
+            )
+        except Exception:
+            pass
+
+    def _build_enriched_system_prompt(self) -> str:
+        prompt = self._get_system_prompt()
+        if self._cached_memory_context:
+            prompt += "\n\n" + self._cached_memory_context
+        if self._active_plan:
+            plan_summary = self._active_plan.stats()
+            prompt += f"\n\n[Active Work Plan: {plan_summary['plan_id']}] {plan_summary['total_tasks']} tasks, mode={plan_summary['mode']}"
+        return prompt
 
     def _format_tools(self, mode: AgentMode = None) -> list[dict]:
         mode = mode or self._mode
@@ -421,8 +517,34 @@ class ReActAgent:
         self,
         user_message: str,
         mode: AgentMode = AgentMode.DEFAULT,
+        reasoning_mode: str = "react",
+        use_planner: bool = False,
+        use_memory_rag: bool = True,
     ) -> AsyncGenerator[TurnEvent, None]:
         started = time.time()
+
+        if use_memory_rag and self._memory:
+            memory_ctx = await self._inject_memory_context(user_message)
+            if memory_ctx:
+                yield TurnEvent(
+                    type="memory_rag",
+                    content=memory_ctx,
+                    metadata={"source": "enhanced_super_memory"},
+                )
+
+        if use_planner and self._planner:
+            from cogu.core.two_level_planner import WorkIntent
+            intent = WorkIntent(
+                intent_id=f"intent_{int(started)}",
+                description=user_message[:200],
+                goal=user_message,
+            )
+            self._active_plan = await self._planner.plan(intent)
+            yield TurnEvent(
+                type="plan_ready",
+                content=json.dumps(self._active_plan.stats(), ensure_ascii=False),
+                metadata={"plan_id": self._active_plan.plan_id},
+            )
 
         await self._run_pre_hooks({"message": user_message})
         if self._session:
@@ -435,11 +557,14 @@ class ReActAgent:
             async for event in self._query_mission(user_message, started):
                 yield event
         else:
-            async for event in self._query_default(user_message, started):
+            async for event in self._query_default(user_message, started, reasoning_mode):
                 yield event
 
+        self._cached_memory_context = ""
+        self._active_plan = None
+
     async def _query_default(
-        self, user_message: str, started: float
+        self, user_message: str, started: float, reasoning_mode: str = "react"
     ) -> AsyncGenerator[TurnEvent, None]:
         max_iters = self._agent_config.max_iterations
         final_content = ""
@@ -449,11 +574,35 @@ class ReActAgent:
 
         for iteration in range(1, max_iters + 1):
             self._turn_counter = iteration
+
+            if iteration > 1:
+                await self._apply_context_compression()
+                if self._memory:
+                    recent_context = ""
+                    if self._session:
+                        recent_context = " ".join(
+                            m.get("content", "")[-200:]
+                            for m in self._session.conversation[-3:]
+                            if isinstance(m, dict)
+                        )
+                    await self._inject_memory_context(recent_context or user_message)
+
             tools = self._format_tools()
             messages = self._session.conversation if self._session else [
-                {"role": "system", "content": self._get_system_prompt()},
+                {"role": "system", "content": self._build_enriched_system_prompt()},
                 {"role": "user", "content": user_message},
             ]
+
+            if self._session:
+                messages = list(self._session.conversation)
+                mem_ctx = self._cached_memory_context
+                if mem_ctx and iteration == 1:
+                    for m in messages:
+                        if m.get("role") == "system":
+                            m["content"] = m.get("content", "") + "\n\n" + mem_ctx
+                            break
+                    else:
+                        messages.insert(0, {"role": "system", "content": mem_ctx})
 
             yield TurnEvent(type="turn_start", iteration=iteration)
 
@@ -464,7 +613,7 @@ class ReActAgent:
 
             async for sse in self._get_client().chat_stream(
                 messages=messages,
-                system=self._get_system_prompt() if not self._session else "",
+                system=self._build_enriched_system_prompt() if not self._session else "",
                 tools=tools or None,
                 temperature=self._agent_config.temperature,
                 top_p=self._agent_config.top_p,
@@ -608,6 +757,7 @@ class ReActAgent:
                 content = ""
 
             await self._maybe_offload(content, evt.tool_name)
+            await self._remember_tool_result(evt.tool_name, content)
 
             yield TurnEvent(
                 type="tool_result",

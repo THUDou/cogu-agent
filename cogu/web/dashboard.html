@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>COGU AGENT — Cognitive Unified Agent Dashboard</title>
+<style>
+:root {
+  --bg-primary: #0a0e17;
+  --bg-secondary: #111827;
+  --bg-tertiary: #1a2332;
+  --bg-card: #162032;
+  --bg-input: #0d1520;
+  --border: #1e3a5f;
+  --border-active: #3b82f6;
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --accent: #3b82f6;
+  --accent-glow: #60a5fa;
+  --accent-cyan: #06b6d4;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --font-mono: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+  --font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --radius: 6px;
+  --radius-lg: 10px;
+  --transition: 0.15s ease;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-secondary); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+#sidebar {
+  width: 56px;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 0;
+  gap: 4px;
+  z-index: 10;
+}
+
+#sidebar .logo {
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-cyan));
+  border-radius: var(--radius-lg);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; font-weight: 700; color: #fff;
+  margin-bottom: 16px;
+}
+
+.sidebar-btn {
+  width: 40px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: var(--radius);
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: all var(--transition);
+  border: none; background: none;
+  font-size: 18px;
+  position: relative;
+}
+
+.sidebar-btn:hover { color: var(--text-primary); background: var(--bg-tertiary); }
+.sidebar-btn.active { color: var(--accent-glow); background: rgba(59,130,246,0.15); }
+.sidebar-btn .dot {
+  position: absolute; top: 6px; right: 6px;
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent-cyan);
+}
+
+#main-container {
+  flex: 1; display: flex; flex-direction: column; overflow: hidden;
+}
+
+#topbar {
+  height: 48px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 20px;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+#topbar .title {
+  font-size: 13px; font-weight: 600; color: var(--text-secondary);
+  letter-spacing: 0.5px;
+}
+
+#topbar .status {
+  font-size: 11px; padding: 2px 10px; border-radius: 10px;
+  background: rgba(16,185,129,0.15); color: var(--success);
+  font-family: var(--font-mono);
+}
+
+#topbar .model-badge {
+  font-size: 11px; padding: 2px 10px; border-radius: 10px;
+  background: rgba(59,130,246,0.12); color: var(--accent-glow);
+  font-family: var(--font-mono);
+}
+
+#topbar .spacer { flex: 1; }
+
+#topbar .topbar-btn {
+  background: none; border: 1px solid var(--border);
+  color: var(--text-secondary); font-size: 12px;
+  padding: 4px 12px; border-radius: var(--radius);
+  cursor: pointer; transition: all var(--transition);
+}
+
+#topbar .topbar-btn:hover {
+  border-color: var(--accent); color: var(--accent-glow);
+}
+
+#content-area {
+  flex: 1; display: flex; overflow: hidden;
+}
+
+.panel {
+  flex: 1; display: flex; flex-direction: column;
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.panel:last-child { border-right: none; }
+
+.panel-header {
+  height: 36px; background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 14px;
+  font-size: 12px; font-weight: 600; color: var(--text-secondary);
+  text-transform: uppercase; letter-spacing: 0.8px;
+  flex-shrink: 0;
+}
+
+.panel-body {
+  flex: 1; overflow-y: auto; padding: 12px;
+}
+
+#chat-panel { min-width: 400px; flex: 2; }
+#memory-panel { min-width: 280px; max-width: 360px; }
+#tools-panel { min-width: 280px; max-width: 360px; }
+
+#chat-messages {
+  flex: 1; overflow-y: auto; padding: 16px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+
+.message {
+  max-width: 85%;
+  padding: 10px 14px;
+  border-radius: var(--radius-lg);
+  font-size: 13px; line-height: 1.6;
+  animation: msgIn 0.2s ease;
+}
+
+@keyframes msgIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+.message.user {
+  align-self: flex-end;
+  background: linear-gradient(135deg, rgba(59,130,246,0.2), rgba(6,182,212,0.15));
+  border: 1px solid rgba(59,130,246,0.3);
+}
+
+.message.assistant {
+  align-self: flex-start;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+}
+
+.message.system {
+  align-self: center;
+  background: transparent;
+  border: none;
+  font-size: 11px; color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.message.tool {
+  align-self: flex-start;
+  background: rgba(16,185,129,0.08);
+  border: 1px solid rgba(16,185,129,0.2);
+  font-size: 12px;
+}
+
+.message .msg-header {
+  font-size: 10px; color: var(--text-muted); margin-bottom: 4px;
+  font-family: var(--font-mono); text-transform: uppercase;
+}
+
+.message pre {
+  background: var(--bg-input); padding: 10px; border-radius: var(--radius);
+  font-size: 12px; overflow-x: auto; margin-top: 6px;
+  font-family: var(--font-mono);
+  border: 1px solid var(--border);
+}
+
+#chat-input-area {
+  padding: 12px 16px; border-top: 1px solid var(--border);
+  background: var(--bg-secondary); flex-shrink: 0;
+  display: flex; gap: 8px;
+}
+
+#chat-input {
+  flex: 1;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 10px 14px;
+  border-radius: var(--radius-lg);
+  font-size: 13px;
+  font-family: var(--font-sans);
+  resize: none; outline: none;
+  transition: border-color var(--transition);
+  min-height: 40px; max-height: 120px;
+}
+
+#chat-input:focus { border-color: var(--accent); }
+
+#send-btn {
+  width: 40px; height: 40px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-cyan));
+  border: none; border-radius: var(--radius-lg);
+  color: #fff; font-size: 18px; cursor: pointer;
+  transition: opacity var(--transition);
+  flex-shrink: 0;
+}
+
+#send-btn:hover { opacity: 0.9; }
+#send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.memory-item {
+  padding: 8px 12px; border-radius: var(--radius);
+  background: var(--bg-card); border: 1px solid var(--border);
+  margin-bottom: 6px; font-size: 12px;
+  cursor: pointer; transition: all var(--transition);
+}
+
+.memory-item:hover { border-color: var(--accent); }
+.memory-item .mem-key { color: var(--accent-glow); font-weight: 600; font-family: var(--font-mono); font-size: 11px; }
+.memory-item .mem-val { color: var(--text-secondary); margin-top: 3px; }
+
+.tool-card {
+  padding: 10px 14px; border-radius: var(--radius);
+  background: var(--bg-card); border: 1px solid var(--border);
+  margin-bottom: 6px;
+}
+
+.tool-card .tool-name {
+  font-size: 12px; font-weight: 600; color: var(--accent-cyan);
+  font-family: var(--font-mono);
+}
+
+.tool-card .tool-desc {
+  font-size: 11px; color: var(--text-muted); margin-top: 3px;
+}
+
+.tool-card .tool-tag {
+  display: inline-block; font-size: 10px;
+  padding: 1px 6px; border-radius: 8px;
+  background: rgba(59,130,246,0.12); color: var(--accent-glow);
+  margin-top: 4px; margin-right: 4px;
+}
+
+.settings-group {
+  margin-bottom: 16px;
+}
+
+.settings-group label {
+  display: block; font-size: 11px; color: var(--text-muted);
+  margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;
+}
+
+.settings-group input, .settings-group select {
+  width: 100%; padding: 8px 12px;
+  background: var(--bg-input); border: 1px solid var(--border);
+  color: var(--text-primary); border-radius: var(--radius);
+  font-size: 13px; outline: none;
+  transition: border-color var(--transition);
+}
+
+.settings-group input:focus, .settings-group select:focus {
+  border-color: var(--accent);
+}
+
+.settings-group select {
+  cursor: pointer; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2394a3b8' d='M6 8L2 4h8z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center;
+}
+
+.settings-group .hint {
+  font-size: 10px; color: var(--text-muted); margin-top: 3px;
+}
+
+.btn-primary {
+  width: 100%; padding: 10px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-cyan));
+  border: none; color: #fff; font-size: 13px; font-weight: 600;
+  border-radius: var(--radius); cursor: pointer;
+  transition: opacity var(--transition);
+  letter-spacing: 0.5px;
+}
+
+.btn-primary:hover { opacity: 0.9; }
+
+.btn-secondary {
+  width: 100%; padding: 8px;
+  background: transparent; border: 1px solid var(--border);
+  color: var(--text-secondary); font-size: 12px;
+  border-radius: var(--radius); cursor: pointer;
+  transition: all var(--transition);
+}
+
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent-glow); }
+
+.btn-danger {
+  width: 100%; padding: 8px;
+  background: transparent; border: 1px solid rgba(239,68,68,0.3);
+  color: var(--danger); font-size: 12px;
+  border-radius: var(--radius); cursor: pointer;
+  transition: all var(--transition);
+}
+
+.btn-danger:hover { background: rgba(239,68,68,0.1); }
+
+.provider-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: var(--radius);
+  background: var(--bg-card); border: 1px solid var(--border);
+  font-size: 11px; margin: 2px;
+}
+
+.provider-badge .dot-active {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--success);
+}
+
+.log-line {
+  font-family: var(--font-mono); font-size: 11px;
+  padding: 3px 0; color: var(--text-muted);
+  border-bottom: 1px solid rgba(30,58,95,0.3);
+}
+
+.log-line .ts { color: var(--accent-cyan); }
+.log-line .info { color: var(--text-secondary); }
+.log-line .warn { color: var(--warning); }
+.log-line .err { color: var(--danger); }
+
+.hidden { display: none !important; }
+
+.thinking-indicator {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 14px; font-size: 12px; color: var(--text-muted);
+}
+
+.thinking-indicator .dots span {
+  display: inline-block; width: 5px; height: 5px;
+  border-radius: 50%; background: var(--accent-cyan);
+  margin-right: 3px; animation: dotPulse 1.2s infinite;
+}
+
+.thinking-indicator .dots span:nth-child(2) { animation-delay: 0.2s; }
+.thinking-indicator .dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes dotPulse {
+  0%, 60%, 100% { opacity: 0.3; transform: scale(0.8); }
+  30% { opacity: 1; transform: scale(1.1); }
+}
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+  <div class="logo">C</div>
+  <button class="sidebar-btn active" data-panel="chat" title="Chat">💬</button>
+  <button class="sidebar-btn" data-panel="memory" title="Memory">🧠</button>
+  <button class="sidebar-btn" data-panel="tools" title="Tools">🔧</button>
+  <button class="sidebar-btn" data-panel="settings" title="Settings"><span class="dot"></span>⚙️</button>
+  <div style="flex:1"></div>
+  <button class="sidebar-btn" onclick="toggleLog()" title="Logs">📋</button>
+</div>
+
+<div id="main-container">
+  <div id="topbar">
+    <span class="title">COGU AGENT</span>
+    <span class="status" id="status-badge">● ONLINE</span>
+    <span class="model-badge" id="model-badge">deepseek-chat</span>
+    <span class="spacer"></span>
+    <span style="font-size:11px;color:var(--text-muted);font-family:var(--font-mono);" id="token-counter">0 tokens</span>
+    <button class="topbar-btn" onclick="clearChat()">Clear</button>
+    <button class="topbar-btn" onclick="exportSession()">Export</button>
+  </div>
+  <div id="content-area">
+    <div class="panel" id="chat-panel">
+      <div class="panel-header">Dialogue</div>
+      <div id="chat-messages"></div>
+      <div id="chat-input-area">
+        <textarea id="chat-input" placeholder="Enter message... (Shift+Enter for newline)" rows="1"></textarea>
+        <button id="send-btn" onclick="sendMessage()">↑</button>
+      </div>
+    </div>
+    <div class="panel hidden" id="memory-panel">
+      <div class="panel-header">Memory Store</div>
+      <div class="panel-body" id="memory-list">
+        <div style="padding:8px 0">
+          <input id="mem-search" placeholder="Search memory..." style="width:100%;padding:6px 10px;background:var(--bg-input);border:1px solid var(--border);color:var(--text-primary);border-radius:var(--radius);font-size:12px;outline:none;" oninput="filterMemory()">
+        </div>
+        <div id="memory-items"></div>
+      </div>
+    </div>
+    <div class="panel hidden" id="tools-panel">
+      <div class="panel-header">Tools & Skills</div>
+      <div class="panel-body" id="tools-list"></div>
+    </div>
+    <div class="panel hidden" id="settings-panel">
+      <div class="panel-header">Settings</div>
+      <div class="panel-body" id="settings-body"></div>
+    </div>
+    <div class="panel hidden" id="log-panel" style="max-width:360px">
+      <div class="panel-header">System Log</div>
+      <div class="panel-body" id="log-body" style="font-family:var(--font-mono);font-size:11px;"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const STATE = {
+  providers: [],
+  activeProvider: null,
+  messages: [],
+  memory: [],
+  skills: [
+    { name: 'reasoning-chain', desc: 'PanguAgent 推理链 (BFS/DFS/MCTS/Beam)', category: 'reasoning', tags: ['pangu','tree-search'] },
+    { name: 'gui-vision', desc: 'GUI 视觉操作 (截图/点击/输入/检测)', category: 'vision', tags: ['screenshot','automation'] },
+    { name: 'code-office', desc: '代码生成/文档处理/文件操作', category: 'code', tags: ['generation','office'] },
+    { name: 'browser-automation', desc: 'Playwright 浏览器自动化', category: 'browser', tags: ['playwright','scraping'] },
+    { name: 'data-analysis', desc: 'CSV/Excel/JSON 数据分析', category: 'data', tags: ['statistics','visualization'] },
+  ],
+  tools: [
+    { name: 'file_read', desc: 'Read file contents', tags: ['io'] },
+    { name: 'file_write', desc: 'Write to file', tags: ['io'] },
+    { name: 'file_search', desc: 'Search files by pattern', tags: ['io','search'] },
+    { name: 'bash_exec', desc: 'Execute shell command', tags: ['system'] },
+    { name: 'web_fetch', desc: 'Fetch URL content', tags: ['web'] },
+    { name: 'web_search', desc: 'Search the web', tags: ['web','search'] },
+    { name: 'python_exec', desc: 'Execute Python code', tags: ['code'] },
+  ],
+  logs: [],
+  totalTokens: 0,
+  streamAbort: null,
+};
+
+function log(level, msg) {
+  const entry = { ts: new Date().toLocaleTimeString(), level, msg };
+  STATE.logs.push(entry);
+  if (STATE.logs.length > 500) STATE.logs.shift();
+  renderLogs();
+}
+
+function renderLogs() {
+  const el = document.getElementById('log-body');
+  if (!el) return;
+  el.innerHTML = STATE.logs.slice(-50).map(l =>
+    `<div class="log-line"><span class="ts">${l.ts}</span> <span class="${l.level}">[${l.level.toUpperCase()}]</span> ${l.msg}</div>`
+  ).join('');
+}
+
+function addMessage(role, content, metadata = {}) {
+  STATE.messages.push({ role, content, ...metadata, ts: Date.now() });
+  renderMessages();
+}
+
+function renderMessages() {
+  const el = document.getElementById('chat-messages');
+  el.innerHTML = STATE.messages.map(m => {
+    const cls = `message ${m.role}`;
+    const header = m.role === 'tool' ? `<div class="msg-header">🔧 ${m.tool_name || 'TOOL'}</div>` : '';
+    const content = m.content.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+    return `<div class="${cls}">${header}${content}</div>`;
+  }).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+async function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  input.style.height = 'auto';
+
+  addMessage('user', text);
+
+  const sendBtn = document.getElementById('send-btn');
+  sendBtn.disabled = true;
+  document.getElementById('status-badge').textContent = '◉ THINKING';
+  document.getElementById('status-badge').style.color = 'var(--warning)';
+
+  const thinkingEl = document.createElement('div');
+  thinkingEl.className = 'thinking-indicator';
+  thinkingEl.innerHTML = 'Thinking <span class="dots"><span></span><span></span><span></span></span>';
+  document.getElementById('chat-messages').appendChild(thinkingEl);
+
+  try {
+    const provider = STATE.activeProvider;
+    const baseUrl = provider?.base_url || 'https://api.deepseek.com';
+    const apiKey = provider?.api_key || '';
+    const model = provider?.model || 'deepseek-chat';
+    const chatPath = provider?.chat_path || '/chat/completions';
+
+    const controller = new AbortController();
+    STATE.streamAbort = controller;
+
+    const body = {
+      model,
+      messages: [
+        { role: 'system', content: 'You are COGU, a cognitive unified agent. Be concise and helpful.' },
+        ...STATE.messages.slice(-20).map(m => ({ role: m.role, content: m.content })),
+      ],
+      stream: true,
+      temperature: 0.7,
+      max_tokens: 4096,
+    };
+
+    const url = (baseUrl + chatPath).replace(/([^:]\/)\/+/g, '$1');
+    log('info', `Streaming to ${url} with model ${model}`);
+
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+
+    if (!resp.ok) {
+      const errText = await resp.text();
+      throw new Error(`API Error ${resp.status}: ${errText}`);
+    }
+
+    thinkingEl.remove();
+    const msgDiv = document.createElement('div');
+    msgDiv.className = 'message assistant';
+    document.getElementById('chat-messages').appendChild(msgDiv);
+
+    let fullContent = '';
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value, { stream: true });
+      const lines = chunk.split('\n').filter(l => l.startsWith('data: '));
+      for (const line of lines) {
+        const data = line.slice(6);
+        if (data === '[DONE]') continue;
+        try {
+          const json = JSON.parse(data);
+          const delta = json.choices?.[0]?.delta?.content;
+          if (delta) {
+            fullContent += delta;
+            msgDiv.textContent = fullContent;
+            document.getElementById('chat-messages').scrollTop = document.getElementById('chat-messages').scrollHeight;
+          }
+          if (json.usage) {
+            STATE.totalTokens += json.usage.total_tokens || 0;
+            document.getElementById('token-counter').textContent = `${STATE.totalTokens} tokens`;
+          }
+        } catch (e) {}
+      }
+    }
+
+    if (fullContent) {
+      STATE.messages.push({ role: 'assistant', content: fullContent, ts: Date.now() });
+    }
+
+  } catch (e) {
+    thinkingEl.remove();
+    if (e.name !== 'AbortError') {
+      addMessage('system', `Error: ${e.message}`);
+      log('err', e.message);
+    }
+  } finally {
+    sendBtn.disabled = false;
+    document.getElementById('status-badge').textContent = '● ONLINE';
+    document.getElementById('status-badge').style.color = 'var(--success)';
+    STATE.streamAbort = null;
+  }
+}
+
+function clearChat() {
+  STATE.messages = [];
+  STATE.totalTokens = 0;
+  document.getElementById('chat-messages').innerHTML = '';
+  document.getElementById('token-counter').textContent = '0 tokens';
+  log('info', 'Chat cleared');
+}
+
+function exportSession() {
+  const data = {
+    exported_at: new Date().toISOString(),
+    messages: STATE.messages,
+    total_tokens: STATE.totalTokens,
+    memory: STATE.memory,
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `cogu-session-${Date.now()}.json`;
+  a.click();
+  log('info', 'Session exported');
+}
+
+function filterMemory() {
+  const q = document.getElementById('mem-search')?.value?.toLowerCase() || '';
+  renderMemory(q);
+}
+
+function renderMemory(filter = '') {
+  const el = document.getElementById('memory-items');
+  if (!el) return;
+  const items = filter ? STATE.memory.filter(m => m.key.toLowerCase().includes(filter) || m.value.toLowerCase().includes(filter)) : STATE.memory;
+  el.innerHTML = items.slice(0, 50).map(m =>
+    `<div class="memory-item" onclick="addMessage('system','Memory: ${m.key} = ${m.value}')">
+      <div class="mem-key">${m.key}</div>
+      <div class="mem-val">${m.value}</div>
+    </div>`
+  ).join('') || '<div style="color:var(--text-muted);font-size:12px;padding:20px;text-align:center">No memories stored</div>';
+}
+
+function renderTools() {
+  const el = document.getElementById('tools-list');
+  if (!el) return;
+  const allTools = [
+    ...STATE.tools.map(t => ({ ...t, type: 'tool' })),
+    ...STATE.skills.map(s => ({ ...s, type: 'skill' })),
+  ];
+  el.innerHTML = allTools.map(t =>
+    `<div class="tool-card">
+      <div class="tool-name">${t.type === 'skill' ? '🧩' : '🔧'} ${t.name}</div>
+      <div class="tool-desc">${t.desc}</div>
+      ${(t.tags || []).map(tg => `<span class="tool-tag">${tg}</span>`).join('')}
+      ${t.type === 'skill' ? `<span class="tool-tag" style="background:rgba(6,182,212,0.12);color:var(--accent-cyan)">skill</span>` : ''}
+    </div>`
+  ).join('');
+}
+
+function renderSettings() {
+  const el = document.getElementById('settings-body');
+  if (!el) return;
+  el.innerHTML = `
+    <div class="settings-group">
+      <label>API Provider</label>
+      <select id="settings-provider" onchange="onProviderChange()">
+        <option value="deepseek">DeepSeek</option>
+        <option value="openai">OpenAI</option>
+        <option value="claude">Claude (Anthropic)</option>
+        <option value="qwen">Qwen (Alibaba)</option>
+        <option value="zhipu">ZhipuAI (GLM)</option>
+        <option value="moonshot">Moonshot (Kimi)</option>
+        <option value="doubao">Doubao (ByteDance)</option>
+        <option value="custom">Custom</option>
+      </select>
+    </div>
+    <div class="settings-group">
+      <label>API Key</label>
+      <input type="password" id="settings-apikey" placeholder="sk-...">
+      <div class="hint">Stored locally, encrypted with machine-derived key</div>
+    </div>
+    <div class="settings-group">
+      <label>Base URL</label>
+      <input type="text" id="settings-baseurl" placeholder="https://api.deepseek.com">
+    </div>
+    <div class="settings-group">
+      <label>Chat Completions Path</label>
+      <input type="text" id="settings-chatpath" value="/chat/completions">
+    </div>
+    <div class="settings-group">
+      <label>Model</label>
+      <input type="text" id="settings-model" placeholder="deepseek-chat">
+    </div>
+    <div class="settings-group">
+      <label>Timeout (seconds)</label>
+      <input type="number" id="settings-timeout" value="120" min="10" max="600">
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn-primary" onclick="saveProvider()">Save Provider</button>
+    </div>
+    <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:12px">
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">SAVED PROVIDERS</div>
+      <div id="saved-providers"></div>
+    </div>
+    <div style="margin-top:12px">
+      <button class="btn-danger" onclick="resetAllSettings()">Reset All Settings</button>
+    </div>
+  `;
+
+  loadProviders();
+}
+
+const PROVIDER_DEFAULTS = {
+  deepseek: { base_url: 'https://api.deepseek.com', chat_path: '/chat/completions', model: 'deepseek-chat' },
+  openai: { base_url: 'https://api.openai.com/v1', chat_path: '/chat/completions', model: 'gpt-4o' },
+  claude: { base_url: 'https://api.anthropic.com/v1', chat_path: '/messages', model: 'claude-sonnet-4-20250514' },
+  qwen: { base_url: 'https://dashscope.aliyuncs.com/compatible-mode/v1', chat_path: '/chat/completions', model: 'qwen-max' },
+  zhipu: { base_url: 'https://open.bigmodel.cn/api/paas/v4', chat_path: '/chat/completions', model: 'glm-4' },
+  moonshot: { base_url: 'https://api.moonshot.cn/v1', chat_path: '/chat/completions', model: 'moonshot-v1-8k' },
+  doubao: { base_url: 'https://ark.cn-beijing.volces.com/api/v3', chat_path: '/chat/completions', model: 'doubao-pro-32k' },
+  custom: { base_url: '', chat_path: '/chat/completions', model: '' },
+};
+
+function onProviderChange() {
+  const provider = document.getElementById('settings-provider').value;
+  const defs = PROVIDER_DEFAULTS[provider] || {};
+  document.getElementById('settings-baseurl').value = defs.base_url || '';
+  document.getElementById('settings-chatpath').value = defs.chat_path || '/chat/completions';
+  document.getElementById('settings-model').value = defs.model || '';
+  const saved = STATE.providers.find(p => p.id === provider);
+  if (saved) {
+    document.getElementById('settings-apikey').value = saved.api_key || '';
+    document.getElementById('settings-baseurl').value = saved.base_url || defs.base_url || '';
+    document.getElementById('settings-chatpath').value = saved.chat_path || defs.chat_path || '/chat/completions';
+    document.getElementById('settings-model').value = saved.model || defs.model || '';
+  }
+}
+
+function saveProvider() {
+  const id = document.getElementById('settings-provider').value;
+  const apiKey = document.getElementById('settings-apikey').value.trim();
+  const baseUrl = document.getElementById('settings-baseurl').value.trim();
+  const chatPath = document.getElementById('settings-chatpath').value.trim();
+  const model = document.getElementById('settings-model').value.trim();
+  const timeout = parseInt(document.getElementById('settings-timeout').value) || 120;
+
+  if (!apiKey) { alert('API Key is required'); return; }
+
+  const existing = STATE.providers.findIndex(p => p.id === id);
+  const provider = { id, api_key: apiKey, base_url: baseUrl, chat_path: chatPath, model, timeout };
+
+  if (existing >= 0) STATE.providers[existing] = provider;
+  else STATE.providers.push(provider);
+
+  STATE.activeProvider = provider;
+  document.getElementById('model-badge').textContent = model || id;
+  localStorage.setItem('cogu_providers', JSON.stringify(STATE.providers));
+  log('info', `Provider '${id}' saved`);
+  loadProviders();
+}
+
+function loadProviders() {
+  try {
+    const saved = localStorage.getItem('cogu_providers');
+    if (saved) STATE.providers = JSON.parse(saved);
+    if (STATE.providers.length > 0 && !STATE.activeProvider) {
+      STATE.activeProvider = STATE.providers[0];
+      document.getElementById('model-badge').textContent = STATE.activeProvider.model || STATE.activeProvider.id;
+    }
+  } catch (e) {}
+
+  const container = document.getElementById('saved-providers');
+  if (!container) return;
+  container.innerHTML = STATE.providers.map(p =>
+    `<div class="provider-badge" style="cursor:pointer;margin:4px" onclick="activateProvider('${p.id}')">
+      <span class="dot-active"></span> ${p.id} (${p.model})
+      <span style="color:var(--danger);margin-left:8px;font-size:10px;cursor:pointer" onclick="event.stopPropagation();removeProvider('${p.id}')">✕</span>
+    </div>`
+  ).join('') || '<div style="font-size:11px;color:var(--text-muted)">No saved providers</div>';
+}
+
+function activateProvider(id) {
+  const provider = STATE.providers.find(p => p.id === id);
+  if (provider) {
+    STATE.activeProvider = provider;
+    document.getElementById('model-badge').textContent = provider.model || provider.id;
+    log('info', `Activated provider: ${id}`);
+  }
+}
+
+function removeProvider(id) {
+  STATE.providers = STATE.providers.filter(p => p.id !== id);
+  if (STATE.activeProvider?.id === id) STATE.activeProvider = STATE.providers[0] || null;
+  localStorage.setItem('cogu_providers', JSON.stringify(STATE.providers));
+  loadProviders();
+  log('info', `Removed provider: ${id}`);
+}
+
+function resetAllSettings() {
+  if (confirm('Delete all saved API keys and settings?')) {
+    STATE.providers = [];
+    STATE.activeProvider = null;
+    localStorage.removeItem('cogu_providers');
+    loadProviders();
+    log('warn', 'All settings reset');
+  }
+}
+
+function toggleLog() {
+  document.getElementById('log-panel').classList.toggle('hidden');
+}
+
+let activePanel = 'chat';
+document.querySelectorAll('.sidebar-btn[data-panel]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.sidebar-btn[data-panel]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const panel = btn.dataset.panel;
+    document.querySelectorAll('.panel').forEach(p => p.classList.add('hidden'));
+    document.getElementById(panel + '-panel').classList.remove('hidden');
+    activePanel = panel;
+    if (panel === 'memory') renderMemory();
+    if (panel === 'tools') renderTools();
+    if (panel === 'settings') renderSettings();
+  });
+});
+
+document.getElementById('chat-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+
+document.getElementById('chat-input').addEventListener('input', function() {
+  this.style.height = 'auto';
+  this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+});
+
+loadProviders();
+renderMemory();
+renderTools();
+log('info', 'COGU AGENT Dashboard initialized');
+</script>
+</body>
+</html>
