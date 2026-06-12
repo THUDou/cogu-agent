@@ -1,19 +1,20 @@
-from cogu.tools.builtin.file import (
-    create_read_tool,
-    create_write_tool,
-    create_edit_tool,
-    create_shell_tool,
-    create_glob_tool,
-    create_grep_tool,
-    register_builtin_tools,
-)
+from cogu.tools.builtin.file import register_file_tools
+from cogu.tools.builtin.shell import register_shell_tools
+from cogu.tools.builtin.web import register_web_tools
+from cogu.tools.builtin.office import register_office_tools
+from cogu.tools.builtin.browser import register_browser_tools
+from cogu.tools.builtin.weather import register_weather_tools
+from cogu.tools.builtin.stock import register_stock_tools
+from cogu.tools.builtin.system import register_system_tools
+from cogu.tools.base import ToolRegistry
 
-__all__ = [
-    "create_read_tool",
-    "create_write_tool",
-    "create_edit_tool",
-    "create_shell_tool",
-    "create_glob_tool",
-    "create_grep_tool",
-    "register_builtin_tools",
-]
+
+def register_builtin_tools(registry: ToolRegistry):
+    register_file_tools(registry)
+    register_shell_tools(registry)
+    register_web_tools(registry)
+    register_office_tools(registry)
+    register_browser_tools(registry)
+    register_weather_tools(registry)
+    register_stock_tools(registry)
+    register_system_tools(registry)

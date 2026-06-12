@@ -15,7 +15,7 @@ from cogu.debate import DebateOrchestrator, DebateConfig, DebateMode
 from cogu.skills import SkillRegistry, SkillExecutor
 from cogu.api.client import DeepSeekClient, MultiProviderClient
 from cogu.tools.base import ToolRegistry
-from cogu.tools.builtin.file import register_builtin_tools
+from cogu.tools.builtin import register_builtin_tools
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -241,8 +241,20 @@ class CLI:
         return 0
 
     async def cmd_serve(self) -> int:
-        print(f"Starting COGU API server on {self.args.host}:{self.args.port}")
-        print("(API server not yet implemented)")
+        from cogu.gateway import get_gateway
+        from cogu.tools.builtin import register_builtin_tools
+
+        await Runner.start(self.settings)
+        register_builtin_tools(Runner.tool_registry())
+
+        gateway = get_gateway(self.args.host, self.args.port)
+        try:
+            await gateway.start()
+        except KeyboardInterrupt:
+            print("\nShutting down...")
+        finally:
+            await Runner.stop()
+
         return 0
 
     async def cmd_tui(self) -> int:

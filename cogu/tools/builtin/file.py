@@ -1,178 +1,107 @@
-import asyncio
-import subprocess
-import shlex
+import os
+import shutil
 from pathlib import Path
-from cogu.tools.base import FunctionTool, ToolResult, ToolSpec, ToolCapability
+
+from cogu.tools.base import FunctionTool, ToolRegistry, ToolCapability
 
 
-def create_read_tool(workspace: str = ".") -> FunctionTool:
-    async def read_file(file_path: str, offset: int = 0, limit: int = 2000) -> str:
-        p = Path(workspace) / file_path if not Path(file_path).is_absolute() else Path(file_path)
-        if not p.exists():
-            return f"Error: File not found: {file_path}"
-        with open(p, "r", encoding="utf-8", errors="replace") as f:
-            lines = f.readlines()
-        end = min(offset + limit, len(lines))
-        result = "".join(lines[offset:end])
-        if len(lines) > 200:
-            result = f"[Lines {offset+1}-{end} of {len(lines)}]\n{result}"
-        return result
-
-    return FunctionTool(
-        func=read_file,
-        name="read_file",
-        description="Read a file from the filesystem. Supports offset and limit for large files.",
-        schema={
-            "type": "object",
-            "properties": {
-                "file_path": {"type": "string", "description": "Path to the file to read"},
-                "offset": {"type": "integer", "description": "Line offset to start reading from", "default": 0},
-                "limit": {"type": "integer", "description": "Maximum lines to read", "default": 2000},
-            },
-            "required": ["file_path"],
-        },
-    )
+def _read_file(path: str, encoding: str = "utf-8", max_lines: int = 2000) -> str:
+    p = Path(path)
+    if not p.exists():
+        return f"Error: file not found: {path}"
+    if not p.is_file():
+        return f"Error: not a file: {path}"
+    try:
+        content = p.read_text(encoding=encoding)
+    except UnicodeDecodeError:
+        content = p.read_bytes().hex()[:4000]
+        return f"[binary file, hex dump first 4000 chars]\n{content}"
+    lines = content.split("\n")
+    if len(lines) > max_lines:
+        lines = lines[:max_lines]
+        content = "\n".join(lines)
+        content += f"\n\n[truncated: {max_lines} of {len(lines)} lines, use offset/limit to read more]"
+    return content
 
 
-def create_write_tool(workspace: str = ".") -> FunctionTool:
-    async def write_file(file_path: str, content: str) -> str:
-        p = Path(workspace) / file_path if not Path(file_path).is_absolute() else Path(file_path)
-        p.parent.mkdir(parents=True, exist_ok=True)
-        with open(p, "w", encoding="utf-8") as f:
-            f.write(content)
-        return f"File written: {file_path} ({len(content)} bytes)"
-
-    return FunctionTool(
-        func=write_file,
-        name="write_file",
-        description="Write content to a file. Creates parent directories if needed.",
-        schema={
-            "type": "object",
-            "properties": {
-                "file_path": {"type": "string", "description": "Path to the file to write"},
-                "content": {"type": "string", "description": "Content to write to the file"},
-            },
-            "required": ["file_path", "content"],
-        },
-    ).with_capability(ToolCapability.WRITES_FILES)
+def _write_file(path: str, content: str, encoding: str = "utf-8", append: bool = False) -> str:
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    mode = "a" if append else "w"
+    p.write_text(content, encoding=encoding)
+    return f"Written {len(content)} bytes to {path}"
 
 
-def create_edit_tool(workspace: str = ".") -> FunctionTool:
-    async def edit_file(file_path: str, old_string: str, new_string: str) -> str:
-        p = Path(workspace) / file_path if not Path(file_path).is_absolute() else Path(file_path)
-        if not p.exists():
-            return f"Error: File not found: {file_path}"
-        content = p.read_text(encoding="utf-8")
-        if old_string not in content:
-            return f"Error: old_string not found in {file_path}"
-        new_content = content.replace(old_string, new_string, 1)
-        p.write_text(new_content, encoding="utf-8")
-        return f"File edited: {file_path}"
-
-    return FunctionTool(
-        func=edit_file,
-        name="edit_file",
-        description="Edit a file by replacing old_string with new_string. The old_string must match exactly.",
-        schema={
-            "type": "object",
-            "properties": {
-                "file_path": {"type": "string", "description": "Path to the file to edit"},
-                "old_string": {"type": "string", "description": "Exact text to replace"},
-                "new_string": {"type": "string", "description": "Replacement text"},
-            },
-            "required": ["file_path", "old_string", "new_string"],
-        },
-    ).with_capability(ToolCapability.WRITES_FILES)
+def _list_files(path: str = ".", pattern: str = "*", recursive: bool = False) -> str:
+    p = Path(path)
+    if not p.exists():
+        return f"Error: path not found: {path}"
+    if recursive:
+        matches = list(p.rglob(pattern))
+    else:
+        matches = list(p.glob(pattern))
+    lines = [str(m) for m in sorted(matches)[:500]]
+    if len(matches) > 500:
+        lines.append(f"... and {len(matches) - 500} more")
+    return "\n".join(lines)
 
 
-def create_shell_tool(timeout: int = 120) -> FunctionTool:
-    async def shell(command: str, cwd: str = ".") -> str:
-        try:
-            proc = await asyncio.create_subprocess_shell(
-                command,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=cwd,
-            )
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
-            result = stdout.decode("utf-8", errors="replace")
-            if stderr:
-                result += "\n[stderr]\n" + stderr.decode("utf-8", errors="replace")
-            return result or "(no output)"
-        except asyncio.TimeoutError:
-            return f"Error: Command timed out after {timeout}s"
-        except Exception as e:
-            return f"Error: {e}"
-
-    return FunctionTool(
-        func=shell,
-        name="shell",
-        description="Execute a shell command. Use with caution.",
-        schema={
-            "type": "object",
-            "properties": {
-                "command": {"type": "string", "description": "Shell command to execute"},
-                "cwd": {"type": "string", "description": "Working directory", "default": "."},
-            },
-            "required": ["command"],
-        },
-    ).with_capability(ToolCapability.EXECUTES_CODE).require_approval()
+def _delete_file(path: str) -> str:
+    p = Path(path)
+    if not p.exists():
+        return f"Error: file not found: {path}"
+    if p.is_file():
+        p.unlink()
+        return f"Deleted file: {path}"
+    elif p.is_dir():
+        shutil.rmtree(p)
+        return f"Deleted directory: {path}"
+    return f"Error: unknown type: {path}"
 
 
-def create_glob_tool(workspace: str = ".") -> FunctionTool:
-    async def glob(pattern: str) -> str:
-        import glob as g
-        p = str(Path(workspace) / pattern)
-        matches = g.glob(p, recursive=True)
-        results = sorted(matches)[:200]
-        return "\n".join(results) if results else "No files matched"
-
-    return FunctionTool(
-        func=glob,
-        name="glob",
-        description="Find files matching a glob pattern. Supports ** for recursive search.",
-        schema={
-            "type": "object",
-            "properties": {
-                "pattern": {"type": "string", "description": "Glob pattern (e.g., '**/*.py')"},
-            },
-            "required": ["pattern"],
-        },
-    )
+def _move_file(source: str, destination: str) -> str:
+    src = Path(source)
+    if not src.exists():
+        return f"Error: source not found: {source}"
+    dst = Path(destination)
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(src), str(dst))
+    return f"Moved {source} -> {destination}"
 
 
-def create_grep_tool(workspace: str = ".") -> FunctionTool:
-    async def grep(pattern: str, path: str = ".", max_results: int = 50) -> str:
-        import subprocess
-        try:
-            result = subprocess.run(
-                ["rg", "--line-number", "--max-count", str(max_results), pattern, path],
-                capture_output=True, text=True, timeout=30, cwd=workspace,
-            )
-            return result.stdout or "No matches found"
-        except FileNotFoundError:
-            return "Error: ripgrep (rg) not installed. Install it for fast search."
-
-    return FunctionTool(
-        func=grep,
-        name="grep",
-        description="Search for a pattern in files using ripgrep.",
-        schema={
-            "type": "object",
-            "properties": {
-                "pattern": {"type": "string", "description": "Search pattern (regex supported)"},
-                "path": {"type": "string", "description": "Directory or file to search", "default": "."},
-                "max_results": {"type": "integer", "description": "Maximum results", "default": 50},
-            },
-            "required": ["pattern"],
-        },
-    )
+def _copy_file(source: str, destination: str) -> str:
+    src = Path(source)
+    if not src.exists():
+        return f"Error: source not found: {source}"
+    dst = Path(destination)
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    if src.is_file():
+        shutil.copy2(str(src), str(dst))
+    else:
+        shutil.copytree(str(src), str(dst))
+    return f"Copied {source} -> {destination}"
 
 
-def register_builtin_tools(registry, workspace: str = ".", shell_timeout: int = 120):
-    registry.register(create_read_tool(workspace))
-    registry.register(create_write_tool(workspace))
-    registry.register(create_edit_tool(workspace))
-    registry.register(create_shell_tool(shell_timeout))
-    registry.register(create_glob_tool(workspace))
-    registry.register(create_grep_tool(workspace))
+def _make_directory(path: str) -> str:
+    p = Path(path)
+    p.mkdir(parents=True, exist_ok=True)
+    return f"Created directory: {path}"
+
+
+def _file_info(path: str) -> str:
+    p = Path(path)
+    if not p.exists():
+        return f"Error: not found: {path}"
+    st = p.stat()
+    return f"Path: {path}\nSize: {st.st_size} bytes\nIs Dir: {p.is_dir()}\nModified: {st.st_mtime}"
+
+
+def register_file_tools(registry: ToolRegistry):
+    registry.register(FunctionTool(_read_file, name="read_file", description="Read a file from the local filesystem. Supports text and binary files (binary shown as hex).").with_capability(ToolCapability.READ_ONLY).mark_concurrency_safe().with_group("file"))
+    registry.register(FunctionTool(_write_file, name="write_file", description="Write content to a file. Creates parent directories if needed. Use append=True to add to existing file.").with_capability(ToolCapability.WRITES_FILES).with_group("file"))
+    registry.register(FunctionTool(_list_files, name="list_files", description="List files in a directory. Supports glob patterns and recursive listing.").with_capability(ToolCapability.READ_ONLY).mark_concurrency_safe().with_group("file"))
+    registry.register(FunctionTool(_delete_file, name="delete_file", description="Delete a file or directory (recursive for directories).").with_capability(ToolCapability.WRITES_FILES).with_group("file"))
+    registry.register(FunctionTool(_move_file, name="move_file", description="Move or rename a file/directory.").with_capability(ToolCapability.WRITES_FILES).with_group("file"))
+    registry.register(FunctionTool(_copy_file, name="copy_file", description="Copy a file or directory (recursive).").with_capability(ToolCapability.WRITES_FILES).with_group("file"))
+    registry.register(FunctionTool(_make_directory, name="make_directory", description="Create a directory and all parent directories.").with_capability(ToolCapability.WRITES_FILES).with_group("file"))
+    registry.register(FunctionTool(_file_info, name="file_info", description="Get file metadata: size, type, modification time.").with_capability(ToolCapability.READ_ONLY).mark_concurrency_safe().with_group("file"))
