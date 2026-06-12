@@ -430,3 +430,59 @@ class MemoryPyramid:
             if len(persona_line) // 4 <= token_budget:
                 lines.append(persona_line)
         return "\n".join(lines)
+
+    async def compress_context(self, token_limit: int, summarize_fn=None) -> bool:
+        """超 token 限制时压缩上下文。
+
+        Args:
+            token_limit: token 上限
+            summarize_fn: 可选，接收 (str,) -> str，对旧内容生成摘要。
+                             同步异步均支持。为 None 时直接裁剪旧片段并入 scenario。
+
+        Returns:
+            bool: 是否实际执行了压缩
+        """
+        current_tokens = sum(f.token_count for f in self._raw.values())
+
+        if current_tokens <= token_limit:
+            return False
+
+        sorted_frags = sorted(self._raw.values(), key=lambda f: f.timestamp)
+        tokens_to_free = current_tokens - token_limit
+        removed = []
+        freed_tokens = 0
+        for frag in sorted_frags:
+            if freed_tokens >= tokens_to_free:
+                break
+            removed.append(frag)
+            freed_tokens += frag.token_count
+            del self._raw[frag.fragment_id]
+            self._bm25.remove(frag.fragment_id)
+
+        if not removed:
+            return False
+
+        if summarize_fn:
+            try:
+                old_content = "\n".join(f.content for f in removed)
+                result = summarize_fn(old_content)
+                if hasattr(result, "__await__"):
+                    result = await result
+                await self.commit_scenario(
+                    fragments=[],
+                    title=f"Compressed @{time.strftime('%Y-%m-%d %H:%M')}",
+                    summary=str(result),
+                    importance=0.3,
+                )
+            except Exception:
+                pass
+        else:
+            combined = "\n".join(f.content[:200] for f in removed)
+            await self.commit_scenario(
+                fragments=[],
+                title=f"Trimmed ({len(removed)} msgs)",
+                summary=combined[:500],
+                importance=0.2,
+            )
+
+        return True

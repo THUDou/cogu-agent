@@ -229,8 +229,42 @@ class Session:
         return self.session_id
 
     def estimate_tokens(self) -> int:
-        total_chars = sum(len(json.dumps(m, ensure_ascii=False)) for m in self._state.conversation)
-        return total_chars // 4
+        try:
+            import tiktoken
+            encoding = tiktoken.get_encoding("cl100k_base")
+            total = 0
+            for m in self._state.conversation:
+                content = m.get("content", "")
+                if isinstance(content, str):
+                    total += len(encoding.encode(content))
+                elif isinstance(content, list):
+                    for block in content:
+                        if isinstance(block, dict):
+                            total += len(encoding.encode(str(block)))
+                thinking = m.get("thinking", "")
+                if thinking:
+                    total += len(encoding.encode(thinking))
+                tool_calls = m.get("tool_calls", "")
+                if tool_calls:
+                    total += len(encoding.encode(str(tool_calls)))
+                total += 4
+            return total
+        except Exception:
+            total_chars = sum(len(json.dumps(m, ensure_ascii=False)) for m in self._state.conversation)
+            return total_chars // 4
+
+    def remove_last_incomplete(self) -> int:
+        last_assistant_idx = -1
+        for i in range(len(self._state.conversation) - 1, -1, -1):
+            if self._state.conversation[i].get("role") == "assistant":
+                last_assistant_idx = i
+                break
+        if last_assistant_idx == -1:
+            return 0
+        removed = len(self._state.conversation) - last_assistant_idx
+        self._state.conversation = self._state.conversation[:last_assistant_idx]
+        self._state.updated_at = time.time()
+        return removed
 
     def __repr__(self) -> str:
         return f"Session(id={self.session_id}, msgs={len(self._state.conversation)}, tools={self._state.tool_calls_count})"

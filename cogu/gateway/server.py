@@ -6,6 +6,7 @@ from typing import Optional
 
 from cogu.core.runner import Runner
 from cogu.core.session import StreamFrame
+from cogu.gateway.wire_protocol import WireMessage, WireEvent, wire_to_sse
 
 
 class GatewaySession:
@@ -96,27 +97,42 @@ class GatewayServer:
                 return
 
             try:
+                turn_id = uuid.uuid4().hex[:12]
+                writer.write(wire_to_sse(
+                    WireMessage(method=WireEvent.TURN_BEGIN, params={"turn_id": turn_id, "session_id": session_id, "user_message": text})
+                ).encode())
+                await writer.drain()
+
                 async for frame in Runner.run_agent_streaming(text, session=None, system_prompt=system_prompt):
                     if request_id in self._cancel_tracker:
-                        writer.write(self._build_sse("run.canceled", {"type": "run.canceled"}).encode())
+                        writer.write(wire_to_sse(
+                            WireMessage(method=WireEvent.RUN_CANCELED, params={"request_id": request_id})
+                        ).encode())
                         await writer.drain()
                         self._cancel_tracker.discard(request_id)
                         return
 
-                    sse_data = {
-                        "type": f"message.{frame.type}" if frame.type else "message.delta",
-                        "content": frame.content,
-                        "tool_name": frame.tool_name,
-                        "tool_args": frame.tool_args,
-                        "tool_result": frame.tool_result,
-                        "metadata": frame.metadata,
-                    }
-                    writer.write(self._build_sse("run.progress", sse_data).encode())
+                    if frame.type == "text":
+                        msg = WireMessage(method=WireEvent.CONTENT_PART, params={"type": "text", "content": frame.content, "turn_id": turn_id})
+                    elif frame.type == "thinking":
+                        msg = WireMessage(method=WireEvent.CONTENT_PART, params={"type": "thinking", "content": frame.content, "turn_id": turn_id})
+                    elif frame.type == "tool_start":
+                        msg = WireMessage(method=WireEvent.TOOL_CALL_START, params={"tool_name": frame.tool_name, "turn_id": turn_id, **frame.metadata})
+                    elif frame.type == "tool_result":
+                        msg = WireMessage(method=WireEvent.TOOL_RESULT, params={"tool_name": frame.tool_name, "content": frame.tool_result, "turn_id": turn_id})
+                    else:
+                        continue
+
+                    writer.write(wire_to_sse(msg).encode())
                     await writer.drain()
 
-                writer.write(self._build_sse("message.completed", {"type": "message.completed", "session_id": session_id, "request_id": request_id}).encode())
+                writer.write(wire_to_sse(
+                    WireMessage(method=WireEvent.TURN_END, params={"turn_id": turn_id, "finish_reason": "stop"})
+                ).encode())
                 await writer.drain()
-                writer.write(self._build_sse("run.completed", {"type": "run.completed"}).encode())
+                writer.write(wire_to_sse(
+                    WireMessage(method=WireEvent.RUN_COMPLETED, params={"session_id": session_id, "request_id": request_id})
+                ).encode())
                 await writer.drain()
 
             except Exception as e:

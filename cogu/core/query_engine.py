@@ -166,6 +166,8 @@ class QueryEngine:
         memory_recall: Any = None,
         memory_pyramid: Any = None,
         auto_ingest: bool = True,
+        cancel_event: Optional[asyncio.Event] = None,
+        token_limit: int = 80000,
     ):
         self._settings = settings
         self._client = client
@@ -182,6 +184,10 @@ class QueryEngine:
         self._system_prompt = settings.agent.system_prompt or QueryEngine._default_system_prompt()
         self._streaming_executor = StreamingToolExecutor(self._tool_registry)
         self._active_tool_group: Optional[str] = None
+        self._cancel_event = cancel_event
+        self._token_limit = token_limit
+        self._api_total_tokens: int = 0
+        self._skip_next_token_check: bool = False
 
     @staticmethod
     def _default_system_prompt() -> str:
@@ -215,6 +221,34 @@ Be concise and direct. Skip pleasantries. Get to the right answer efficiently.
     def deactivate_tool_group(self) -> None:
         self._active_tool_group = None
         self._tool_registry.deactivate_group()
+
+    def _check_cancelled(self) -> bool:
+        if self._cancel_event is not None and self._cancel_event.is_set():
+            return True
+        return False
+
+    def _cleanup_incomplete_messages(self) -> int:
+        if self._session is None:
+            return 0
+        return self._session.remove_last_incomplete()
+
+    async def _check_token_limit(self) -> bool:
+        if self._session is None:
+            return False
+        if self._skip_next_token_check:
+            self._skip_next_token_check = False
+            return False
+        estimated = self._session.estimate_tokens()
+        should_compress = estimated > self._token_limit or self._api_total_tokens > self._token_limit
+        if not should_compress:
+            return False
+        if self._memory_pyramid and hasattr(self._memory_pyramid, "compress_context"):
+            try:
+                await self._memory_pyramid.compress_context(self._token_limit)
+            except Exception:
+                pass
+        self._skip_next_token_check = True
+        return True
 
     async def _build_memory_context(self, user_message: str) -> str:
         parts = []
@@ -287,6 +321,12 @@ Be concise and direct. Skip pleasantries. Get to the right answer efficiently.
             finish_reason = "mission_complete"
         else:
             for iteration in range(1, self._max_iterations + 1):
+                if self._check_cancelled():
+                    self._cleanup_incomplete_messages()
+                    final_content = "Task cancelled by user."
+                    finish_reason = "cancelled"
+                    break
+                await self._check_token_limit()
                 turn = await self._execute_turn(iteration, mode)
                 all_events.extend(turn.events)
                 if turn.finished:
@@ -341,6 +381,11 @@ Be concise and direct. Skip pleasantries. Get to the right answer efficiently.
         yield TurnEvent(type=TurnEventType.TURN_START, content=user_message)
 
         for iteration in range(1, self._max_iterations + 1):
+            if self._check_cancelled():
+                self._cleanup_incomplete_messages()
+                yield TurnEvent(type=TurnEventType.ERROR, content="Task cancelled by user.", iteration=iteration)
+                break
+            await self._check_token_limit()
             tools = self._get_active_tools()
             response = None
 
@@ -352,6 +397,8 @@ Be concise and direct. Skip pleasantries. Get to the right answer efficiently.
                 top_p=self._top_p,
                 max_tokens=self._max_tokens,
             ):
+                if event.type == StreamEventType.USAGE and event.usage:
+                    self._api_total_tokens = event.usage.get("total_tokens", 0)
                 mapped = self._map_stream_event(event, iteration)
                 if mapped:
                     yield mapped
@@ -410,6 +457,9 @@ Be concise and direct. Skip pleasantries. Get to the right answer efficiently.
             top_p=self._top_p,
             max_tokens=self._max_tokens,
         )
+
+        if response.usage:
+            self._api_total_tokens = response.usage.get("total_tokens", 0)
 
         if response.tool_calls:
             result.events.append(TurnEvent(
