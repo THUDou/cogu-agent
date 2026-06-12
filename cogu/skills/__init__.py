@@ -17,6 +17,12 @@ from cogu.skills.integration import (
     IntegrationDomain,
     IntegrationResult,
 )
+from cogu.skills.behavior_cloner import (
+    BehaviorCloner,
+    RecordedAction,
+    RecordingSession,
+    Bookmark,
+)
 
 __all__ = [
     "SkillSpec",
@@ -38,4 +44,8 @@ __all__ = [
     "SkillIntegrationHub",
     "IntegrationDomain",
     "IntegrationResult",
+    "BehaviorCloner",
+    "RecordedAction",
+    "RecordingSession",
+    "Bookmark",
 ]

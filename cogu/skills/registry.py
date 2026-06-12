@@ -247,5 +247,21 @@ class SkillRegistry:
                 parts.append(spec.render_context(max_per_skill))
         return "\n\n---\n\n".join(parts) if parts else ""
 
+    def register_from_recording(
+        self,
+        events: list,
+        name: str | None = None,
+        description: str | None = None,
+    ) -> Optional[SkillSpec]:
+        from cogu.skills.behavior_cloner import BehaviorCloner, RecordedAction
+
+        if not events:
+            return None
+        recorded = [e if isinstance(e, RecordedAction) else RecordedAction.from_dict(e) for e in events]
+        cloner = BehaviorCloner(Path(self.project_skills_dir or self.user_skills_dir))
+        spec = cloner.recording_to_skill(recorded, name=name, description=description)
+        cloner.save_and_register(spec, self)
+        return spec
+
     def size(self) -> int:
         return len(self._skills)

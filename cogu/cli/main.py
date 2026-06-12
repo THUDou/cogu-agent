@@ -113,6 +113,15 @@ Examples:
     tui_parser = sub.add_parser("tui", help="Launch interactive TUI")
     tui_parser.add_argument("--workspace", "-w", default=os.getcwd(), help="Workspace directory")
 
+    pangu_parser = sub.add_parser("pangu-mini", help=argparse.SUPPRESS)
+    pangu_sub = pangu_parser.add_subparsers(dest="pangu_command")
+    pangu_serve = pangu_sub.add_parser("serve", help=argparse.SUPPRESS)
+    pangu_serve.add_argument("--port", type=int, default=8199)
+    pangu_serve.add_argument("--backend", default="auto", choices=["auto", "transformers", "gguf"])
+    pangu_serve.add_argument("--device", default="auto")
+    pangu_sub.add_parser("status", help=argparse.SUPPRESS)
+    pangu_sub.add_parser("memorial", help=argparse.SUPPRESS)
+
     return parser
 
 
@@ -398,6 +407,39 @@ class CLI:
             return 1
         return 0
 
+    async def cmd_pangu_mini(self) -> int:
+        pc = getattr(self.args, "pangu_command", None)
+        if pc == "serve":
+            from cogu.config.settings import PanguMiniConfig
+            mini_dir = Path(self.workspace).parent / "MINI"
+            if not mini_dir.exists():
+                mini_dir = Path(__file__).resolve().parents[3] / "MINI"
+            sys.path.insert(0, str(mini_dir))
+            from engine.server import main as serve_main
+            import importlib
+            sys.argv = ["engine.server", "--port", str(self.args.port),
+                        "--backend", self.args.backend, "--device", self.args.device]
+            serve_main()
+        elif pc == "status":
+            cfg = self.settings.pangu_mini
+            if cfg.enabled:
+                print("openPangu-Embedded-1B: ENABLED (not recommended)")
+            else:
+                print("openPangu-Embedded-1B: disabled (hidden)")
+            print(f"  Backend: {cfg.backend}")
+            print(f"  Port:    {cfg.api_port}")
+        elif pc == "memorial":
+            from cogu.config.settings import PanguMiniConfig
+            cfg = PanguMiniConfig()
+            print()
+            print("  " + "=" * 60)
+            print("  " + cfg._memorial)
+            print("  " + "=" * 60)
+            print()
+        else:
+            print("Usage: cogu pangu-mini {serve|status|memorial}")
+        return 0
+
     async def run(self) -> int:
         if not self.args.command:
             print("COGU AGENT v{__version__}")
@@ -413,6 +455,7 @@ class CLI:
             "tui": self.cmd_tui,
             "version": self.cmd_version,
             "config": self.cmd_config,
+            "pangu-mini": self.cmd_pangu_mini,
         }
 
         handler = handlers.get(self.args.command)

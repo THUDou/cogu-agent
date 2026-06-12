@@ -43,6 +43,12 @@ from cogu.memory.compression_pipeline import (
 from cogu.memory.context_offloader import ContextOffloader, OffloadEntry
 from cogu.memory.rrf_ranker import RRFRanker, BM25Scorer
 from cogu.memory.task_canvas import TaskCanvas, CanvasNode
+from cogu.memory.experience_kb import (
+    AgenticKnowledgeBase,
+    WorkflowInstance,
+    KBSearchResult,
+    ExperienceKBService,
+)
 
 __all__ = [
     "SuperMemory",
@@ -94,4 +100,8 @@ __all__ = [
     "BM25Scorer",
     "TaskCanvas",
     "CanvasNode",
+    "AgenticKnowledgeBase",
+    "WorkflowInstance",
+    "KBSearchResult",
+    "ExperienceKBService",
 ]

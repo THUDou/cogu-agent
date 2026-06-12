@@ -6,6 +6,7 @@ from cogu.tools.builtin.browser import register_browser_tools
 from cogu.tools.builtin.weather import register_weather_tools
 from cogu.tools.builtin.stock import register_stock_tools
 from cogu.tools.builtin.system import register_system_tools
+from cogu.tools.builtin.gui import register_gui_tools
 from cogu.tools.base import ToolRegistry
 
 
@@ -18,3 +19,4 @@ def register_builtin_tools(registry: ToolRegistry):
     register_weather_tools(registry)
     register_stock_tools(registry)
     register_system_tools(registry)
+    register_gui_tools(registry)

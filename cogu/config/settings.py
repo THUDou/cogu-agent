@@ -76,6 +76,17 @@ class TUIConfig:
 
 
 @dataclass
+class PanguMiniConfig:
+    enabled: bool = False
+    backend: str = "auto"
+    model_dir: str = ""
+    gguf_path: str = ""
+    api_port: int = 8199
+    device: str = "auto"
+    _memorial: str = '2026.6.12 — COGU 诞生日，也是华为发布 OpenPangu 2.0 的日子。中国最早的大模型、领跑世界的大模型、国内首个全栈自主的大模型即将满血归来，宣布追赶"世界第一"。为做纪念，将此模型加入项目中。'
+
+
+@dataclass
 class Settings:
     deepseek: DeepSeekConfig = field(default_factory=DeepSeekConfig)
     providers: list[ProviderConfig] = field(default_factory=list)
@@ -84,6 +95,7 @@ class Settings:
     debate: DebateConfig = field(default_factory=DebateConfig)
     tools: ToolConfig = field(default_factory=ToolConfig)
     tui: TUIConfig = field(default_factory=TUIConfig)
+    pangu_mini: PanguMiniConfig = field(default_factory=PanguMiniConfig)
     workspace: str = ""
 
     @classmethod
@@ -105,6 +117,8 @@ class Settings:
             settings.debate = DebateConfig(**data["debate"])
         if "tools" in data:
             settings.tools = ToolConfig(**data["tools"])
+        if "pangu_mini" in data:
+            settings.pangu_mini = PanguMiniConfig(**{k: v for k, v in data["pangu_mini"].items() if not k.startswith("_")})
         if "providers" in data:
             settings.providers = [ProviderConfig(**p) for p in data["providers"]]
         return settings
@@ -117,6 +131,7 @@ class Settings:
             "debate": self.debate.__dict__,
             "tools": self.tools.__dict__,
             "providers": [p.__dict__ for p in self.providers],
+            "pangu_mini": {k: v for k, v in self.pangu_mini.__dict__.items() if not k.startswith("_")},
         }
 
     def resolve_api_key(self, provider: str) -> str:
