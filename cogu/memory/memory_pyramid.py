@@ -1,488 +1,367 @@
-import asyncio
 import hashlib
 import json
-import math
 import os
 import time
 import uuid
-from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Optional
 
-from cogu.memory.grade_memory import MemoryMessage
-
 
 class PyramidLevel(str, Enum):
-    L0_RAW = "raw"
-    L1_ATOM = "atom"
-    L2_SCENARIO = "scenario"
-    L3_PERSONA = "persona"
+    L0_CONVERSATION = "l0"
+    L1_ATOM = "l1"
+    L2_SCENARIO = "l2"
+    L3_PERSONA = "l3"
 
 
 @dataclass
-class RawFragment:
-    fragment_id: str = ""
+class Atom:
+    atom_id: str = ""
     content: str = ""
-    role: str = "user"
-    timestamp: float = field(default_factory=time.time)
-    session_id: str = ""
-    token_count: int = 0
+    embedding: Optional[list[float]] = None
     metadata: dict = field(default_factory=dict)
+    created_at: float = field(default_factory=time.time)
+    parent_scenario: str = ""
+    source_conversation_ids: list[str] = field(default_factory=list)
+    confidence: float = 1.0
+    access_count: int = 0
+    last_accessed: float = 0.0
+
+    def to_dict(self) -> dict:
+        return {
+            "atom_id": self.atom_id,
+            "content": self.content,
+            "metadata": self.metadata,
+            "created_at": self.created_at,
+            "parent_scenario": self.parent_scenario,
+            "source_conversation_ids": self.source_conversation_ids,
+            "confidence": self.confidence,
+            "access_count": self.access_count,
+            "last_accessed": self.last_accessed,
+        }
 
     @classmethod
-    def from_message(cls, msg: MemoryMessage, session_id: str = "") -> "RawFragment":
+    def from_dict(cls, data: dict, embedding: list[float] = None) -> "Atom":
         return cls(
-            fragment_id=msg.id or uuid.uuid4().hex[:12],
-            content=msg.content,
-            role=msg.role,
-            timestamp=msg.timestamp,
-            session_id=session_id,
-            token_count=len(msg.content) // 4,
-            metadata=msg.metadata,
+            atom_id=data.get("atom_id", ""),
+            content=data.get("content", ""),
+            embedding=embedding,
+            metadata=data.get("metadata", {}),
+            created_at=data.get("created_at", time.time()),
+            parent_scenario=data.get("parent_scenario", ""),
+            source_conversation_ids=data.get("source_conversation_ids", []),
+            confidence=data.get("confidence", 1.0),
+            access_count=data.get("access_count", 0),
+            last_accessed=data.get("last_accessed", 0.0),
         )
 
 
 @dataclass
-class AtomicFact:
-    fact_id: str = ""
-    subject: str = ""
-    predicate: str = ""
-    object: str = ""
-    confidence: float = 1.0
-    source_fragments: list[str] = field(default_factory=list)
-    created_at: float = field(default_factory=time.time)
-    last_accessed: float = field(default_factory=time.time)
-    access_count: int = 0
-    ttl_seconds: float = 86400.0
-    embedding: Optional[list[float]] = None
-
-    def is_expired(self) -> bool:
-        return (time.time() - self.created_at) > self.ttl_seconds
-
-    def triple_str(self) -> str:
-        return f"{self.subject} {self.predicate} {self.object}"
-
-    def access(self) -> None:
-        self.last_accessed = time.time()
-        self.access_count += 1
-
-
-@dataclass
-class ScenarioMemory:
+class Scenario:
     scenario_id: str = ""
     title: str = ""
-    description: str = ""
-    participants: list[str] = field(default_factory=list)
-    facts: list[str] = field(default_factory=list)
-    fragments: list[str] = field(default_factory=list)
-    start_time: float = field(default_factory=time.time)
-    end_time: float = field(default_factory=time.time)
     summary: str = ""
-    importance: float = 0.5
+    atom_ids: list[str] = field(default_factory=list)
+    metadata: dict = field(default_factory=dict)
+    created_at: float = field(default_factory=time.time)
+    updated_at: float = field(default_factory=time.time)
     embedding: Optional[list[float]] = None
 
+    def to_dict(self) -> dict:
+        return {
+            "scenario_id": self.scenario_id,
+            "title": self.title,
+            "summary": self.summary,
+            "atom_ids": self.atom_ids,
+            "metadata": self.metadata,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+        }
 
-@dataclass
-class PersonaMemory:
-    persona_id: str = ""
-    name: str = ""
-    traits: dict[str, float] = field(default_factory=dict)
-    preferences: dict[str, Any] = field(default_factory=dict)
-    behavior_patterns: list[str] = field(default_factory=list)
-    knowledge_domains: list[str] = field(default_factory=list)
-    interaction_style: dict[str, float] = field(default_factory=dict)
-    scenarios: list[str] = field(default_factory=list)
-    updated_at: float = field(default_factory=time.time)
-
-
-class BM25Scorer:
-    def __init__(self, k1: float = 1.5, b: float = 0.75):
-        self._k1 = k1
-        self._b = b
-        self._doc_lengths: dict[str, int] = {}
-        self._avg_doc_length: float = 0.0
-        self._term_doc_freq: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
-        self._total_docs: int = 0
-
-    def index(self, doc_id: str, text: str) -> None:
-        tokens = self._tokenize(text)
-        self._doc_lengths[doc_id] = len(tokens)
-        self._total_docs += 1
-        term_freq = defaultdict(int)
-        for token in tokens:
-            term_freq[token] += 1
-        for term, freq in term_freq.items():
-            self._term_doc_freq[term][doc_id] = freq
-
-    def score(self, doc_id: str, query: str) -> float:
-        if doc_id not in self._doc_lengths:
-            return 0.0
-        query_tokens = self._tokenize(query)
-        score = 0.0
-        dl = self._doc_lengths[doc_id]
-        if not self._avg_doc_length:
-            lengths = list(self._doc_lengths.values())
-            self._avg_doc_length = sum(lengths) / max(len(lengths), 1)
-        for token in query_tokens:
-            if token not in self._term_doc_freq:
-                continue
-            tf = self._term_doc_freq[token].get(doc_id, 0)
-            df = len(self._term_doc_freq[token])
-            idf = math.log(1.0 + (self._total_docs - df + 0.5) / (df + 0.5))
-            numerator = tf * (self._k1 + 1.0)
-            denominator = tf + self._k1 * (1.0 - self._b + self._b * dl / self._avg_doc_length)
-            score += idf * numerator / max(denominator, 0.001)
-        return score
-
-    def remove(self, doc_id: str) -> None:
-        if doc_id in self._doc_lengths:
-            del self._doc_lengths[doc_id]
-            self._total_docs -= 1
-        for term_data in self._term_doc_freq.values():
-            term_data.pop(doc_id, None)
-
-    @staticmethod
-    def _tokenize(text: str) -> list[str]:
-        return [w.lower() for w in text.replace("\n", " ").split() if len(w) > 1]
+    @classmethod
+    def from_dict(cls, data: dict, embedding: list[float] = None) -> "Scenario":
+        return cls(
+            scenario_id=data.get("scenario_id", ""),
+            title=data.get("title", ""),
+            summary=data.get("summary", ""),
+            atom_ids=data.get("atom_ids", []),
+            metadata=data.get("metadata", {}),
+            created_at=data.get("created_at", time.time()),
+            updated_at=data.get("updated_at", time.time()),
+            embedding=embedding,
+        )
 
 
-class RRFHybridRecall:
-    def __init__(self, bm25: BM25Scorer, k: int = 60):
-        self._bm25 = bm25
-        self._k = k
-        self._embeddings: dict[str, list[float]] = {}
+class PersonaStore:
 
-    def add_embedding(self, doc_id: str, embedding: list[float]) -> None:
-        self._embeddings[doc_id] = embedding
+    def __init__(self, file_path: str):
+        self._path = file_path
+        self._data: dict = {}
+        self._loaded = False
 
-    def recall(self, query: str, query_embedding: Optional[list[float]] = None, top_k: int = 10) -> list[tuple[str, float]]:
-        bm25_scores: dict[str, float] = {}
-        for doc_id in self._bm25._doc_lengths:
-            s = self._bm25.score(doc_id, query)
-            if s > 0:
-                bm25_scores[doc_id] = s
+    def _ensure_loaded(self):
+        if self._loaded:
+            return
+        os.makedirs(os.path.dirname(self._path), exist_ok=True)
+        if os.path.exists(self._path):
+            try:
+                with open(self._path, "r", encoding="utf-8") as f:
+                    self._data = json.load(f)
+            except (json.JSONDecodeError, OSError):
+                self._data = {}
+        self._loaded = True
 
-        ranked_bm25 = sorted(bm25_scores.items(), key=lambda x: x[1], reverse=True)
-        rrf: dict[str, float] = {}
-        for rank, (doc_id, _) in enumerate(ranked_bm25):
-            rrf[doc_id] = rrf.get(doc_id, 0) + 1.0 / (self._k + rank + 1)
+    def _save(self):
+        os.makedirs(os.path.dirname(self._path), exist_ok=True)
+        with open(self._path, "w", encoding="utf-8") as f:
+            json.dump(self._data, f, ensure_ascii=False, indent=2)
 
-        if query_embedding and self._embeddings:
-            cos_scores = []
-            for doc_id, emb in self._embeddings.items():
-                sim = self._cosine(query_embedding, emb)
-                cos_scores.append((doc_id, sim))
-            cos_scores.sort(key=lambda x: x[1], reverse=True)
-            for rank, (doc_id, _) in enumerate(cos_scores):
-                rrf[doc_id] = rrf.get(doc_id, 0) + 1.0 / (self._k + rank + 1)
+    def set(self, key: str, value: Any) -> None:
+        self._ensure_loaded()
+        self._data[key] = value
+        self._save()
 
-        sorted_rrf = sorted(rrf.items(), key=lambda x: x[1], reverse=True)
-        return sorted_rrf[:top_k]
+    def get(self, key: str, default: Any = None) -> Any:
+        self._ensure_loaded()
+        return self._data.get(key, default)
 
-    @staticmethod
-    def _cosine(a: list[float], b: list[float]) -> float:
-        if not a or not b or len(a) != len(b):
-            return 0.0
-        dot = sum(x * y for x, y in zip(a, b))
-        norm_a = math.sqrt(sum(x * x for x in a))
-        norm_b = math.sqrt(sum(y * y for y in b))
-        if norm_a == 0 or norm_b == 0:
-            return 0.0
-        return dot / (norm_a * norm_b)
+    def update_preferences(self, prefs: dict) -> None:
+        self._ensure_loaded()
+        existing = self._data.get("preferences", {})
+        existing.update(prefs)
+        self._data["preferences"] = existing
+        self._save()
 
-
-class TaskCanvas:
-    def __init__(self):
-        self._nodes: dict[str, dict] = {}
-        self._edges: list[tuple[str, str, str]] = []
-
-    def add_node(self, node_id: str, label: str, node_type: str = "task", status: str = "pending") -> None:
-        self._nodes[node_id] = {"id": node_id, "label": label, "type": node_type, "status": status}
-
-    def add_edge(self, source: str, target: str, relation: str = "depends_on") -> None:
-        self._edges.append((source, target, relation))
-
-    def update_status(self, node_id: str, status: str) -> None:
-        if node_id in self._nodes:
-            self._nodes[node_id]["status"] = status
-
-    def to_mermaid(self) -> str:
-        lines = ["graph TD"]
-        for nid, node in self._nodes.items():
-            shape = {"task": "([", "checkpoint": "{{", "decision": "{"}.get(node["type"], "([")
-            shape_end = {"task": "])", "checkpoint": "}}", "decision": "}"}.get(node["type"], "])")
-            style = {"completed": "fill:#1a1,stroke:#0f0,color:#fff", "in_progress": "fill:#ff0,stroke:#aa0,color:#000", "pending": "fill:#333,stroke:#666,color:#999"}.get(node["status"], "fill:#333")
-            escaped_label = node["label"].replace('"', "'")
-            lines.append(f'    {nid}{shape}"{escaped_label}"{shape_end}')
-            lines.append(f"    style {nid} {style}")
-        for src, tgt, rel in self._edges:
-            lines.append(f"    {src} -->|{rel}| {tgt}")
+    def to_markdown(self) -> str:
+        self._ensure_loaded()
+        lines = ["# Persona Profile\n"]
+        if "name" in self._data:
+            lines.append(f"- **Name**: {self._data['name']}")
+        if "role" in self._data:
+            lines.append(f"- **Role**: {self._data['role']}")
+        if "preferences" in self._data:
+            lines.append("\n## Preferences")
+            for k, v in self._data["preferences"].items():
+                lines.append(f"- **{k}**: {v}")
+        if "goals" in self._data:
+            lines.append("\n## Long-term Goals")
+            if isinstance(self._data["goals"], list):
+                for g in self._data["goals"]:
+                    lines.append(f"- {g}")
+            else:
+                lines.append(str(self._data["goals"]))
+        if "style" in self._data:
+            lines.append(f"\n## Communication Style\n{self._data['style']}")
         return "\n".join(lines)
 
-    def get_progress(self) -> dict:
-        total = len(self._nodes)
-        completed = sum(1 for n in self._nodes.values() if n["status"] == "completed")
-        in_progress = sum(1 for n in self._nodes.values() if n["status"] == "in_progress")
-        return {"total": total, "completed": completed, "in_progress": in_progress, "pending": total - completed - in_progress}
+    def all_data(self) -> dict:
+        self._ensure_loaded()
+        return dict(self._data)
 
 
-class ContextOffloader:
-    def __init__(self, max_context_tokens: int = 8000):
-        self._max_tokens = max_context_tokens
-        self._offloaded: list[AtomicFact] = []
+class ConversationStore:
 
-    def offload(self, facts: list[AtomicFact]) -> list[AtomicFact]:
-        kept: list[AtomicFact] = []
-        total_tokens = 0
-        for fact in sorted(facts, key=lambda f: f.access_count * f.confidence, reverse=True):
-            fact_tokens = len(fact.triple_str()) // 4
-            if total_tokens + fact_tokens <= self._max_tokens:
-                kept.append(fact)
-                total_tokens += fact_tokens
-            else:
-                self._offloaded.append(fact)
-        return kept
+    def __init__(self, db_path: str):
+        self._db_path = db_path
 
-    def retrieve_offloaded(self, query: str) -> list[AtomicFact]:
-        matching = [f for f in self._offloaded if query.lower() in f.triple_str().lower()]
-        return matching[:5]
+    def _ensure_db(self):
+        import sqlite3
+        os.makedirs(os.path.dirname(self._db_path), exist_ok=True)
+        conn = sqlite3.connect(self._db_path)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS l0_conversations (
+                entry_id TEXT PRIMARY KEY,
+                role TEXT NOT NULL,
+                content TEXT NOT NULL,
+                metadata_json TEXT DEFAULT '{}',
+                embedding_json TEXT,
+                token_count INTEGER DEFAULT 0,
+                created_at REAL NOT NULL
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_l0_role ON l0_conversations(role)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_l0_created ON l0_conversations(created_at)")
+        conn.commit()
+        conn.close()
 
-    def get_offloaded_count(self) -> int:
-        return len(self._offloaded)
+    def add(self, entry_id: str, role: str, content: str, metadata: dict = None,
+            embedding: list[float] = None, token_count: int = 0) -> None:
+        import sqlite3
+        self._ensure_db()
+        conn = sqlite3.connect(self._db_path)
+        conn.execute(
+            "INSERT OR REPLACE INTO l0_conversations VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                entry_id,
+                role,
+                content,
+                json.dumps(metadata or {}, ensure_ascii=False),
+                json.dumps(embedding) if embedding else None,
+                token_count,
+                time.time(),
+            ),
+        )
+        conn.commit()
+        conn.close()
 
+    def get(self, entry_id: str) -> Optional[dict]:
+        import sqlite3
+        self._ensure_db()
+        conn = sqlite3.connect(self._db_path)
+        row = conn.execute(
+            "SELECT entry_id, role, content, metadata_json, embedding_json, token_count, created_at FROM l0_conversations WHERE entry_id = ?",
+            (entry_id,),
+        ).fetchone()
+        conn.close()
+        if not row:
+            return None
+        return {
+            "entry_id": row[0],
+            "role": row[1],
+            "content": row[2],
+            "metadata": json.loads(row[3]),
+            "embedding": json.loads(row[4]) if row[4] else None,
+            "token_count": row[5],
+            "created_at": row[6],
+        }
 
-class MemoryScheduler:
-    def __init__(self):
-        self._queue: asyncio.PriorityQueue = asyncio.PriorityQueue()
+    def search_by_time(self, start: float = 0.0, end: float = None, limit: int = 50) -> list[dict]:
+        import sqlite3
+        self._ensure_db()
+        end = end or time.time()
+        conn = sqlite3.connect(self._db_path)
+        rows = conn.execute(
+            "SELECT entry_id, role, content, metadata_json, token_count, created_at FROM l0_conversations WHERE created_at BETWEEN ? AND ? ORDER BY created_at DESC LIMIT ?",
+            (start, end, limit),
+        ).fetchall()
+        conn.close()
+        return [
+            {"entry_id": r[0], "role": r[1], "content": r[2], "metadata": json.loads(r[3]),
+             "token_count": r[4], "created_at": r[5]}
+            for r in rows
+        ]
 
-    async def schedule(self, priority: int, task_id: str, coro) -> Any:
-        await self._queue.put((priority, task_id, coro))
+    def search_text(self, query: str, limit: int = 20) -> list[dict]:
+        import sqlite3
+        self._ensure_db()
+        conn = sqlite3.connect(self._db_path)
+        try:
+            rows = conn.execute(
+                "SELECT entry_id, role, content, metadata_json, token_count, created_at FROM l0_conversations WHERE l0_conversations MATCH ? ORDER BY rank LIMIT ?",
+                (query, limit),
+            ).fetchall()
+        except Exception:
+            rows = conn.execute(
+                "SELECT entry_id, role, content, metadata_json, token_count, created_at FROM l0_conversations WHERE content LIKE ? ORDER BY created_at DESC LIMIT ?",
+                (f"%{query}%", limit),
+            ).fetchall()
+        conn.close()
+        return [
+            {"entry_id": r[0], "role": r[1], "content": r[2], "metadata": json.loads(r[3]),
+             "token_count": r[4], "created_at": r[5]}
+            for r in rows
+        ]
 
-    async def run(self) -> list[Any]:
-        results = []
-        while not self._queue.empty():
-            priority, task_id, coro = await self._queue.get()
-            try:
-                result = await coro
-                results.append(result)
-            except Exception:
-                pass
-        return results
+    def count(self) -> int:
+        import sqlite3
+        self._ensure_db()
+        conn = sqlite3.connect(self._db_path)
+        row = conn.execute("SELECT COUNT(*) FROM l0_conversations").fetchone()
+        conn.close()
+        return row[0] if row else 0
+
+    def close(self):
+        pass
 
 
 class MemoryPyramid:
-    def __init__(self, db_dir: str = "./.cogu/pyramid"):
-        self._db_dir = db_dir
-        os.makedirs(db_dir, exist_ok=True)
-        self._raw: dict[str, RawFragment] = {}
-        self._atoms: dict[str, AtomicFact] = {}
-        self._scenarios: dict[str, ScenarioMemory] = {}
-        self._persona: Optional[PersonaMemory] = None
-        self._bm25 = BM25Scorer()
-        self._hybrid = RRFHybridRecall(self._bm25)
-        self._canvas = TaskCanvas()
-        self._offloader = ContextOffloader()
-        self._scheduler = MemoryScheduler()
+
+    def __init__(self, db_path: str, persona_path: str):
+        self._l0 = ConversationStore(db_path)
+        self._l1_atoms: dict[str, Atom] = {}
+        self._l2_scenarios: dict[str, Scenario] = {}
+        self._l3 = PersonaStore(persona_path)
 
     @property
-    def canvas(self) -> TaskCanvas:
-        return self._canvas
+    def l0(self) -> ConversationStore:
+        return self._l0
 
     @property
-    def persona(self) -> Optional[PersonaMemory]:
-        return self._persona
+    def l3(self) -> PersonaStore:
+        return self._l3
 
-    async def ingest(self, messages: list[MemoryMessage], session_id: str = "") -> None:
-        for msg in messages:
-            fragment = RawFragment.from_message(msg, session_id)
-            self._raw[fragment.fragment_id] = fragment
-            self._bm25.index(fragment.fragment_id, msg.content)
+    def remember(self, content: str, role: str = "user", metadata: dict = None) -> str:
+        entry_id = str(uuid.uuid4())
+        token_count = len(content) // 3
+        self._l0.add(entry_id, role, content, metadata, token_count=token_count)
+        return entry_id
 
-            atoms = self._extract_atoms(fragment)
-            for atom in atoms:
-                self._atoms[atom.fact_id] = atom
-                self._bm25.index(atom.fact_id, atom.triple_str())
+    def recall(self, query: str, limit: int = 20) -> list[dict]:
+        return self._l0.search_text(query, limit)
 
-        self._atoms = self._offloader.offload(list(self._atoms.values()))
-        self._atoms = {a.fact_id: a for a in self._atoms}
+    def recent(self, minutes: int = 5, limit: int = 50) -> list[dict]:
+        now = time.time()
+        return self._l0.search_by_time(start=now - minutes * 60, end=now, limit=limit)
 
-    def _extract_atoms(self, fragment: RawFragment) -> list[AtomicFact]:
-        content = fragment.content
-        atoms = []
-        sentences = [s.strip() for s in content.replace("!", ".").replace("?", ".").split(".") if len(s.strip()) > 5]
-        for sentence in sentences[:3]:
-            parts = sentence.split()
-            if len(parts) >= 3:
-                atoms.append(AtomicFact(
-                    fact_id=uuid.uuid4().hex[:12],
-                    subject=parts[0][:50],
-                    predicate=parts[1][:50] if len(parts) > 1 else "related_to",
-                    object=" ".join(parts[2:])[:100],
-                    source_fragments=[fragment.fragment_id],
-                ))
+    def create_atom(self, content: str, scenario_id: str = "", confidence: float = 1.0) -> Atom:
+        atom_id = hashlib.sha256(content.encode()).hexdigest()[:16]
+        atom = Atom(
+            atom_id=atom_id,
+            content=content,
+            parent_scenario=scenario_id,
+            confidence=confidence,
+        )
+        self._l1_atoms[atom_id] = atom
+        return atom
+
+    def get_atom(self, atom_id: str) -> Optional[Atom]:
+        return self._l1_atoms.get(atom_id)
+
+    def create_scenario(self, title: str, summary: str, atom_ids: list[str] = None) -> Scenario:
+        scenario_id = hashlib.sha256(title.encode()).hexdigest()[:12]
+        scenario = Scenario(
+            scenario_id=scenario_id,
+            title=title,
+            summary=summary,
+            atom_ids=atom_ids or [],
+        )
+        self._l2_scenarios[scenario_id] = scenario
+        return scenario
+
+    def get_scenario(self, scenario_id: str) -> Optional[Scenario]:
+        return self._l2_scenarios.get(scenario_id)
+
+    def link_atom_to_scenario(self, atom_id: str, scenario_id: str) -> bool:
+        atom = self._l1_atoms.get(atom_id)
+        scenario = self._l2_scenarios.get(scenario_id)
+        if not atom or not scenario:
+            return False
+        atom.parent_scenario = scenario_id
+        if atom_id not in scenario.atom_ids:
+            scenario.atom_ids.append(atom_id)
+        return True
+
+    def compress_l0_to_l1(self, conversation_ids: list[str]) -> list[Atom]:
+        atoms: list[Atom] = []
+        contents: list[str] = []
+        for cid in conversation_ids:
+            entry = self._l0.get(cid)
+            if entry:
+                contents.append(entry["content"])
+        if contents:
+            combined = "\n".join(contents)
+            atoms.append(self.create_atom(combined))
         return atoms
 
-    async def commit_scenario(self, fragments: list[str], title: str, summary: str = "", importance: float = 0.5) -> str:
-        scenario = ScenarioMemory(
-            scenario_id=uuid.uuid4().hex[:12],
-            title=title,
-            description=summary,
-            fragments=fragments,
-            importance=importance,
-        )
-        self._scenarios[scenario.scenario_id] = scenario
-        for fid in fragments:
-            if fid in self._raw:
-                self._bm25.index(scenario.scenario_id, self._raw[fid].content)
-        return scenario.scenario_id
+    def persona(self) -> PersonaStore:
+        return self._l3
 
-    async def update_persona(self, persona: PersonaMemory) -> None:
-        if self._persona:
-            persona.scenarios = list(set(self._persona.scenarios + persona.scenarios))
-            for trait, weight in persona.traits.items():
-                self._persona.traits[trait] = self._persona.traits.get(trait, 0) * 0.7 + weight * 0.3
-        self._persona = persona
-        self._persona.updated_at = time.time()
-
-    async def recall(
-        self,
-        query: str,
-        query_embedding: Optional[list[float]] = None,
-        level: Optional[PyramidLevel] = None,
-        top_k: int = 10,
-    ) -> list[dict]:
-        if level == PyramidLevel.L3_PERSONA and self._persona:
-            return [{
-                "level": "persona",
-                "persona_id": self._persona.persona_id,
-                "traits": self._persona.traits,
-                "preferences": self._persona.preferences,
-                "patterns": self._persona.behavior_patterns,
-            }]
-
-        if level == PyramidLevel.L2_SCENARIO:
-            scored = [(sid, s.importance) for sid, s in self._scenarios.items() if query.lower() in s.title.lower() or query.lower() in s.description.lower()]
-            scored.sort(key=lambda x: x[1], reverse=True)
-            return [{"level": "scenario", "scenario_id": sid, "title": self._scenarios[sid].title, "summary": self._scenarios[sid].summary, "score": score} for sid, score in scored[:top_k]]
-
-        recalled = self._hybrid.recall(query, query_embedding, top_k)
-        results = []
-        for doc_id, score in recalled:
-            if doc_id in self._atoms:
-                atom = self._atoms[doc_id]
-                atom.access()
-                results.append({"level": "atom", "fact_id": atom.fact_id, "content": atom.triple_str(), "confidence": atom.confidence, "score": score})
-            elif doc_id in self._raw:
-                frag = self._raw[doc_id]
-                results.append({"level": "raw", "fragment_id": frag.fragment_id, "content": frag.content[:500], "role": frag.role, "score": score})
-            elif doc_id in self._scenarios:
-                sc = self._scenarios[doc_id]
-                results.append({"level": "scenario", "scenario_id": sc.scenario_id, "title": sc.title, "summary": sc.summary, "score": score})
-
-        if len(results) < top_k:
-            offloaded = self._offloader.retrieve_offloaded(query)
-            for fact in offloaded:
-                results.append({"level": "atom", "fact_id": fact.fact_id, "content": fact.triple_str(), "confidence": fact.confidence, "score": 0.1, "offloaded": True})
-
-        return results[:top_k]
-
-    async def forget(self, fact_id: str) -> bool:
-        if fact_id in self._atoms:
-            del self._atoms[fact_id]
-            self._bm25.remove(fact_id)
-            return True
-        return False
-
-    async def consolidate(self) -> dict:
-        expired = [fid for fid, atom in self._atoms.items() if atom.is_expired()]
-        for fid in expired:
-            del self._atoms[fid]
-            self._bm25.remove(fid)
-        return {"expired_atoms": len(expired), "active_atoms": len(self._atoms), "raw_fragments": len(self._raw), "scenarios": len(self._scenarios), "has_persona": self._persona is not None}
-
-    async def get_stats(self) -> dict:
+    def stats(self) -> dict:
         return {
-            "raw_fragments": len(self._raw),
-            "atomic_facts": len(self._atoms),
-            "scenarios": len(self._scenarios),
-            "has_persona": self._persona is not None,
-            "offloaded_facts": self._offloader.get_offloaded_count(),
-            "canvas_progress": self._canvas.get_progress(),
+            "l0_entries": self._l0.count(),
+            "l1_atoms": len(self._l1_atoms),
+            "l2_scenarios": len(self._l2_scenarios),
+            "l3_keys": len(self._l3.all_data()),
         }
-
-    async def build_context_prompt(self, query: str, max_tokens: int = 2000) -> str:
-        results = await self.recall(query, top_k=5)
-        if not results:
-            return ""
-        lines = ["[Memory Context]"]
-        token_budget = max_tokens
-        for r in results:
-            content = r.get("content", r.get("summary", r.get("title", str(r))))
-            line = f"- [{r['level']}] {content}"
-            if len(line) // 4 <= token_budget:
-                lines.append(line)
-                token_budget -= len(line) // 4
-            else:
-                break
-        if self._persona:
-            persona_line = f"[Persona] traits: {json.dumps(self._persona.traits, ensure_ascii=False)} | preferences: {json.dumps(self._persona.preferences, ensure_ascii=False)}"
-            if len(persona_line) // 4 <= token_budget:
-                lines.append(persona_line)
-        return "\n".join(lines)
-
-    async def compress_context(self, token_limit: int, summarize_fn=None) -> bool:
-        """超 token 限制时压缩上下文。
-
-        Args:
-            token_limit: token 上限
-            summarize_fn: 可选，接收 (str,) -> str，对旧内容生成摘要。
-                             同步异步均支持。为 None 时直接裁剪旧片段并入 scenario。
-
-        Returns:
-            bool: 是否实际执行了压缩
-        """
-        current_tokens = sum(f.token_count for f in self._raw.values())
-
-        if current_tokens <= token_limit:
-            return False
-
-        sorted_frags = sorted(self._raw.values(), key=lambda f: f.timestamp)
-        tokens_to_free = current_tokens - token_limit
-        removed = []
-        freed_tokens = 0
-        for frag in sorted_frags:
-            if freed_tokens >= tokens_to_free:
-                break
-            removed.append(frag)
-            freed_tokens += frag.token_count
-            del self._raw[frag.fragment_id]
-            self._bm25.remove(frag.fragment_id)
-
-        if not removed:
-            return False
-
-        if summarize_fn:
-            try:
-                old_content = "\n".join(f.content for f in removed)
-                result = summarize_fn(old_content)
-                if hasattr(result, "__await__"):
-                    result = await result
-                await self.commit_scenario(
-                    fragments=[],
-                    title=f"Compressed @{time.strftime('%Y-%m-%d %H:%M')}",
-                    summary=str(result),
-                    importance=0.3,
-                )
-            except Exception:
-                pass
-        else:
-            combined = "\n".join(f.content[:200] for f in removed)
-            await self.commit_scenario(
-                fragments=[],
-                title=f"Trimmed ({len(removed)} msgs)",
-                summary=combined[:500],
-                importance=0.2,
-            )
-
-        return True
