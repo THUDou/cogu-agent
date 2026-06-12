@@ -169,7 +169,7 @@ class SkillRegistry:
         return self._install_from_local(source, level)
 
     def _install_from_local(self, source_dir: str, level: str = "user") -> Optional[SkillSpec]:
-        src = Path(source_dir)
+        src = Path(source_dir).resolve()
         if not src.is_dir():
             return None
         skill_md = src / "SKILL.md"
@@ -180,6 +180,10 @@ class SkillRegistry:
         spec = SkillSpec.from_markdown(str(skill_md))
         if not spec:
             return None
+        target_root = Path(self.user_skills_dir).resolve() if level == "user" else Path(self.project_skills_dir).resolve()
+        if str(src).startswith(str(target_root)):
+            self._skills[spec.name] = spec
+            return spec
         dest_dir = self._copy_skill(spec, src, level)
         if dest_dir:
             spec = SkillSpec.from_markdown(str(dest_dir / "SKILL.md"))
