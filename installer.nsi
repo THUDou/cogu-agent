@@ -14,11 +14,10 @@ SetCompressor /SOLID lzma
 
 !include "MUI2.nsh"
 
-!define MUI_ICON "cogu\web\favicon.ico"
-!define MUI_UNICON "cogu\web\favicon.ico"
+!define MUI_ICON ""
+!define MUI_UNICON ""
 
 !insertmacro MUI_PAGE_WELCOME
-!insertmacro MUI_PAGE_LICENSE "LICENSE"
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
 !insertmacro MUI_PAGE_FINISH
@@ -45,7 +44,7 @@ Section "MainSection" SEC01
   SetOutPath "$INSTDIR"
   SetOverwrite on
 
-  File /r "dist\COGU-Loong\*.*"
+  File "dist\COGU-Loong.exe"
 
   CreateDirectory "$SMPROGRAMS\${APPNAME}"
   CreateShortCut "$SMPROGRAMS\${APPNAME}\${APPNAME}.lnk" "$INSTDIR\${APPEXE}" "" "$INSTDIR\${APPEXE}" 0

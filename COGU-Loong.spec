@@ -12,7 +12,7 @@ a = Analysis(
     pathex=[PROJECT_ROOT],
     binaries=[],
     datas=[
-        ('cogu/web/workbuddy.html', 'cogu/web'),
+        ('cogu/web/cogu-loong.html', 'cogu/web'),
     ],
     hiddenimports=[
         'cogu',
