@@ -243,16 +243,13 @@ class Runner:
         return GLOBAL_RUNNER.list_sessions()
 
     @classmethod
-    @property
     def settings(cls) -> Settings:
         return GLOBAL_RUNNER.settings
 
     @classmethod
-    @property
     def tool_registry(cls) -> ToolRegistry:
         return GLOBAL_RUNNER.tool_registry
 
     @classmethod
-    @property
     def rail_registry(cls) -> RailRegistry:
         return GLOBAL_RUNNER.rail_registry

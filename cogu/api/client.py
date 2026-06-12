@@ -201,8 +201,7 @@ class DeepSeekClient:
     async def _parse_sse_stream(self, resp: httpx.Response) -> AsyncIterator[StreamEvent]:
         buffer = b""
         data_lines = []
-        content_index = 0
-        thinking_index = 0
+        tool_call_buffers: dict[int, dict] = {}
 
         async for chunk in resp.aiter_bytes():
             buffer += chunk
@@ -212,7 +211,7 @@ class DeepSeekClient:
 
                 if not line:
                     if data_lines:
-                        for event in self._process_sse_event(data_lines, content_index, thinking_index):
+                        for event in self._process_sse_event(data_lines, tool_call_buffers):
                             yield event
                         data_lines = []
                     continue
@@ -220,14 +219,14 @@ class DeepSeekClient:
                 if line.startswith("data: "):
                     data = line[6:]
                     if data == "[DONE]":
-                        for event in self._process_sse_event(data_lines, content_index, thinking_index):
+                        for event in self._process_sse_event(data_lines, tool_call_buffers):
                             yield event
                         yield StreamEvent(type=StreamEventType.MESSAGE_STOP)
                         return
                     data_lines.append(data)
 
     def _process_sse_event(
-        self, data_lines: list[str], content_index: int, thinking_index: int
+        self, data_lines: list[str], tool_call_buffers: dict[int, dict]
     ) -> list[StreamEvent]:
         events = []
         for data in data_lines:
@@ -236,60 +235,84 @@ class DeepSeekClient:
             except json.JSONDecodeError:
                 continue
 
-            event_type = obj.get("type", "")
+            choices = obj.get("choices", [])
+            if not choices:
+                usage = obj.get("usage")
+                if usage:
+                    events.append(StreamEvent(
+                        type=StreamEventType.USAGE,
+                        usage={
+                            "prompt_tokens": usage.get("prompt_tokens", 0),
+                            "completion_tokens": usage.get("completion_tokens", 0),
+                            "total_tokens": usage.get("total_tokens", 0),
+                        },
+                    ))
+                continue
 
-            if event_type == "content_block_delta":
-                delta = obj.get("delta", {})
-                delta_type = delta.get("type", "")
-                if delta_type == "text_delta":
-                    events.append(StreamEvent(
-                        type=StreamEventType.TEXT_DELTA,
-                        content=delta.get("text", ""),
-                        index=obj.get("index", 0),
-                    ))
-                elif delta_type == "thinking_delta":
-                    events.append(StreamEvent(
-                        type=StreamEventType.THINKING_DELTA,
-                        content=delta.get("thinking", ""),
-                        index=obj.get("index", 0),
-                    ))
-                elif delta_type == "input_json_delta":
-                    events.append(StreamEvent(
-                        type=StreamEventType.TOOL_CALL_ARGS,
-                        content=delta.get("partial_json", ""),
-                        index=obj.get("index", 0),
-                    ))
+            choice = choices[0]
+            delta = choice.get("delta", {})
+            finish_reason = choice.get("finish_reason")
+            choice_index = choice.get("index", 0)
 
-            elif event_type == "content_block_start":
-                block = obj.get("content_block", {})
-                if block.get("type") == "tool_use":
-                    events.append(StreamEvent(
-                        type=StreamEventType.TOOL_CALL_START,
-                        tool_id=block.get("id", ""),
-                        tool_name=block.get("name", ""),
-                        index=obj.get("index", 0),
-                    ))
-
-            elif event_type == "content_block_stop":
+            content = delta.get("content")
+            if content:
                 events.append(StreamEvent(
-                    type=StreamEventType.TOOL_CALL_END,
-                    index=obj.get("index", 0),
+                    type=StreamEventType.TEXT_DELTA,
+                    content=content,
+                    index=choice_index,
                 ))
 
-            elif event_type == "message_start":
+            reasoning = delta.get("reasoning_content")
+            if reasoning:
                 events.append(StreamEvent(
-                    type=StreamEventType.MESSAGE_START,
-                    usage=obj.get("message", {}).get("usage", {}),
+                    type=StreamEventType.THINKING_DELTA,
+                    content=reasoning,
+                    index=choice_index,
                 ))
 
-            elif event_type == "message_delta":
-                events.append(StreamEvent(
-                    type=StreamEventType.USAGE,
-                    usage=obj.get("usage", {}),
-                ))
+            tool_calls = delta.get("tool_calls", [])
+            for tc in tool_calls:
+                tc_index = tc.get("index", 0)
+                if tc_index not in tool_call_buffers:
+                    tool_call_buffers[tc_index] = {"id": "", "name": "", "args": ""}
 
-            elif event_type == "message_stop":
-                events.append(StreamEvent(type=StreamEventType.MESSAGE_STOP))
+                buf = tool_call_buffers[tc_index]
+                tc_id = tc.get("id")
+                if tc_id:
+                    buf["id"] = tc_id
+
+                func = tc.get("function")
+                if func:
+                    func_name = func.get("name")
+                    if func_name:
+                        buf["name"] = func_name
+                        events.append(StreamEvent(
+                            type=StreamEventType.TOOL_CALL_START,
+                            tool_id=buf["id"],
+                            tool_name=buf["name"],
+                            index=tc_index,
+                        ))
+                    func_args = func.get("arguments")
+                    if func_args:
+                        buf["args"] += func_args
+                        events.append(StreamEvent(
+                            type=StreamEventType.TOOL_CALL_ARGS,
+                            content=func_args,
+                            index=tc_index,
+                        ))
+
+            if finish_reason and finish_reason != "null":
+                if finish_reason == "tool_calls":
+                    for tc_index, buf in tool_call_buffers.items():
+                        events.append(StreamEvent(
+                            type=StreamEventType.TOOL_CALL_END,
+                            tool_id=buf["id"],
+                            tool_name=buf.get("name", ""),
+                            index=tc_index,
+                        ))
+                    tool_call_buffers.clear()
+                elif finish_reason == "stop":
+                    events.append(StreamEvent(type=StreamEventType.MESSAGE_STOP))
 
         return events
 

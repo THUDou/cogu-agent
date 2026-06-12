@@ -126,6 +126,16 @@ class Settings:
         return os.environ.get(env_key, "")
 
     @classmethod
+    def load(cls, workspace: str = "") -> "Settings":
+        config_path = Path(workspace) / ".cogu" / "config.json" if workspace else None
+        if config_path and config_path.exists():
+            try:
+                return cls.from_file(str(config_path))
+            except (json.JSONDecodeError, IOError):
+                pass
+        return cls.default(workspace)
+
+    @classmethod
     def default(cls, workspace: str = "") -> "Settings":
         s = cls()
         s.workspace = workspace or str(Path.home() / ".cogu")

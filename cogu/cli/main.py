@@ -7,7 +7,6 @@ from pathlib import Path
 
 from cogu import __version__
 from cogu.core.runner import Runner
-from cogu.core.runner import Runner
 from cogu.core.agent import ReActAgent
 from cogu.core.session import Session
 from cogu.config.settings import Settings
@@ -66,7 +65,6 @@ Examples:
     memory_sub.add_parser("stats", help="Show memory statistics")
     search_parser = memory_sub.add_parser("search", help="Search memory")
     search_parser.add_argument("query", help="Search query")
-    reconcile_parser = memory_sub.add_parser("reconcile", help="Reconcile memory stores")
     reconcile_parser = memory_sub.add_parser("reconcile", help="Reconcile memory stores")
 
     serve_parser = sub.add_parser("serve", help="Start API server")

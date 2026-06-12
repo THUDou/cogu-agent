@@ -140,7 +140,7 @@ class CoguTUI(App):
             chat.add_message("assistant", result.content or "(no response)")
 
             if self._memory and result.content:
-                await self._memory.remember(result.content, source="tui_chat")
+                await self._memory.remember(result.content, metadata={"source": "tui_chat"})
 
             self._header.status = "ready"
         except Exception as e:
