@@ -177,6 +177,17 @@ class GatewayServer:
                 writer.write(b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{\"status\":\"ok\"}")
                 await writer.drain()
 
+            elif path in ("/", "/dashboard") and method == "GET":
+                import os as _os
+                db_path = _os.path.join(_os.path.dirname(__file__), "dashboard.html")
+                try:
+                    with open(db_path, "r", encoding="utf-8") as f:
+                        html = f.read()
+                    writer.write(f"HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {len(html.encode())}\r\n\r\n{html}".encode())
+                except FileNotFoundError:
+                    writer.write(b"HTTP/1.1 404 Not Found\r\n\r\nDashboard not found")
+                await writer.drain()
+
             elif path == "/v1/gateway/messages" and method == "POST":
                 result = await self._handle_messages(body)
                 resp = json.dumps(result, ensure_ascii=False)

@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.8.1] — 2026-06-20
+
+### Added
+- **CLI `skills uninstall` command**: Remove installed skills via `cogu skills uninstall <name>`
+- **URL remote install**: `cogu skills install <url>` supports `http://`, `https://`, `file://` URLs with ZIP auto-download and extraction
+- **`--level` flag**: `cogu skills install --level user|project` for installing skills at user or project level
+- **Local Web Dashboard**: Served at `/` and `/dashboard` on the gateway server with Chat, Memory, Skills, Info pages and SSE streaming support
+- **E2E integration tests**: 18 tests covering all CLI commands (version, skills CRUD, memory, help)
+
+### Changed
+- `SkillRegistry` now has `user_skills_dir` and `project_skills_dir` properties
+- Gateway server routes now include `/` and `/dashboard` for the HTML dashboard
+
 ## [0.8.0] — 2026-06-20
 
 ### Added

@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>COGU AGENT Dashboard</title>
+<style>
+:root {
+  --bg: #0a0e14;
+  --surface: #131721;
+  --border: #1e2533;
+  --text: #b3c7d6;
+  --muted: #5c6e80;
+  --accent: #39bae6;
+  --accent2: #aad94c;
+  --red: #f07178;
+  --orange: #ff8f40;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:var(--font); min-height:100vh; display:flex; }
+#sidebar {
+  width:220px; background:var(--surface); border-right:1px solid var(--border);
+  padding:24px 0; display:flex; flex-direction:column; flex-shrink:0;
+}
+#sidebar h1 { font-size:16px; padding:0 20px 20px; color:var(--accent); letter-spacing:1px; }
+#sidebar nav a {
+  display:block; padding:10px 20px; color:var(--muted); text-decoration:none; font-size:13px;
+  border-left:2px solid transparent; transition:all .15s;
+}
+#sidebar nav a:hover, #sidebar nav a.active { color:var(--accent); border-left-color:var(--accent); background:rgba(57,186,230,.05); }
+#sidebar .status { margin-top:auto; padding:20px; font-size:11px; color:var(--muted); border-top:1px solid var(--border); }
+#sidebar .status .dot { display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:6px; }
+#sidebar .status .dot.on { background:var(--accent2); }
+#sidebar .status .dot.off { background:var(--red); }
+#main { flex:1; padding:32px; overflow-y:auto; }
+.page { display:none; }
+.page.active { display:block; }
+.panel { background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:20px; margin-bottom:20px; }
+.panel h2 { font-size:15px; color:var(--accent); margin-bottom:16px; letter-spacing:0.5px; }
+.panel h3 { font-size:13px; color:var(--text); margin-bottom:8px; }
+.stats { display:grid; grid-template-columns:repeat(auto-fit, minmax(160px,1fr)); gap:16px; margin-bottom:20px; }
+.stat-card { background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:18px; text-align:center; }
+.stat-card .val { font-size:28px; font-weight:700; color:var(--accent); font-family:var(--mono); }
+.stat-card .lbl { font-size:11px; color:var(--muted); margin-top:4px; text-transform:uppercase; letter-spacing:1px; }
+.chat-box { background:var(--bg); border:1px solid var(--border); border-radius:4px; padding:16px; max-height:400px; overflow-y:auto; margin-bottom:16px; }
+.chat-box .msg { margin-bottom:12px; line-height:1.5; }
+.chat-box .msg.user { color:var(--accent); }
+.chat-box .msg.agent { color:var(--accent2); }
+.chat-box .msg.error { color:var(--red); }
+.chat-input { display:flex; gap:8px; }
+.chat-input input { flex:1; background:var(--bg); border:1px solid var(--border); border-radius:4px; padding:10px 14px; color:var(--text); font-family:var(--font); font-size:13px; outline:none; }
+.chat-input input:focus { border-color:var(--accent); }
+.chat-input button { background:var(--accent); color:var(--bg); border:none; border-radius:4px; padding:8px 18px; cursor:pointer; font-size:13px; font-weight:600; }
+.chat-input button:hover { opacity:0.9; }
+.chat-input button.stream { background:var(--accent2); }
+#stream-toggle { background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:8px 14px; color:var(--muted); cursor:pointer; font-size:12px; }
+#stream-toggle.active { background:var(--accent2); color:var(--bg); }
+.skill-list { display:flex; flex-wrap:wrap; gap:8px; }
+.skill-tag { background:var(--bg); border:1px solid var(--border); border-radius:4px; padding:6px 12px; font-size:12px; }
+.skill-tag .name { color:var(--accent); font-weight:600; }
+.skill-tag .desc { color:var(--muted); margin-left:6px; }
+.skill-tag .cat { font-size:10px; color:var(--orange); margin-left:6px; }
+.skill-install { display:flex; gap:8px; margin-top:12px; }
+.skill-install input { flex:1; background:var(--bg); border:1px solid var(--border); border-radius:4px; padding:8px 12px; color:var(--text); font-size:12px; outline:none; }
+.skill-install input:focus { border-color:var(--accent); }
+.skill-install select { background:var(--bg); border:1px solid var(--border); border-radius:4px; padding:8px; color:var(--text); font-size:12px; }
+.skill-install button { background:var(--accent); color:var(--bg); border:none; border-radius:4px; padding:8px 16px; cursor:pointer; font-size:12px; font-weight:600; }
+.version { color:var(--muted); font-size:11px; padding:0 20px 16px; }
+.table { width:100%; border-collapse:collapse; font-size:12px; margin-top:12px; }
+.table th { text-align:left; color:var(--muted); padding:8px 12px; border-bottom:1px solid var(--border); font-weight:500; text-transform:uppercase; letter-spacing:0.5px; }
+.table td { padding:8px 12px; border-bottom:1px solid var(--border); }
+.table tr:hover td { background:rgba(57,186,230,.03); }
+.badge { display:inline-block; font-size:10px; padding:2px 8px; border-radius:3px; margin-left:6px; }
+.badge.ok { background:rgba(170,217,76,.15); color:var(--accent2); }
+.badge.err { background:rgba(240,113,120,.15); color:var(--red); }
+#toast { position:fixed; bottom:20px; right:20px; background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:12px 20px; font-size:12px; color:var(--accent); display:none; z-index:100; }
+</style>
+</head>
+<body>
+<aside id="sidebar">
+  <h1>COGU AGENT</h1>
+  <div class="version" id="version-display">v-</div>
+  <nav>
+    <a href="#" data-page="chat" class="active">Chat</a>
+    <a href="#" data-page="memory">Memory</a>
+    <a href="#" data-page="skills">Skills</a>
+    <a href="#" data-page="info">Info</a>
+  </nav>
+  <div class="status"><span class="dot on" id="status-dot"></span><span id="status-text">Gateway connected</span></div>
+</aside>
+<main id="main">
+
+<div class="page active" id="page-chat">
+  <div class="stats" id="chat-stats"></div>
+  <div class="panel">
+    <h2>Chat</h2>
+    <div class="chat-box" id="chat-box"><div class="msg agent">COGU AGENT ready. Type a message to start.</div></div>
+    <div class="chat-input">
+      <input id="chat-msg" placeholder="Type your message..." autofocus>
+      <button id="stream-toggle" onclick="toggleStream()">SSE</button>
+      <button onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+</div>
+
+<div class="page" id="page-memory">
+  <div class="panel">
+    <h2>Memory Statistics</h2>
+    <div id="memory-stats">Loading...</div>
+  </div>
+  <div class="panel">
+    <h2>Search Memory</h2>
+    <div class="skill-install"><input id="mem-query" placeholder="Search query..."><button onclick="searchMemory()">Search</button></div>
+    <div id="mem-results" style="margin-top:12px;"></div>
+  </div>
+</div>
+
+<div class="page" id="page-skills">
+  <div class="panel">
+    <h2>Builtin Skills</h2>
+    <div class="skill-list" id="builtin-skills">Loading...</div>
+  </div>
+  <div class="panel">
+    <h2>Installed Skills</h2>
+    <div class="skill-list" id="installed-skills">Loading...</div>
+    <div class="skill-install">
+      <input id="skill-source" placeholder="Path or URL to skill...">
+      <select id="skill-level"><option value="user">User</option><option value="project">Project</option></select>
+      <button onclick="installSkill()">Install</button>
+    </div>
+  </div>
+</div>
+
+<div class="page" id="page-info">
+  <div class="panel">
+    <h2>Gateway Info</h2>
+    <div id="gateway-info">Loading...</div>
+  </div>
+  <div class="panel">
+    <h2>API Endpoints</h2>
+    <table class="table">
+      <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+      <tr><td>GET</td><td>/healthz</td><td>Health check</td></tr>
+      <tr><td>POST</td><td>/v1/gateway/messages</td><td>Send message (REST)</td></tr>
+      <tr><td>POST</td><td>/v1/gateway/messages:stream</td><td>Send message (SSE stream)</td></tr>
+      <tr><td>GET</td><td>/v1/gateway/status</td><td>Request status</td></tr>
+      <tr><td>POST</td><td>/v1/gateway/cancel</td><td>Cancel request</td></tr>
+      <tr><td>GET</td><td>/v1/gateway/sessions</td><td>Active sessions</td></tr>
+      <tr><td>GET</td><td>/dashboard</td><td>This dashboard</td></tr>
+    </table>
+  </div>
+</div>
+
+</main>
+<div id="toast"></div>
+
+<script>
+const BASE = window.location.origin;
+let streamMode = false;
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 3000);
+}
+
+async function api(method, path, body) {
+  try {
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body) opts.body = JSON.stringify(body);
+    const r = await fetch(BASE + path, opts);
+    const ct = r.headers.get('content-type') || '';
+    if (ct.includes('application/json')) return await r.json();
+    return await r.text();
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+
+async function apiSSE(path, body, onEvent) {
+  try {
+    const r = await fetch(BASE + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const reader = r.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split('\n');
+      buf = lines.pop() || '';
+      let evt = '', data = '';
+      for (const line of lines) {
+        if (line.startsWith('event: ')) evt = line.slice(7).trim();
+        else if (line.startsWith('data: ')) {
+          data = line.slice(6).trim();
+          if (evt && data) {
+            try { onEvent(evt, JSON.parse(data)); } catch(e) { onEvent(evt, data); }
+            evt = ''; data = '';
+          }
+        }
+      }
+    }
+  } catch (e) {
+    onEvent('error', { error: e.message });
+  }
+}
+
+function toggleStream() {
+  streamMode = !streamMode;
+  const btn = document.getElementById('stream-toggle');
+  btn.className = streamMode ? 'active' : '';
+  btn.textContent = streamMode ? 'SSE ON' : 'SSE';
+}
+
+async function sendMessage() {
+  const inp = document.getElementById('chat-msg');
+  const msg = inp.value.trim();
+  if (!msg) return;
+  inp.value = '';
+  const box = document.getElementById('chat-box');
+  box.innerHTML += '<div class="msg user">> ' + escapeHtml(msg) + '</div>';
+  box.scrollTop = box.scrollHeight;
+
+  if (streamMode) {
+    const div = document.createElement('div');
+    div.className = 'msg agent';
+    box.appendChild(div);
+    await apiSSE('/v1/gateway/messages:stream', { text: msg }, (evt, data) => {
+      if (evt === 'content_part' && data.type === 'text') {
+        div.textContent += data.content;
+      } else if (evt === 'content_part' && data.type === 'thinking') {
+        div.innerHTML += '<span style="color:var(--muted)">' + escapeHtml(data.content) + '</span>';
+      } else if (evt === 'run.completed') {
+        div.innerHTML += ' <span class="badge ok">done</span>';
+      } else if (evt === 'run.error' || evt === 'error') {
+        div.className = 'msg error';
+        div.textContent = 'Error: ' + (data.error || 'unknown');
+      }
+      box.scrollTop = box.scrollHeight;
+    });
+  } else {
+    const result = await api('POST', '/v1/gateway/messages', { text: msg });
+    if (result.error) {
+      box.innerHTML += '<div class="msg error">' + escapeHtml(result.error) + '</div>';
+    } else {
+      box.innerHTML += '<div class="msg agent">' + escapeHtml(result.reply || '(empty)') + '</div>';
+    }
+    box.scrollTop = box.scrollHeight;
+  }
+}
+
+function escapeHtml(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+document.getElementById('chat-msg').addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
+
+document.querySelectorAll('#sidebar nav a').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    document.querySelectorAll('#sidebar nav a').forEach(x => x.classList.remove('active'));
+    a.classList.add('active');
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-' + a.dataset.page).classList.add('active');
+    if (a.dataset.page === 'memory') loadMemory();
+    if (a.dataset.page === 'skills') loadSkills();
+    if (a.dataset.page === 'info') loadInfo();
+  });
+});
+
+async function healthCheck() {
+  try {
+    const r = await fetch(BASE + '/healthz');
+    const ok = r.ok;
+    document.getElementById('status-dot').className = 'dot ' + (ok ? 'on' : 'off');
+    document.getElementById('status-text').textContent = ok ? 'Gateway connected' : 'Gateway offline';
+    if (ok) document.getElementById('version-display').textContent = 'v0.8.0';
+  } catch (e) {
+    document.getElementById('status-dot').className = 'dot off';
+    document.getElementById('status-text').textContent = 'Gateway offline';
+  }
+}
+
+async function loadMemory() {
+  const stats = await api('GET', '/v1/gateway/status');
+  document.getElementById('memory-stats').textContent = JSON.stringify(stats, null, 2);
+}
+
+async function searchMemory() {
+  const q = document.getElementById('mem-query').value;
+  document.getElementById('mem-results').textContent = 'Memory search via REST API — requires memory endpoint (not yet exposed). Query: ' + q;
+}
+
+async function loadSkills() {
+  const builtin = ['Reasoning', 'GuiVision', 'CodeOffice', 'BrowserAutomation', 'DataAnalysis', 'WebSearch', 'Shell', 'Finance', 'Gateway'];
+  document.getElementById('builtin-skills').innerHTML = builtin.map(s =>
+    '<span class="skill-tag"><span class="name">' + s + '</span></span>').join('');
+  document.getElementById('installed-skills').innerHTML = '<span class="skill-tag"><span class="desc">(install via CLI)</span></span>';
+}
+
+async function loadInfo() {
+  try {
+    const s = await api('GET', '/v1/gateway/sessions');
+    document.getElementById('gateway-info').innerHTML =
+      '<p>Sessions: ' + (s.sessions ? s.sessions.length : 0) + '</p>' +
+      '<p style="color:var(--muted);font-size:11px;">' + JSON.stringify(s) + '</p>';
+  } catch (e) {
+    document.getElementById('gateway-info').textContent = 'Error loading info';
+  }
+}
+
+async function installSkill() {
+  toast('Install via CLI: cogu skills install ' + document.getElementById('skill-source').value);
+}
+
+healthCheck();
+setInterval(healthCheck, 15000);
+</script>
+</body>
+</html>

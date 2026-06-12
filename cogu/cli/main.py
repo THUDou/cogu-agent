@@ -28,9 +28,11 @@ def create_parser() -> argparse.ArgumentParser:
 Examples:
   cogu run "Write a sorting algorithm in Python"
   cogu debate "Should we use async or sync architecture?"
-  cogu skills list
+  cogu skills list --all
   cogu skills install /path/to/skill
+  cogu skills install https://github.com/user/skill/archive/main.zip
   cogu skills run hello-world --input '{"name":"World"}'
+  cogu skills uninstall hello-world
   cogu serve --port 8080
         """,
     )
@@ -59,6 +61,9 @@ Examples:
     list_parser.add_argument("--all", action="store_true", help="Include builtin skills")
     install_parser = skills_sub.add_parser("install", help="Install a skill")
     install_parser.add_argument("source", help="Path or URL to skill")
+    install_parser.add_argument("--level", default="user", choices=["user", "project"], help="Install level")
+    uninstall_parser = skills_sub.add_parser("uninstall", help="Uninstall a skill")
+    uninstall_parser.add_argument("name", help="Skill name")
     skills_sub.add_parser("discover", help="Discover skills from search paths")
     info_parser = skills_sub.add_parser("info", help="Show skill info")
     info_parser.add_argument("name", help="Skill name")
@@ -252,11 +257,20 @@ class CLI:
                 print(f"  - {s.name}: {s.description[:60]}")
         elif sc == "install":
             source = self.args.source
-            spec = self.skill_registry.install_skill(source)
+            level = getattr(self.args, "level", "user")
+            spec = self.skill_registry.install_skill(source, level)
             if spec:
-                print(f"Installed: {spec.name}")
+                print(f"Installed: {spec.name} [{level}]")
             else:
                 print(f"Failed to install from: {source}")
+                return 1
+        elif sc == "uninstall":
+            name = self.args.name
+            ok = self.skill_registry.uninstall_skill(name)
+            if ok:
+                print(f"Uninstalled: {name}")
+            else:
+                print(f"Skill not found: {name}")
                 return 1
         elif sc == "info":
             spec = self.skill_registry.load(self.args.name)
