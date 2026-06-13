@@ -190,3 +190,86 @@ async def update_settings(body: SettingsUpdateRequest):
         settings.pangu_mini.api_port = body.pangu_mini_api_port
     _save_settings(settings)
     return await get_settings()
+
+
+@settings_router.get("/pangu/status")
+async def pangu_status():
+    model_dir = Path.home() / ".cogu" / "pangu-model"
+    model_file = model_dir / "model.safetensors"
+    downloaded = model_file.exists() and model_file.stat().st_size > 100_000_000
+    server_running = False
+    try:
+        import httpx
+        async with httpx.AsyncClient() as client:
+            r = await client.get(f"http://127.0.0.1:8199/healthz", timeout=2.0)
+            if r.status_code == 200:
+                server_running = True
+    except Exception:
+        pass
+    return {
+        "model_downloaded": downloaded,
+        "model_dir": str(model_dir),
+        "server_running": server_running,
+        "model_size_mb": round(model_file.stat().st_size / 1_048_576, 1) if downloaded else 0,
+    }
+
+
+@settings_router.post("/pangu/download")
+async def pangu_download():
+    import asyncio
+    model_dir = Path.home() / ".cogu" / "pangu-model"
+    model_dir.mkdir(parents=True, exist_ok=True)
+    model_file = model_dir / "model.safetensors"
+    if model_file.exists() and model_file.stat().st_size > 100_000_000:
+        return {"status": "already_downloaded", "path": str(model_dir)}
+
+    try:
+        from huggingface_hub import hf_hub_download
+        repo_id = "PIKA665/openPangu-Embedded-1B"
+        for filename in ["model.safetensors", "tokenizer.model", "config.json",
+                         "modeling_openpangu_dense.py", "configuration_openpangu_dense.py",
+                         "tokenization_openpangu.py", "generation_config.json",
+                         "tokenizer_config.json", "special_tokens_map.json"]:
+            try:
+                hf_hub_download(repo_id=repo_id, filename=filename, local_dir=str(model_dir))
+            except Exception:
+                pass
+        return {"status": "downloaded", "path": str(model_dir)}
+    except ImportError:
+        return {"status": "error", "message": "huggingface_hub not installed. Run: pip install huggingface_hub"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@settings_router.post("/pangu/start")
+async def pangu_start():
+    model_dir = Path.home() / ".cogu" / "pangu-model"
+    model_file = model_dir / "model.safetensors"
+    if not model_file.exists():
+        return {"status": "error", "message": "Model not downloaded. Call /pangu/download first."}
+
+    try:
+        import subprocess
+        import sys
+        engine_path = Path(__file__).resolve().parent.parent.parent / "mini_engine" / "server.py"
+        if not engine_path.exists():
+            return {"status": "error", "message": f"Engine not found at {engine_path}"}
+        subprocess.Popen(
+            [sys.executable, str(engine_path), "--port", "8199", "--backend", "transformers", "--device", "auto"],
+            cwd=str(model_dir),
+            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+        )
+        return {"status": "starting", "port": 8199}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@settings_router.post("/pangu/stop")
+async def pangu_stop():
+    try:
+        import httpx
+        async with httpx.AsyncClient() as client:
+            await client.post("http://127.0.0.1:8199/shutdown", timeout=3.0)
+    except Exception:
+        pass
+    return {"status": "stopped"}

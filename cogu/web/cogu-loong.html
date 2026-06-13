@@ -602,13 +602,15 @@ input[type="text"]:focus, input[type="password"]:focus, select:focus {
           <div class="section-title">Pangu Mini (Experimental)</div>
           <div class="setting-row">
             <div>
-              <div class="label">启用本地盘古小模型</div>
-              <div class="desc">1B参数模型，效果有限，不推荐</div>
+              <div class="label">模型状态</div>
+              <div class="desc" id="pangu-status-text">未下载</div>
             </div>
-            <select id="setting-pangu-enabled" style="width:120px;">
-              <option value="false">关闭</option>
-              <option value="true">启用</option>
-            </select>
+            <span id="pangu-status-badge" style="font-size:11px;color:var(--text-muted);">--</span>
+          </div>
+          <div style="margin:8px 0;display:flex;gap:8px;">
+            <button class="btn" id="pangu-download-btn" onclick="panguDownload()">下载模型 (2.6GB)</button>
+            <button class="btn primary" id="pangu-start-btn" onclick="panguStart()" style="display:none;">启动服务</button>
+            <button class="btn danger" id="pangu-stop-btn" onclick="panguStop()" style="display:none;">停止服务</button>
           </div>
           <div class="setting-row">
             <div>
@@ -998,8 +1000,78 @@ $('version-label').addEventListener('click', () => {
   if (panguClickCount >= 3) {
     panguClickCount = 0;
     $('pangu-section').classList.toggle('revealed');
+    panguCheckStatus();
   }
 });
+
+async function panguCheckStatus() {
+  try {
+    const r = await fetch(API + '/settings/pangu/status');
+    const d = await r.json();
+    const statusText = $('pangu-status-text');
+    const badge = $('pangu-status-badge');
+    const dlBtn = $('pangu-download-btn');
+    const startBtn = $('pangu-start-btn');
+    const stopBtn = $('pangu-stop-btn');
+    if (d.model_downloaded) {
+      statusText.textContent = '模型已下载 (' + d.model_size_mb + 'MB)';
+      badge.textContent = d.server_running ? '● 运行中' : '● 已停止';
+      badge.style.color = d.server_running ? 'var(--green-bright)' : 'var(--amber)';
+      dlBtn.textContent = '重新下载';
+      startBtn.style.display = d.server_running ? 'none' : '';
+      stopBtn.style.display = d.server_running ? '' : 'none';
+    } else {
+      statusText.textContent = '模型未下载';
+      badge.textContent = '○ 未就绪';
+      badge.style.color = 'var(--text-muted)';
+      dlBtn.textContent = '下载模型 (2.6GB)';
+      startBtn.style.display = 'none';
+      stopBtn.style.display = 'none';
+    }
+  } catch(e) {
+    $('pangu-status-text').textContent = '无法检测状态';
+  }
+}
+
+async function panguDownload() {
+  const btn = $('pangu-download-btn');
+  btn.textContent = '下载中...';
+  btn.disabled = true;
+  try {
+    const r = await fetch(API + '/settings/pangu/download', { method: 'POST' });
+    const d = await r.json();
+    if (d.status === 'already_downloaded') {
+      btn.textContent = '已下载';
+    } else if (d.status === 'downloaded') {
+      btn.textContent = '下载完成';
+    } else {
+      btn.textContent = '下载失败: ' + (d.message || 'unknown');
+    }
+  } catch(e) {
+    btn.textContent = '下载失败';
+  }
+  btn.disabled = false;
+  panguCheckStatus();
+}
+
+async function panguStart() {
+  const btn = $('pangu-start-btn');
+  btn.textContent = '启动中...';
+  btn.disabled = true;
+  try {
+    await fetch(API + '/settings/pangu/start', { method: 'POST' });
+  } catch(e) {}
+  btn.textContent = '启动服务';
+  btn.disabled = false;
+  setTimeout(panguCheckStatus, 3000);
+}
+
+async function panguStop() {
+  try {
+    await fetch(API + '/settings/pangu/stop', { method: 'POST' });
+  } catch(e) {}
+  setTimeout(panguCheckStatus, 1000);
+}
 
 updateRightPanel();
 checkOnboarding();
