@@ -34,6 +34,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 Source: "dist\COGU-Loong.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "D:\COGU AGENT\MINI\openPangu-Embedded-1B\*"; DestDir: "{app}\pangu-model"; Flags: ignoreversion recursesubdirs createallsubdirs nocompression
 
 [Icons]
 Name: "{group}\{#APPNAME}"; Filename: "{app}\{#APPEXE}"

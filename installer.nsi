@@ -40,6 +40,7 @@ Section "MainSection" SEC01
 
   File "dist\COGU-Loong.exe"
 
+
   CreateDirectory "$SMPROGRAMS\${APPNAME}"
   CreateShortCut "$SMPROGRAMS\${APPNAME}\${APPNAME}.lnk" "$INSTDIR\${APPEXE}" "" "$INSTDIR\${APPEXE}" 0
   CreateShortCut "$SMPROGRAMS\${APPNAME}\Uninstall.lnk" "$INSTDIR\uninstall.exe" "" "$INSTDIR\uninstall.exe" 0
@@ -58,6 +59,7 @@ Section -Post
 SectionEnd
 
 Section Uninstall
+  RMDir /r "$INSTDIR\pangu-model"
   Delete "$INSTDIR\COGU-Loong.exe"
   Delete "$INSTDIR\uninstall.exe"
   RMDir "$INSTDIR"
