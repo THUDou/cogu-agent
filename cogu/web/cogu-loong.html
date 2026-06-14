@@ -1013,18 +1013,19 @@ async function panguCheckStatus() {
     const dlBtn = $('pangu-download-btn');
     const startBtn = $('pangu-start-btn');
     const stopBtn = $('pangu-stop-btn');
-    if (d.model_downloaded) {
-      statusText.textContent = '模型已下载 (' + d.model_size_mb + 'MB)';
+    if (d.model_available) {
+      statusText.textContent = '模型已就绪' + (d.model_size_mb ? ' (' + d.model_size_mb + 'MB)' : '');
       badge.textContent = d.server_running ? '● 运行中' : '● 已停止';
       badge.style.color = d.server_running ? 'var(--green-bright)' : 'var(--amber)';
-      dlBtn.textContent = '重新下载';
+      dlBtn.style.display = 'none';
       startBtn.style.display = d.server_running ? 'none' : '';
       stopBtn.style.display = d.server_running ? '' : 'none';
     } else {
-      statusText.textContent = '模型未下载';
+      statusText.textContent = '模型未就绪';
       badge.textContent = '○ 未就绪';
       badge.style.color = 'var(--text-muted)';
       dlBtn.textContent = '下载模型 (2.6GB)';
+      dlBtn.style.display = '';
       startBtn.style.display = 'none';
       stopBtn.style.display = 'none';
     }

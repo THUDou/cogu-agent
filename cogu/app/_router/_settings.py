@@ -192,11 +192,24 @@ async def update_settings(body: SettingsUpdateRequest):
     return await get_settings()
 
 
+def _find_pangu_model_dir() -> Path:
+    if getattr(sys, "frozen", False):
+        base = Path(sys.executable).parent
+        candidates = [base / "pangu-model", base / "_internal" / "pangu-model"]
+    else:
+        candidates = [Path(__file__).resolve().parent.parent.parent / "pangu-model"]
+    candidates.append(Path.home() / ".cogu" / "pangu-model")
+    for d in candidates:
+        if (d / "model.safetensors").exists():
+            return d
+    return candidates[0]
+
+
 @settings_router.get("/pangu/status")
 async def pangu_status():
-    model_dir = Path.home() / ".cogu" / "pangu-model"
+    model_dir = _find_pangu_model_dir()
     model_file = model_dir / "model.safetensors"
-    downloaded = model_file.exists() and model_file.stat().st_size > 100_000_000
+    available = model_file.exists() and model_file.stat().st_size > 100_000_000
     server_running = False
     try:
         import httpx
@@ -207,22 +220,20 @@ async def pangu_status():
     except Exception:
         pass
     return {
-        "model_downloaded": downloaded,
+        "model_available": available,
         "model_dir": str(model_dir),
         "server_running": server_running,
-        "model_size_mb": round(model_file.stat().st_size / 1_048_576, 1) if downloaded else 0,
+        "model_size_mb": round(model_file.stat().st_size / 1_048_576, 1) if available else 0,
     }
 
 
 @settings_router.post("/pangu/download")
 async def pangu_download():
-    import asyncio
     model_dir = Path.home() / ".cogu" / "pangu-model"
     model_dir.mkdir(parents=True, exist_ok=True)
     model_file = model_dir / "model.safetensors"
     if model_file.exists() and model_file.stat().st_size > 100_000_000:
         return {"status": "already_downloaded", "path": str(model_dir)}
-
     try:
         from huggingface_hub import hf_hub_download
         repo_id = "PIKA665/openPangu-Embedded-1B"
@@ -236,28 +247,33 @@ async def pangu_download():
                 pass
         return {"status": "downloaded", "path": str(model_dir)}
     except ImportError:
-        return {"status": "error", "message": "huggingface_hub not installed. Run: pip install huggingface_hub"}
+        return {"status": "error", "message": "huggingface_hub not installed"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
 
 @settings_router.post("/pangu/start")
 async def pangu_start():
-    model_dir = Path.home() / ".cogu" / "pangu-model"
+    model_dir = _find_pangu_model_dir()
     model_file = model_dir / "model.safetensors"
     if not model_file.exists():
-        return {"status": "error", "message": "Model not downloaded. Call /pangu/download first."}
-
+        return {"status": "error", "message": "Model not found. Install the full version or download model first."}
     try:
         import subprocess
         import sys
-        engine_path = Path(__file__).resolve().parent.parent.parent / "mini_engine" / "server.py"
+        if getattr(sys, "frozen", False):
+            base = Path(sys.executable).parent
+            engine_path = base / "_internal" / "cogu" / "mini_engine" / "server.py"
+            if not engine_path.exists():
+                engine_path = base / "cogu" / "mini_engine" / "server.py"
+        else:
+            engine_path = Path(__file__).resolve().parent.parent.parent / "mini_engine" / "server.py"
         if not engine_path.exists():
             return {"status": "error", "message": f"Engine not found at {engine_path}"}
         subprocess.Popen(
             [sys.executable, str(engine_path), "--port", "8199", "--backend", "transformers", "--device", "auto"],
             cwd=str(model_dir),
-            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+            creation_flags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
         )
         return {"status": "starting", "port": 8199}
     except Exception as e:

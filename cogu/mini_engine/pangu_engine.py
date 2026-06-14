@@ -11,14 +11,51 @@ openPangu-Embedded-1B 本地推理引擎
 import json
 import logging
 import os
+import sys
 import time
 from pathlib import Path
 from typing import Any, Generator, Optional
 
 logger = logging.getLogger(__name__)
 
-MODEL_DIR = Path(__file__).parent.parent / "openPangu-Embedded-1B"
-GGUF_MODEL_PATH = Path(__file__).parent.parent / "gguf" / "openPangu-Embedded-1B-Q4_K_M.gguf"
+
+def _find_model_dir() -> Path:
+    if getattr(sys, "frozen", False):
+        base = Path(sys.executable).parent
+        candidates = [
+            base / "pangu-model",
+            base / "_internal" / "pangu-model",
+        ]
+    else:
+        candidates = [
+            Path(__file__).resolve().parent.parent.parent / "pangu-model",
+        ]
+    candidates.append(Path.home() / ".cogu" / "pangu-model")
+    for d in candidates:
+        if (d / "model.safetensors").exists():
+            return d
+    return candidates[0]
+
+
+def _find_gguf_path() -> Path:
+    if getattr(sys, "frozen", False):
+        base = Path(sys.executable).parent
+        candidates = [
+            base / "pangu-model" / "openPangu-Embedded-1B-Q4_K_M.gguf",
+            base / "_internal" / "pangu-model" / "openPangu-Embedded-1B-Q4_K_M.gguf",
+        ]
+    else:
+        candidates = [
+            Path(__file__).resolve().parent.parent.parent / "gguf" / "openPangu-Embedded-1B-Q4_K_M.gguf",
+        ]
+    for p in candidates:
+        if p.exists():
+            return p
+    return candidates[0]
+
+
+MODEL_DIR = _find_model_dir()
+GGUF_MODEL_PATH = _find_gguf_path()
 
 
 class PanguEngineConfig:

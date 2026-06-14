@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from cogu.app._lifespan import app_lifespan
-from cogu.app._router import chat_router, agent_router, session_router, tool_router, memory_router, settings_router
+from cogu.app._router import chat_router, agent_router, session_router, tool_router, memory_router, settings_router, workflow_router
 
 
 def create_app(
@@ -35,6 +35,7 @@ def create_app(
     app.include_router(tool_router)
     app.include_router(memory_router)
     app.include_router(settings_router)
+    app.include_router(workflow_router)
 
     @app.get("/healthz")
     async def healthz():

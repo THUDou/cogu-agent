@@ -1,14 +1,52 @@
+# Python
 __pycache__/
 *.py[cod]
 *.egg-info/
-dist/
-build/
 .venv/
 venv/
 env/
 .cogu/
+
+# Build artifacts
+dist/
+build/
+*.spec
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Database
 *.db
 *.db-journal
 *.db-wal
 *.db-shm
+
+# Secrets
+*.env
+.env
+secrets.json
+*.key
+
+# Large files (keep in releases)
+*.7z
+*.zip
+*.exe
+*.msi
+*.dmg
+
+# Node
+node_modules/
+studio-ui/node_modules/
+studio-ui/.vite/
+studio-ui/dist/
+
+# Workbuddy
+.workbuddy/

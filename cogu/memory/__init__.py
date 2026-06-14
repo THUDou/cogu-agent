@@ -49,6 +49,8 @@ from cogu.memory.experience_kb import (
     KBSearchResult,
     ExperienceKBService,
 )
+from cogu.memory.task_memory import TaskMemoryService, TaskMemory, TaskMemoryResult
+from cogu.memory.coding_memory import CodingMemory, CodingMemoryEntry, CodingMemoryStatus, get_coding_memory
 
 __all__ = [
     "SuperMemory",
@@ -104,4 +106,11 @@ __all__ = [
     "WorkflowInstance",
     "KBSearchResult",
     "ExperienceKBService",
+    "TaskMemoryService",
+    "TaskMemory",
+    "TaskMemoryResult",
+    "CodingMemory",
+    "CodingMemoryEntry",
+    "CodingMemoryStatus",
+    "get_coding_memory",
 ]

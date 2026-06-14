@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "cogu-agent"
-version = "0.9.0"
+version = "1.3.0"
 description = "COGU AGENT - 融合华为JiuwenCLAW基座+小米MiMo超级记忆+百度LoongFlow专家思辨+DeepSeek优化的国产AGENT框架"
 readme = "README.md"
 requires-python = ">=3.11"
