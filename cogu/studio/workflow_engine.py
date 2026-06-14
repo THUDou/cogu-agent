@@ -385,13 +385,13 @@ class WorkflowEngine:
                     if "output" in result:
                         state.variables[f"node_{current.id}_output"] = result["output"]
 
-                    next方向 = result.get("next", "default")
+                    next_direction = result.get("next", "default")
                     next_edges = workflow.get_edges_from(current.id)
                     matched = False
                     for edge in next_edges:
-                        if (next方向 == "true" and edge.type == EdgeType.CONDITION_TRUE) or \
-                           (next方向 == "false" and edge.type == EdgeType.CONDITION_FALSE) or \
-                           (next方向 == "default" and edge.type == EdgeType.NORMAL):
+                        if (next_direction == "true" and edge.type == EdgeType.CONDITION_TRUE) or \
+                           (next_direction == "false" and edge.type == EdgeType.CONDITION_FALSE) or \
+                           (next_direction == "default" and edge.type == EdgeType.NORMAL):
                             state.current_node_id = edge.target
                             matched = True
                             break

@@ -155,6 +155,10 @@ cogu tui
 
 # Web 服务
 cogu serve --port 8000
+
+# Studio 可视化工作流编辑器
+cogu studio                    # 启动 Studio UI (需要 Node.js)
+cogu studio --port 5174        # 指定前端端口
 ```
 
 ## 技术栈
@@ -169,6 +173,7 @@ cogu serve --port 8000
 
 | 版本 | 日期 | 内容 |
 |------|------|------|
+| **v1.3.0** | 2026-06-14 | Studio UI 前端 (React+Vite) + Workflow REST API + CLI studio命令 |
 | **v1.2.0** | 2026-06-14 | A2A协议 + DeepSearch深度搜索 + ContextEngine处理器链 + AgentStudio工作流引擎 (4 new modules) |
 | **v1.1.0** | 2026-06-14 | openJiuwen融合: Heartbeat+TaskMemory+CodingMemory+Trajectory+CronJob (5 new modules) |
 | **v1.0.0** | 2026-06-14 | 自进化系统 + 9大增量升级 (24 files, +2593 lines) |

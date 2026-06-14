@@ -95,6 +95,10 @@ Examples:
     serve_parser.add_argument("--port", type=int, default=8080, help="Port to listen on")
     serve_parser.add_argument("--host", default="127.0.0.1", help="Host to bind")
 
+    studio_parser = sub.add_parser("studio", help="Start Studio UI (visual workflow editor)")
+    studio_parser.add_argument("--port", type=int, default=5174, help="Studio UI dev server port")
+    studio_parser.add_argument("--api-port", type=int, default=8080, help="Backend API port")
+
     config_parser = sub.add_parser("config", help="Manage API keys and settings")
     config_sub = config_parser.add_subparsers(dest="config_command")
     config_sub.add_parser("list", help="List configured providers")
@@ -360,10 +364,33 @@ class CLI:
     async def cmd_tui(self) -> int:
         try:
             from cogu.tui.app import run_tui
+            run_tui()
         except ImportError:
-            print("TUI requires textual. Install with: pip install textual")
+            print("TUI requires textual: pip install textual")
+        return 0
+
+    async def cmd_studio(self) -> int:
+        import subprocess
+        import webbrowser
+        studio_dir = Path(__file__).parent.parent.parent / "studio-ui"
+        if not studio_dir.exists():
+            print(f"Studio UI not found at {studio_dir}")
+            print("Please install: cd studio-ui && npm install")
             return 1
-        run_tui(workspace=self.workspace, model=self.args.model)
+        api_port = getattr(self.args, "api_port", 8080)
+        port = getattr(self.args, "port", 5174)
+        print(f"Starting COGU Studio UI...")
+        print(f"  Backend API: http://127.0.0.1:{api_port}")
+        print(f"  Studio UI:   http://localhost:{port}")
+        print(f"  (Make sure 'cogu serve --port {api_port}' is running)")
+        try:
+            webbrowser.open(f"http://localhost:{port}")
+        except Exception:
+            pass
+        try:
+            subprocess.run(["npm", "run", "dev"], cwd=str(studio_dir), check=False)
+        except FileNotFoundError:
+            print("Node.js not found. Please install Node.js and run: cd studio-ui && npm install")
         return 0
 
     async def cmd_version(self) -> int:
@@ -453,6 +480,7 @@ class CLI:
             "memory": self.cmd_memory,
             "serve": self.cmd_serve,
             "tui": self.cmd_tui,
+            "studio": self.cmd_studio,
             "version": self.cmd_version,
             "config": self.cmd_config,
             "pangu-mini": self.cmd_pangu_mini,
