@@ -1,8 +1,9 @@
 """CoEvolution — 共生进化引擎
 
 灵感来源: Agent0 Curriculum+Executor 共生反馈环
-基于源码: EvoMaster evolution/manager.py (baseline→analyze→apply→rerun)
-         + EvoMaster evolution/analyzer.py (LLM分析提取改进)
+基于源码: Agent0 executor_train/verl_tool/trainer/main_ppo.py (Ray PPO训练)
+         + Agent0 curriculum_train/ (课程生成+评估)
+         + OAgents MultiStepAgent (2579行 ReAct + 规划 + Managed Agents)
 """
 from __future__ import annotations
 
