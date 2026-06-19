@@ -443,7 +443,8 @@ class ReActAgent:
                 parts.append(f"- [{r.source}/{r.level.value if hasattr(r.level, 'value') else r.level}] (score={r.score:.2f}) {r.content[:300]}")
             self._cached_memory_context = "\n".join(parts)
             return self._cached_memory_context
-        except Exception:
+        except Exception as e:
+            self._logger.warning(f"Memory recall failed: {e}")
             return ""
 
     async def _apply_context_compression(self):
@@ -469,8 +470,8 @@ class ReActAgent:
                 role="tool",
                 metadata={"tool": tool_name},
             )
-        except Exception:
-            pass
+        except Exception as e:
+            self._logger.warning(f"Memory remember failed for tool '{tool_name}': {e}")
 
     def _build_enriched_system_prompt(self) -> str:
         prompt = self._get_system_prompt()
@@ -541,7 +542,7 @@ class ReActAgent:
             return ToolResult.err(guard.rejected_reason or f"Tool '{tool_name}' blocked by guard")
 
         if guard.warning:
-            pass
+            self._logger.debug(f"Tool '{tool_name}' guard warning: {guard.warning}")
 
         ctx = AgentCallbackContext(
             agent=self,
@@ -585,11 +586,12 @@ class ReActAgent:
         if not self._session:
             return
         token_estimate = self._session.estimate_tokens()
-        if token_estimate > 8000:
+        compress_threshold = int(self._agent_config.context_max_tokens * 0.85)
+        if token_estimate > compress_threshold:
             content = json.dumps(self._session.conversation, ensure_ascii=False)
             result = await self._compression.auto_compress(
                 content,
-                token_budget=8000,
+                token_budget=self._agent_config.context_max_tokens,
                 context={"messages": self._session.conversation},
             )
 
@@ -605,6 +607,19 @@ class ReActAgent:
 
     async def invoke(self, user_message: str) -> TurnResult:
         started = time.time()
+        
+        # ✅ 输入验证
+        if not user_message or not user_message.strip():
+            return TurnResult(
+                status=TurnStatus.ERROR,
+                content="❌ 请输入有效的问题或指令。",
+            )
+        
+        if len(user_message) > 50000:
+            return TurnResult(
+                status=TurnStatus.ERROR,
+                content=f"❌ 输入过长（{len(user_message)} 字符，最大 50000 字符），请简化你的问题。",
+            )
         
         # ✅ 日志记录：开始处理
         self._logger.info(
@@ -652,24 +667,47 @@ class ReActAgent:
                 tools_count=len(tools) if tools else 0,
             )
             
-            try:
-                response: LLMResponse = await self._get_client().chat(
-                    messages=self._session.conversation if self._session else [
-                        {"role": "system", "content": self._get_system_prompt()},
-                        {"role": "user", "content": user_message},
-                    ],
-                    system=self._get_system_prompt() if not self._session else "",
-                    tools=tools or None,
-                    temperature=self._agent_config.temperature,
-                    top_p=self._agent_config.top_p,
-                )
-            except Exception as e:
-                # ✅ 记录详细错误日志（不暴露给用户）
-                self._logger.error(f"Agent invocation failed: {e}", exc_info=True)
-                
-                # ✅ 返回用户友好的错误提示
-                final_status = TurnStatus.ERROR
-                full_content = self._format_user_friendly_error(e)
+            # ✅ 重试机制（最多 3 次，指数退避）
+            max_retries = 3
+            retry_delay = 1.0
+            response = None
+            
+            for retry_attempt in range(max_retries):
+                try:
+                    response: LLMResponse = await self._get_client().chat(
+                        messages=self._session.conversation if self._session else [
+                            {"role": "system", "content": self._get_system_prompt()},
+                            {"role": "user", "content": user_message},
+                        ],
+                        system=self._get_system_prompt() if not self._session else "",
+                        tools=tools or None,
+                        temperature=self._agent_config.temperature,
+                        top_p=self._agent_config.top_p,
+                    )
+                    break  # 成功则跳出重试循环
+                except Exception as e:
+                    error_type = type(e).__name__
+                    # 只对可重试错误进行重试（网络、超时、速率限制）
+                    is_retryable = any(keyword in error_type.lower() + str(e).lower() 
+                                      for keyword in ["connection", "timeout", "rate", "429", "502", "503", "504"])
+                    
+                    if is_retryable and retry_attempt < max_retries - 1:
+                        wait_time = retry_delay * (2 ** retry_attempt)
+                        self._logger.warning(
+                            f"LLM call failed (attempt {retry_attempt + 1}/{max_retries}), "
+                            f"retrying in {wait_time}s: {e}"
+                        )
+                        self._notify_progress(f"网络异常，{wait_time:.0f}秒后重试 ({retry_attempt + 1}/{max_retries})...")
+                        await asyncio.sleep(wait_time)
+                        continue
+                    
+                    # 不可重试或重试次数用尽
+                    self._logger.error(f"Agent invocation failed: {e}", exc_info=True)
+                    final_status = TurnStatus.ERROR
+                    full_content = self._format_user_friendly_error(e)
+                    break
+            
+            if response is None:
                 break
 
             full_thinking = response.thinking
@@ -778,6 +816,15 @@ class ReActAgent:
         return result
 
     async def stream(self, user_message: str) -> AsyncIterator[StreamFrame]:
+        # ✅ 输入验证
+        if not user_message or not user_message.strip():
+            yield StreamFrame(type="error", content="❌ 请输入有效的问题或指令。")
+            return
+        
+        if len(user_message) > 50000:
+            yield StreamFrame(type="error", content=f"❌ 输入过长（{len(user_message)} 字符，最大 50000 字符），请简化你的问题。")
+            return
+        
         if self._session:
             await self._session.pre_run({"message": user_message})
             self._session.add_message("user", user_message)
@@ -1150,8 +1197,8 @@ class ReActAgent:
             if on_step:
                 try:
                     on_step(step_record)
-                except Exception:
-                    pass
+                except Exception as e:
+                    self._logger.warning(f"on_step callback failed: {e}")
 
             # Check if agent finished (no tool calls = done)
             if not result.tool_calls:
@@ -1175,8 +1222,8 @@ class ReActAgent:
                     role="system",
                     metadata={"type": "task_trajectory", "task": task_description[:200]},
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                self._logger.warning(f"Memory remember (task trajectory) failed: {e}")
 
         return summary
 

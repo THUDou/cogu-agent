@@ -422,8 +422,12 @@ class CLI:
         elif cc == "set":
             provider = self.args.provider
             key = self.args.api_key
-            self.config_mgr.set_api_key(provider, key)
-            print(f"API key set for {provider}")
+            try:
+                self.config_mgr.set_api_key(provider, key)
+                print(f"✅ API key set for {provider}")
+            except ValueError as e:
+                print(f"❌ {e}")
+                return 1
         elif cc == "remove":
             provider = self.args.provider
             self.config_mgr.remove_api_key(provider)

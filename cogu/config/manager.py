@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from pathlib import Path
 from typing import Optional
@@ -33,12 +34,24 @@ class ConfigManager:
     CONFIG_FILE = "config.json"
     SECRETS_FILE = "secrets.json"
 
+    # API Key 格式验证规则
+    _PROVIDER_KEY_PATTERNS = {
+        "deepseek": {"prefix": "sk-", "min_length": 20, "label": "DeepSeek"},
+        "openai": {"prefix": "sk-", "min_length": 20, "label": "OpenAI"},
+        "claude": {"prefix": "sk-", "min_length": 20, "label": "Claude"},
+        "zhipu": {"prefix": "", "min_length": 10, "label": "智谱GLM"},
+        "qwen": {"prefix": "sk-", "min_length": 20, "label": "通义千问"},
+        "moonshot": {"prefix": "sk-", "min_length": 20, "label": "Moonshot"},
+        "siliconflow": {"prefix": "sk-", "min_length": 20, "label": "SiliconFlow"},
+    }
+
     def __init__(self, workspace: str = ""):
         self._workspace = Path(workspace).resolve() if workspace else Path.cwd()
         self._config_dir = self._workspace / self.CONFIG_DIR_NAME
         self._config_dir.mkdir(parents=True, exist_ok=True)
         self._secrets_path = self._config_dir / self.SECRETS_FILE
         self._settings: Optional[Settings] = None
+        self._logger = logging.getLogger(__name__)
 
     @property
     def config_dir(self) -> Path:
@@ -77,7 +90,41 @@ class ConfigManager:
             if env_var not in os.environ:
                 os.environ[env_var] = key
 
+    def _validate_api_key_format(self, provider: str, api_key: str) -> tuple[bool, str]:
+        """验证 API Key 格式.
+
+        Args:
+            provider: 提供商名称
+            api_key: API Key
+
+        Returns:
+            (是否有效, 错误信息)
+        """
+        if not api_key or not api_key.strip():
+            return False, "API Key 不能为空"
+
+        pattern = self._PROVIDER_KEY_PATTERNS.get(provider)
+        if not pattern:
+            return True, ""
+
+        label = pattern["label"]
+        prefix = pattern["prefix"]
+        min_length = pattern["min_length"]
+
+        if prefix and not api_key.startswith(prefix):
+            return False, f"{label} API Key 应以 '{prefix}' 开头"
+
+        if len(api_key) < min_length:
+            return False, f"{label} API Key 长度不足（最少 {min_length} 字符）"
+
+        return True, ""
+
     def set_api_key(self, provider: str, api_key: str):
+        # ✅ 验证 API Key 格式
+        is_valid, error_msg = self._validate_api_key_format(provider, api_key)
+        if not is_valid:
+            raise ValueError(f"❌ {error_msg}")
+
         secrets = self._read_secrets()
         secrets.setdefault("api_keys", {})[provider] = api_key
         self._write_secrets(secrets)
@@ -86,6 +133,8 @@ class ConfigManager:
         if self._settings:
             if provider == "deepseek":
                 self._settings.deepseek.api_key = api_key
+        
+        self._logger.info(f"API key set for provider '{provider}'")
 
     def get_api_key(self, provider: str) -> str:
         secrets = self._read_secrets()
