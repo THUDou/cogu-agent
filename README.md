@@ -21,6 +21,20 @@
 - 📝 **任务记忆** - 任务级经验检索与存储
 - 🖥️ **五种模式** - CLI / TUI / WEB / Studio UI / 原生桌面应用
 
+## 🎯 五种模式快速对照表
+
+| 模式 | 启动命令 | 默认端口 | 适用场景 | 难度 |
+|------|----------|----------|----------|------|
+| 📟 **CLI** | `cogu run "提示词"` | - | 命令行快速交互、脚本集成 | ⭐ |
+| 🖥️ **TUI** | `cogu tui` | - | 终端界面交互、本地使用 | ⭐⭐ |
+| 🌐 **Web API** | `cogu serve` | 8080 | HTTP API 调用、远程访问 | ⭐⭐⭐ |
+| 🎨 **Studio UI** | `cogu studio` | 5174 (前端)<br>8080 (后端) | 可视化工作流编辑、团队协作 | ⭐⭐⭐ |
+| 💻 **桌面应用** | `python -m cogu.desktop.loong`<br>或双击 `COGU-Loong.exe` | 8198 | 类原生桌面体验、最方便 | ⭐⭐ |
+
+> 💡 **新手推荐**：从 **CLI 模式** 开始（`cogu run "你好"`），然后尝试 **TUI 模式**（`cogu tui`）！
+>
+> 🚀 **未来版本**：桌面应用将支持 `cogu desktop` 命令（当前需使用 `python -m cogu.desktop.loong`）。
+
 ## 🚀 快速开始
 
 ### 方式一：从源码安装
@@ -104,6 +118,27 @@ python -m cogu.desktop.loong
 # 或运行打包的 EXE
 # COGU-Loong.exe
 ```
+
+## 📂 初始化工作区（可选）
+
+如果你希望为项目创建独立的配置和记忆存储，可以手动创建配置文件：
+
+```bash
+# 创建配置目录
+mkdir -p .cogu/memory
+mkdir -p .cogu/memory_files
+mkdir -p .cogu/skills
+
+# 复制默认配置模板（可选）
+cp config.example.json .cogu/config.json
+
+# 配置 API Key
+cogu config set deepseek sk-your-api-key-here
+```
+
+> 💡 **提示**：如果不初始化工作区，COGU 会使用 `~/.cogu/` 作为全局配置目录。
+
+---
 
 ## 🔧 配置 API 令牌
 
@@ -201,6 +236,146 @@ MIT License
 - Claude Code
 - OpenClaw
 - 以及其他优秀开源项目
+
+---
+
+## 📚 相关文档
+
+| 文档 | 说明 |
+|------|------|
+| [PORTS.md](PORTS.md) | 端口管理说明（避免端口冲突） |
+| [config.example.json](config.example.json) | 默认配置模板 |
+| [COGU-AGENT-ANALYSIS.md](COGU-AGENT-ANALYSIS.md) | 完整代码库分析 |
+| [start-cogu.bat](start-cogu.bat) | Windows 一键启动脚本 |
+| [start-cogu.sh](start-cogu.sh) | macOS/Linux 一键启动脚本 |
+
+---
+
+## ❓ 常见问题 FAQ
+
+### Q1：启动时报错 "API key not found"，怎么办？
+
+**A1**：需要配置 API Key，选择以下任一方式：
+
+```bash
+# 方式 1：使用 cogu config 命令（推荐）
+cogu config set deepseek sk-your-api-key-here
+
+# 方式 2：设置环境变量
+export DEEPSEEK_API_KEY="sk-your-api-key-here"
+
+# 方式 3：创建 .env 文件
+echo "DEEPSEEK_API_KEY=sk-your-api-key-here" > .env
+```
+
+获取 API Key：https://platform.deepseek.com/
+
+---
+
+### Q2：端口 8080 已被占用，如何更换？
+
+**A2**：使用 `--port` 参数指定其他端口：
+
+```bash
+# Gateway 改用端口 8081
+cogu serve --port 8081
+
+# Studio UI 连接新的后端端口
+cogu studio --port 5174 --api-port 8081
+```
+
+详细端口管理见 [PORTS.md](PORTS.md)。
+
+---
+
+### Q3：如何同时使用多种模式？
+
+**A3**：可以在多个终端窗口分别启动不同模式：
+
+```bash
+# 终端窗口 1：启动 Gateway
+cogu serve --port 8080
+
+# 终端窗口 2：启动 Studio UI
+cogu studio --api-port 8080
+
+# 终端窗口 3：使用 CLI
+cogu run "帮我写代码"
+
+# 终端窗口 4：启动 TUI
+cogu tui
+```
+
+---
+
+### Q4：桌面应用和 Web UI 有什么区别？
+
+**A4**：
+- **桌面应用**（`python -m cogu.desktop.loong`）：类原生体验，独立窗口，最适合日常使用
+- **Studio UI**（`cogu studio`）：浏览器访问，可视化工作流编辑，适合团队协作
+
+---
+
+### Q5：如何查看当前配置？
+
+**A5**：
+
+```bash
+# 查看已配置的 API 提供商
+cogu config list
+
+# 查看配置文件位置
+cogu config env
+
+# 查看记忆统计
+cogu memory stats
+```
+
+---
+
+### Q6：如何更新 COGU Agent 到最新版本？
+
+**A6**：
+
+```bash
+# 方式 1：从 PyPI 更新（如果已发布）
+pip install --upgrade cogu-agent
+
+# 方式 2：从源码更新
+cd cogu_agent
+git pull origin main
+pip install -e .
+```
+
+---
+
+### Q7：启动 Studio UI 后无法访问，怎么办？
+
+**A7**：请检查以下步骤：
+
+1. **确认后端已启动**：
+   ```bash
+   # 检查端口 8080 是否被占用
+   # Windows:
+   netstat -ano | findstr :8080
+   # macOS/Linux:
+   lsof -i :8080
+   ```
+
+2. **确认 Studio UI 已启动**：
+   ```bash
+   # 检查端口 5174 是否被占用
+   # Windows:
+   netstat -ano | findstr :5174
+   # macOS/Linux:
+   lsof -i :5174
+   ```
+
+3. **查看日志**：
+   - Gateway 日志：终端窗口 1 的输出
+   - Studio UI 日志：终端窗口 2 的输出
+
+详细排查见 [PORTS.md](PORTS.md)。
 
 ---
 
