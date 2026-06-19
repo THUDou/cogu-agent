@@ -1,10 +1,11 @@
 import asyncio
 import json
+import logging
 import time
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, AsyncGenerator, AsyncIterator, Optional, TYPE_CHECKING
+from typing import Any, AsyncGenerator, AsyncIterator, Callable, Optional, TYPE_CHECKING
 
 from cogu.api.client import DeepSeekClient, LLMResponse, StreamEvent, StreamEventType
 from cogu.config.settings import AgentConfig, Settings
@@ -42,6 +43,13 @@ class TurnStatus(Enum):
     THINKING = "thinking"
     ACTING = "acting"
     OBSERVING = "observing"
+    FINISHED = "finished"
+    ERROR = "error"
+
+
+class AgentState(Enum):
+    IDLE = "idle"
+    RUNNING = "running"
     FINISHED = "finished"
     ERROR = "error"
 
@@ -164,6 +172,21 @@ class ReActAgent:
         self._mission_prd: Optional[str] = None
         self._mission_phase = "planning"
 
+        # Agent state machine (OpenManus pattern)
+        self._state: AgentState = AgentState.IDLE
+        self._duplicate_threshold: int = 2
+        self._message_history: list[str] = []
+
+        # Logger
+        self._logger = logging.getLogger(__name__)
+        
+        # Progress callback (for UI feedback)
+        self._progress_callback: Optional[Callable[[str], None]] = None
+
+        # MultiStep mode (EvoMaster pattern)
+        self._trajectory: list[dict[str, Any]] = []
+        self._step_history: list[TurnResult] = []
+
         if self._skill_registry:
             self._register_skills_as_tools()
 
@@ -179,6 +202,196 @@ class ReActAgent:
             return self._multi_provider
         raise RuntimeError("No LLM client configured. Set client or multi_provider_client in constructor.")
 
+    def _format_user_friendly_error(self, e: Exception) -> str:
+        """将技术错误转换为用户友好提示.
+        
+        Args:
+            e: 原始异常
+            
+        Returns:
+            用户友好的错误提示
+        """
+        error_type = type(e).__name__
+        error_msg = str(e)
+        
+        # LLM API 相关错误
+        if "APIConnectionError" in error_type or "Connection" in error_type:
+            return (
+                "❌ 无法连接到 AI 服务\n\n"
+                "可能原因：\n"
+                "• 网络连接不稳定\n"
+                "• API 服务器暂时不可用\n"
+                "• 防火墙阻止了连接\n\n"
+                "建议：\n"
+                "• 检查网络连接\n"
+                "• 稍后重试\n"
+                "• 运行 `cogu config list` 检查配置"
+            )
+        
+        if "AuthenticationError" in error_type or "401" in error_msg:
+            return (
+                "❌ API 密钥无效或已过期\n\n"
+                "建议：\n"
+                "• 运行 `cogu config set deepseek <YOUR-KEY>` 重新配置\n"
+                "• 检查 API Key 是否正确（应以 sk- 开头）\n"
+                "• 前往 https://platform.deepseek.com/ 查看密钥状态"
+            )
+        
+        if "RateLimitError" in error_type or "429" in error_msg:
+            return (
+                "⏳ AI 服务繁忙，已达到速率限制\n\n"
+                "建议：\n"
+                "• 等待 1-2 分钟后重试\n"
+                "• 检查是否超出配额\n"
+                "• 考虑升级 API 套餐"
+            )
+        
+        if "TimeoutError" in error_type or "timeout" in error_msg.lower():
+            return (
+                "⏰ 请求超时\n\n"
+                "可能原因：\n"
+                "• 网络速度慢\n"
+                "• AI 服务响应慢\n"
+                "• 请求过于复杂\n\n"
+                "建议：\n"
+                "• 稍后重试\n"
+                "• 简化你的问题\n"
+                "• 检查网络速度"
+            )
+        
+        if "InvalidRequestError" in error_type or "400" in error_msg:
+            return (
+                "❌ 请求格式错误\n\n"
+                "可能原因：\n"
+                "• 输入内容过长\n"
+                "• 包含不支持的内容\n\n"
+                "建议：\n"
+                "• 简化你的问题\n"
+                "• 缩短输入内容\n"
+                "• 移除特殊字符"
+            )
+        
+        # 通用错误
+        return (
+            f"❌ 处理请求时出现错误\n\n"
+            f"错误类型：{error_type}\n"
+            f"错误信息：{error_msg[:200]}\n\n"
+            "建议：\n"
+            "• 稍后重试\n"
+            "• 检查输入内容\n"
+            "• 查看日志获取详细信息\n"
+            "• 如问题持续，请提交 Issue"
+        )
+
+    def _format_tool_error(self, tool_name: str, e: Exception) -> str:
+        """将工具执行错误转换为用户友好提示.
+        
+        Args:
+            tool_name: 工具名称
+            e: 原始异常
+            
+        Returns:
+            用户友好的错误提示
+        """
+        error_type = type(e).__name__
+        error_msg = str(e)
+        
+        if "FileNotFoundError" in error_type:
+            return f"❌ 工具 '{tool_name}' 失败：找不到文件。请检查文件路径是否正确。"
+        
+        if "PermissionError" in error_type:
+            return f"❌ 工具 '{tool_name}' 失败：权限不足。请检查文件权限或使用管理员权限运行。"
+        
+        if "TimeoutError" in error_type or "timeout" in error_msg.lower():
+            return f"❌ 工具 '{tool_name}' 失败：执行超时。请稍后重试或检查工具配置。"
+        
+        if "ValueError" in error_type:
+            return f"❌ 工具 '{tool_name}' 失败：输入参数错误。请检查输入格式是否正确。"
+        
+        # 通用工具错误
+        return f"❌ 工具 '{tool_name}' 执行失败：{error_msg[:100]}"
+
+    def set_progress_callback(self, callback: Optional[Callable[[str], None]]) -> None:
+        """设置进度回调函数.
+        
+        Args:
+            callback: 进度回调函数，接收一个字符串参数（进度消息）
+        """
+        self._progress_callback = callback
+
+    def _notify_progress(self, message: str) -> None:
+        """发送进度通知.
+        
+        Args:
+            message: 进度消息
+        """
+        if self._progress_callback:
+            self._progress_callback(message)
+
+    async def startup(self) -> None:
+        """启动 Agent，初始化资源.
+        
+        此方法应在使用 Agent 前调用，用于初始化资源（如连接池、线程池等）。
+        """
+        self._logger.info("agent.startup.started")
+        
+        # 初始化工具执行器（如果需要）
+        if hasattr(self._tool_executor, 'startup'):
+            await self._tool_executor.startup()
+        
+        # 初始化记忆系统（如果需要）
+        if self._memory and hasattr(self._memory, 'startup'):
+            await self._memory.startup()
+        
+        self._state = AgentState.IDLE
+        self._logger.info("agent.startup.completed")
+
+    async def shutdown(self) -> None:
+        """关闭 Agent，清理资源.
+        
+        此方法应在不使用 Agent 时调用，用于清理资源（如关闭连接、释放内存等）。
+        """
+        self._logger.info("agent.shutdown.started")
+        
+        # 清理工具执行器
+        if hasattr(self._tool_executor, 'shutdown'):
+            await self._tool_executor.shutdown()
+        
+        # 清理记忆系统
+        if self._memory and hasattr(self._memory, 'close'):
+            await self._memory.close()
+        
+        # 清理压缩管道
+        if hasattr(self._compression, 'close'):
+            await self._compression.close()
+        
+        # 清理 offloader
+        if self._offloader and hasattr(self._offloader, 'close'):
+            await self._offloader.close()
+        
+        self._state = AgentState.IDLE
+        self._logger.info("agent.shutdown.completed")
+
+    def __del__(self):
+        """析构函数 - 兜底清理资源.
+        
+        注意：此方法不保证被调用（依赖垃圾回收），应优先使用 startup()/shutdown() 或上下文管理器。
+        """
+        try:
+            if hasattr(self, '_logger'):
+                self._logger.warning("agent.__del__ called - please use shutdown() explicitly")
+        except Exception:
+            pass
+
+    async def __aenter__(self):
+        """异步上下文管理器入口."""
+        await self.startup()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """异步上下文管理器出口."""
+        await self.shutdown()
+
     def _register_skills_as_tools(self):
         if not self._skill_registry:
             return
@@ -190,6 +403,29 @@ class ReActAgent:
                 func=lambda _s=skill, **kwargs: asyncio.run(_s.execute(**kwargs)),
                 tags=[manifest.category.value] + manifest.tags,
             )
+
+    def is_stuck(self) -> bool:
+        """Detect if agent is stuck (OpenManus pattern).
+
+        Checks if the last N assistant messages are duplicates.
+        """
+        if len(self._message_history) < self._duplicate_threshold:
+            return False
+        recent = self._message_history[-self._duplicate_threshold:]
+        return len(set(recent)) == 1 and recent[0] != ""
+
+    def _get_stuck_prompt(self) -> str:
+        """Generate a strategy-change prompt when stuck (OpenManus pattern)."""
+        return (
+            "I notice I've been repeating myself. Let me try a completely different approach. "
+            "I'll break this problem into smaller steps and try alternative strategies."
+        )
+
+    def _track_message(self, content: str) -> None:
+        """Track assistant messages for stuck detection."""
+        self._message_history.append(content[:200])
+        if len(self._message_history) > 20:
+            self._message_history = self._message_history[-20:]
 
     async def _inject_memory_context(self, query: str) -> str:
         if not self._memory:
@@ -320,12 +556,18 @@ class ReActAgent:
         try:
             result = await self._tool_registry.execute(tool_name, tool_args)
         except Exception as e:
-            result = ToolResult.err(str(e))
+            # ✅ 记录详细错误日志（不暴露给用户）
+            self._logger.error(f"Tool '{tool_name}' execution failed: {e}", exc_info=True)
+            
+            # ✅ 返回用户友好的错误提示
+            friendly_error = self._format_tool_error(tool_name, e)
+            result = ToolResult.err(friendly_error)
+            
             ctx_err = AgentCallbackContext(
                 agent=self,
                 session=self._session,
                 event=AgentCallbackEvent.ON_TOOL_EXCEPTION,
-                data={"tool_name": tool_name, "error": e},
+                data={"tool_name": tool_name, "error": e, "friendly_error": friendly_error},
             )
             await self._rail_registry.trigger(ctx_err)
 
@@ -363,6 +605,17 @@ class ReActAgent:
 
     async def invoke(self, user_message: str) -> TurnResult:
         started = time.time()
+        
+        # ✅ 日志记录：开始处理
+        self._logger.info(
+            "agent.invoke.started",
+            user_message_length=len(user_message),
+            max_iterations=self._agent_config.max_iterations,
+        )
+        
+        # ✅ 通知：开始处理
+        self._notify_progress("正在思考...")
+        
         ctx = AgentCallbackContext(
             agent=self,
             session=self._session,
@@ -384,7 +637,21 @@ class ReActAgent:
         for iteration in range(1, self._agent_config.max_iterations + 1):
             self._turn_counter = iteration
 
+            # ✅ 通知：当前轮次
+            if iteration == 1:
+                self._notify_progress("正在调用 AI 模型...")
+            else:
+                self._notify_progress(f"第 {iteration} 轮思考中...")
+
             tools = self._format_tools()
+            
+            # ✅ 日志记录：开始第 N 轮
+            self._logger.debug(
+                "agent.invoke.iteration_start",
+                iteration=iteration,
+                tools_count=len(tools) if tools else 0,
+            )
+            
             try:
                 response: LLMResponse = await self._get_client().chat(
                     messages=self._session.conversation if self._session else [
@@ -397,8 +664,12 @@ class ReActAgent:
                     top_p=self._agent_config.top_p,
                 )
             except Exception as e:
+                # ✅ 记录详细错误日志（不暴露给用户）
+                self._logger.error(f"Agent invocation failed: {e}", exc_info=True)
+                
+                # ✅ 返回用户友好的错误提示
                 final_status = TurnStatus.ERROR
-                full_content = f"Error: {e}"
+                full_content = self._format_user_friendly_error(e)
                 break
 
             full_thinking = response.thinking
@@ -406,23 +677,69 @@ class ReActAgent:
                 full_content += response.content
             usage = response.usage
 
+            # ✅ 日志记录：LLM 响应
+            self._logger.debug(
+                "agent.invoke.llm_response",
+                iteration=iteration,
+                has_content=bool(response.content),
+                has_tool_calls=bool(response.tool_calls),
+                tool_calls_count=len(response.tool_calls) if response.tool_calls else 0,
+                usage=usage,
+            )
+
             if not response.tool_calls:
                 if self._session:
                     self._session.add_message("assistant", response.content)
+                
+                # ✅ 通知：完成
+                elapsed = (time.time() - started) * 1000
+                self._notify_progress(f"完成！用时 {elapsed/1000:.1f} 秒")
+                
+                # ✅ 日志记录：完成
+                self._logger.info(
+                    "agent.invoke.completed",
+                    iteration=iteration,
+                    elapsed_ms=elapsed,
+                    content_length=len(full_content),
+                )
                 break
 
+            # ✅ 通知：正在执行工具
+            self._notify_progress(f"正在执行 {len(response.tool_calls)} 个工具...")
+            
             all_tool_calls.extend(response.tool_calls)
             tool_result_texts = []
             for tc in response.tool_calls:
+                # ✅ 通知：具体工具名称
+                self._notify_progress(f"正在执行工具: {tc['name']}...")
+                
                 try:
                     args = json.loads(tc["arguments"])
                 except (json.JSONDecodeError, TypeError):
                     args = {}
+                
+                # ✅ 日志记录：工具执行开始
+                self._logger.debug(
+                    "agent.invoke.tool_start",
+                    iteration=iteration,
+                    tool_name=tc['name'],
+                    tool_id=tc.get('id', ''),
+                )
+                
                 result = await self._execute_tool_with_guard(
                     tc.get("id", ""), tc["name"], args,
                 )
                 all_tool_results.append(result)
                 tool_result_texts.append(f"[{tc['name']}]: {result.content or result.error}")
+                
+                # ✅ 日志记录：工具执行完成
+                self._logger.debug(
+                    "agent.invoke.tool_completed",
+                    iteration=iteration,
+                    tool_name=tc['name'],
+                    success=result.success,
+                    error=result.error if not result.success else None,
+                )
 
             if self._session:
                 assistant_msg = {"role": "assistant", "content": response.content or ""}
@@ -649,6 +966,22 @@ class ReActAgent:
             if current_text:
                 final_content += current_text
 
+            # Track message for stuck detection (OpenManus pattern)
+            self._track_message(current_text)
+
+            # Check if agent is stuck
+            if self.is_stuck():
+                stuck_prompt = self._get_stuck_prompt()
+                yield TurnEvent(
+                    type="stuck_detected",
+                    content=stuck_prompt,
+                    iteration=iteration,
+                    metadata={"threshold": self._duplicate_threshold},
+                )
+                # Inject strategy change into session
+                if self._session:
+                    self._session.add_message("system", stuck_prompt)
+
             if has_tool_calls:
                 parsed_calls = []
                 for idx, buf in tool_call_buffer.items():
@@ -772,6 +1105,144 @@ class ReActAgent:
             )
 
         self._tool_executor.clear()
+
+    async def run_task(
+        self,
+        task_description: str,
+        max_steps: int = 10,
+        on_step: Optional[Callable] = None,
+    ) -> dict[str, Any]:
+        """MultiStep task execution (EvoMaster pattern).
+
+        Runs the agent through multiple steps, recording trajectory.
+        Returns a dict with: output, trajectory, step_count, success.
+        """
+        self._trajectory = []
+        self._step_history = []
+
+        for step_num in range(1, max_steps + 1):
+            step_start = time.time()
+
+            # Build context from trajectory
+            context_parts = [f"Task: {task_description}"]
+            if self._trajectory:
+                context_parts.append("Previous steps:")
+                for t in self._trajectory[-3:]:
+                    context_parts.append(f"  Step {t.get('step', '?')}: {t.get('summary', '')[:200]}")
+
+            step_prompt = "\n".join(context_parts)
+
+            # Execute one step via invoke
+            result = await self.invoke(step_prompt)
+
+            step_record = {
+                "step": step_num,
+                "content": result.content[:500] if result.content else "",
+                "thinking": result.thinking[:200] if result.thinking else "",
+                "tool_calls": [{"name": tc.get("name", ""), "args": tc.get("arguments", "")[:100]} for tc in result.tool_calls],
+                "tool_count": len(result.tool_calls),
+                "elapsed_ms": result.elapsed_ms,
+                "status": result.status.value,
+            }
+            self._trajectory.append(step_record)
+            self._step_history.append(result)
+
+            if on_step:
+                try:
+                    on_step(step_record)
+                except Exception:
+                    pass
+
+            # Check if agent finished (no tool calls = done)
+            if not result.tool_calls:
+                break
+
+        # Summarize trajectory
+        summary = {
+            "output": result.content if result else "",
+            "trajectory": self._trajectory,
+            "step_count": len(self._trajectory),
+            "success": result.status == TurnStatus.FINISHED if result else False,
+            "total_tool_calls": sum(t.get("tool_count", 0) for t in self._trajectory),
+            "total_elapsed_ms": sum(t.get("elapsed_ms", 0) for t in self._trajectory),
+        }
+
+        # Record to memory
+        if self._memory:
+            try:
+                await self._memory.remember(
+                    content=f"[Task] {task_description[:100]} → {summary['step_count']} steps, {'success' if summary['success'] else 'failed'}",
+                    role="system",
+                    metadata={"type": "task_trajectory", "task": task_description[:200]},
+                )
+            except Exception:
+                pass
+
+        return summary
+
+    async def step(
+        self,
+        prompt: str,
+        tools: Optional[list[dict]] = None,
+    ) -> TurnResult:
+        """Execute a single step (EvoMaster _step pattern).
+
+        Returns TurnResult with content, tool_calls, tool_results.
+        """
+        if tools is None:
+            tools = self._format_tools()
+
+        messages = self._session.conversation if self._session else [
+            {"role": "system", "content": self._get_system_prompt()},
+            {"role": "user", "content": prompt},
+        ]
+
+        full_content = ""
+        full_thinking = ""
+        all_tool_calls = []
+        all_tool_results = []
+        usage = {}
+
+        response: LLMResponse = await self._get_client().chat(
+            messages=messages,
+            system=self._get_system_prompt() if not self._session else "",
+            tools=tools or None,
+            temperature=self._agent_config.temperature,
+            top_p=self._agent_config.top_p,
+        )
+
+        full_thinking = response.thinking or ""
+        full_content = response.content or ""
+        usage = response.usage
+
+        if response.tool_calls:
+            all_tool_calls = response.tool_calls
+            for tc in response.tool_calls:
+                try:
+                    args = json.loads(tc["arguments"])
+                except (json.JSONDecodeError, TypeError):
+                    args = {}
+                result = await self._execute_tool_with_guard(tc.get("id", ""), tc["name"], args)
+                all_tool_results.append(result)
+
+        return TurnResult(
+            status=TurnStatus.FINISHED if not response.tool_calls else TurnStatus.ACTING,
+            content=full_content,
+            thinking=full_thinking,
+            tool_calls=all_tool_calls,
+            tool_results=all_tool_results,
+            usage=usage,
+            iteration=1,
+            elapsed_ms=0,
+        )
+
+    def get_trajectory(self) -> list[dict[str, Any]]:
+        """Return execution trajectory (EvoMaster pattern)."""
+        return list(self._trajectory)
+
+    def get_step_history(self) -> list[TurnResult]:
+        """Return step history."""
+        return list(self._step_history)
 
     async def _query_mission(
         self, user_message: str, started: float

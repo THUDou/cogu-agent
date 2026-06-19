@@ -185,6 +185,17 @@ class CLI:
             if skills:
                 print(f"Skills: {skills}")
 
+        # ✅ 设置进度回调（显示加载状态）
+        def progress_callback(msg: str):
+            # 使用 stderr 输出进度，避免干扰最终输出
+            import sys
+            print(f"\r{msg}", end="", flush=True, file=sys.stderr)
+            # 换行（为最终输出做准备）
+            if "完成" in msg:
+                print(file=sys.stderr)
+        
+        self.agent.set_progress_callback(progress_callback)
+
         strategy_map = {
             "fts": RecallStrategy.FTS_ONLY,
             "semantic": RecallStrategy.SEMANTIC_ONLY,
@@ -497,7 +508,18 @@ def main():
     parser = create_parser()
     args = parser.parse_args()
     cli = CLI(args)
-    exit_code = asyncio.run(cli.run())
+    
+    # ✅ 生命周期管理：确保退出时清理资源
+    try:
+        exit_code = asyncio.run(cli.run())
+    finally:
+        # ✅ 关闭 Agent，清理资源
+        if hasattr(cli, 'agent') and cli.agent:
+            try:
+                asyncio.run(cli.agent.shutdown())
+            except Exception as e:
+                print(f"Warning: Error during agent shutdown: {e}", file=sys.stderr)
+    
     sys.exit(exit_code)
 
 
