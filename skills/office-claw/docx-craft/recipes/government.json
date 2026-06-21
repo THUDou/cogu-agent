@@ -1,0 +1,72 @@
+{
+  "name": "government",
+  "label": "公文 (GB/T 9704)",
+  "fonts": {
+    "body": {
+      "ascii": "FangSong_GB2312",
+      "eastAsia": "仿宋_GB2312",
+      "hAnsi": "FangSong_GB2312",
+      "size": 32
+    },
+    "heading": {
+      "ascii": "FZXiaoBiaoSong-B05S",
+      "eastAsia": "方正小标宋简体",
+      "hAnsi": "FZXiaoBiaoSong-B05S"
+    }
+  },
+  "headings": [
+    { "level": 0, "size": 44, "bold": true, "spacing": { "before": 0, "after": 200 } },
+    { "level": 1, "size": 32, "bold": true, "spacing": { "before": 0, "after": 0 } },
+    { "level": 2, "size": 32, "bold": true, "spacing": { "before": 0, "after": 0 } },
+    { "level": 3, "size": 32, "bold": false, "spacing": { "before": 0, "after": 0 } }
+  ],
+  "page": {
+    "width": 11906,
+    "height": 16838,
+    "margin": {
+      "top": 2098,
+      "bottom": 1984,
+      "left": 1588,
+      "right": 1474
+    },
+    "preset": "a4"
+  },
+  "lineSpacing": 570,
+  "sections": ["body"],
+  "header": {
+    "text": "",
+    "align": "center"
+  },
+  "footer": {
+    "type": "page_number",
+    "align": "outer"
+  },
+  "extendedStyles": {
+    "toc": {
+      "levels": [
+        { "level": 1, "indent": 0, "bold": true },
+        { "level": 2, "indent": 240, "bold": false },
+        { "level": 3, "indent": 480, "bold": false }
+      ]
+    },
+    "list": {
+      "bullet": { "indent": 720, "hanging": 360 },
+      "number": { "indent": 720, "hanging": 360 }
+    },
+    "table": {
+      "borders": {
+        "style": "single",
+        "size": 4,
+        "color": "auto"
+      },
+      "headerRow": {
+        "fill": "F2F2F2",
+        "bold": true
+      }
+    },
+    "comment": {
+      "textSize": 20,
+      "referenceSize": 16
+    }
+  }
+}

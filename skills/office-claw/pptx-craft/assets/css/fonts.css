@@ -1,0 +1,173 @@
+/**
+ * CDN 字体声明
+ * 发布包会携带 assets/fonts 下的字体文件，CDN 地址为:
+ * https://cdn.digitalhumanai.top/slidagent/pptx-craft/assets/fonts/...
+ */
+
+/* 思源黑体 - 常规 */
+@font-face {
+  font-family: 'Noto Sans SC';
+  src: url('https://cdn.digitalhumanai.top/slidagent/pptx-craft/assets/fonts/NotoSansSC/NotoSansSC-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 思源黑体 - 中等 */
+@font-face {
+  font-family: 'Noto Sans SC';
+  src: url('https://cdn.digitalhumanai.top/slidagent/pptx-craft/assets/fonts/NotoSansSC/NotoSansSC-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 思源黑体 - 粗体 */
+@font-face {
+  font-family: 'Noto Sans SC';
+  src: url('https://cdn.digitalhumanai.top/slidagent/pptx-craft/assets/fonts/NotoSansSC/NotoSansSC-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 思源黑体 - 细体 */
+@font-face {
+  font-family: 'Noto Sans SC';
+  src: url('https://cdn.digitalhumanai.top/slidagent/pptx-craft/assets/fonts/NotoSansSC/NotoSansSC-Light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 文源黑体 - 商务经典 / 通用商务 */
+@font-face {
+  font-family: 'WenYuan Sans SC';
+  src: url('https://cdn.digitalhumanai.top/slidagent/pptx-craft/assets/fonts/WenYuanSansSC/WenYuanSansSC-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: '文源黑体';
+  src: url('https://cdn.digitalhumanai.top/slidagent/pptx-craft/assets/fonts/WenYuanSansSC/WenYuanSansSC-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'WenYuan Sans SC';
+  src: url('https://cdn.digitalhumanai.top/slidagent/pptx-craft/assets/fonts/WenYuanSansSC/WenYuanSansSC-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: '文源黑体';
+  src: url('https://cdn.digitalhumanai.top/slidagent/pptx-craft/assets/fonts/WenYuanSansSC/WenYuanSansSC-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'WenYuan Sans SC';
+  src: url('https://cdn.digitalhumanai.top/slidagent/pptx-craft/assets/fonts/WenYuanSansSC/WenYuanSansSC-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: '文源黑体';
+  src: url('https://cdn.digitalhumanai.top/slidagent/pptx-craft/assets/fonts/WenYuanSansSC/WenYuanSansSC-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 南西新圆体 - 科技极简 / 产品展示 */
+@font-face {
+  font-family: 'NanxiXinyuanti';
+  src: url('https://cdn.digitalhumanai.top/slidagent/pptx-craft/assets/fonts/NanxiXinyuanti/NanxiXinyuanti-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: '南西新圆体';
+  src: url('https://cdn.digitalhumanai.top/slidagent/pptx-craft/assets/fonts/NanxiXinyuanti/NanxiXinyuanti-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 文津宋体 - 典雅叙事 / 学术报告 */
+@font-face {
+  font-family: 'WenJin Mincho Plane 0';
+  src: url('https://cdn.digitalhumanai.top/slidagent/pptx-craft/assets/fonts/WenJinMincho/WenJinMinchoP0-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: '文津宋体 第0平面';
+  src: url('https://cdn.digitalhumanai.top/slidagent/pptx-craft/assets/fonts/WenJinMincho/WenJinMinchoP0-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 械黑 GB - 工业科技 / 工程硬核 */
+@font-face {
+  font-family: 'Frex Sans GB';
+  src: url('https://cdn.digitalhumanai.top/slidagent/pptx-craft/assets/fonts/FrexSansGB/FrexSansGB-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: '械黑 GB';
+  src: url('https://cdn.digitalhumanai.top/slidagent/pptx-craft/assets/fonts/FrexSansGB/FrexSansGB-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Frex Sans GB';
+  src: url('https://cdn.digitalhumanai.top/slidagent/pptx-craft/assets/fonts/FrexSansGB/FrexSansGB-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: '械黑 GB';
+  src: url('https://cdn.digitalhumanai.top/slidagent/pptx-craft/assets/fonts/FrexSansGB/FrexSansGB-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Frex Sans GB';
+  src: url('https://cdn.digitalhumanai.top/slidagent/pptx-craft/assets/fonts/FrexSansGB/FrexSansGB-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: '械黑 GB';
+  src: url('https://cdn.digitalhumanai.top/slidagent/pptx-craft/assets/fonts/FrexSansGB/FrexSansGB-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}

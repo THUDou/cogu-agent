@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<style>
+/*
+ * docx-craft — 决策类会议纪要 HTML 模板
+ * 源模板: 决策类会议纪要模板.docx
+ * 字体: Arial, 12pt 正文
+ */
+body {
+  font-family: 'Arial', sans-serif;
+  font-size: 12pt;
+  line-height: 1.5;
+  margin: 72pt 72pt;
+  color: #000;
+}
+.title-main {
+  font-size: 24pt;
+  font-weight: bold;
+  text-align: center;
+  margin: 0 0 3pt 0;
+  color: #000;
+}
+.title-sub {
+  font-size: 24pt;
+  font-weight: bold;
+  text-align: center;
+  margin: 0 0 18pt 0;
+  color: #000;
+}
+.section-heading {
+  font-size: 12pt;
+  font-weight: bold;
+  margin: 12pt 0 6pt 0;
+}
+.section-content {
+  margin: 0 0 6pt 0;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 6pt 0 12pt 0;
+}
+table.meta {
+  border-collapse: collapse;
+  width: 100%;
+}
+table.meta td {
+  border: 1px solid #000;
+  padding: 3pt 8pt;
+  vertical-align: middle;
+}
+table.meta td.label {
+  background-color: #E6E6E6;
+  text-align: center;
+  width: 17%;
+}
+table.meta td.value {
+  width: 83%;
+}
+table.tasks {
+  border-collapse: collapse;
+  width: 100%;
+}
+table.tasks td, table.tasks th {
+  border: none;
+  padding: 3pt 6pt;
+  vertical-align: top;
+}
+table.tasks th {
+  background-color: #E6E6E6;
+  font-weight: bold;
+  text-align: center;
+  border: none;
+}
+table.tasks td {
+  text-align: center;
+  border: none;
+}
+p { margin: 0 0 3pt 0; }
+.discussion-item { margin: 3pt 0; }
+.footer-note { margin-top: 18pt; color: #000; }
+.signoff { text-align: right; margin-top: 24pt; }
+</style>
+</head>
+<body>
+
+<p class="title-main">{{title_year}}年{{title_month}}月{{title_day}}日{{meeting_name}}</p>
+<p class="title-sub">会议纪要</p>
+
+<table class="meta">
+  <tr><td class="label">时　　间：</td><td class="value">{{time}}</td></tr>
+  <tr><td class="label">地　　点：</td><td class="value">{{location}}</td></tr>
+  <tr><td class="label">召 集 人：</td><td class="value">{{convener}}</td></tr>
+  <tr><td class="label">与会情况：</td><td class="value">{{attendance}}</td></tr>
+  <tr><td class="label">汇 报 人：</td><td class="value">{{reporter}}</td></tr>
+  <tr><td class="label">纪要整理：</td><td class="value">{{recorder}}</td></tr>
+  <tr><td class="label">纪要审核：</td><td class="value">{{reviewer}}</td></tr>
+</table>
+
+<br>
+<p class="section-heading">本次会议主要内容：</p>
+{{#if main_content}}<p class="section-content first-indent">{{main_content}}</p>{{/if}}
+
+<br>
+<p class="section-heading">【会议结论】</p>
+{{#if conclusion_intro}}<p class="section-content first-indent">{{conclusion_intro}}</p>{{/if}}
+{{#each conclusions}}
+<p class="conclusion-item">{{number}}. {{content}}</p>
+{{/each}}
+
+<br>
+<p class="section-heading">【讨论建议】</p>
+{{#if discussion_intro}}<p class="section-content first-indent">{{discussion_intro}}</p>{{/if}}
+{{#each discussions}}
+<p class="discussion-item">{{number}}、{{content}}</p>
+{{/each}}
+
+<br>
+<p class="section-heading">【遗留任务】</p>
+{{#if task_intro}}<p class="section-content">{{task_intro}}</p>{{/if}}
+<table class="tasks">
+  <tr>
+    <th>序号</th><th>任务描述</th><th>完成时间</th><th>责任人</th>
+  </tr>
+{{#each tasks}}
+  <tr>
+    <td>{{number}}</td><td>{{description}}</td><td>{{deadline}}</td><td>{{owner}}</td>
+  </tr>
+{{/each}}
+</table>
+
+<br>
+<p class="section-heading">【附件清单】</p>
+{{#if attachment_intro}}<p class="section-content first-indent">{{attachment_intro}}</p>{{/if}}
+{{#each attachments}}
+<p class="attachment-item">{{name}}</p>
+{{/each}}
+
+<p class="footer-note">{{footer_note}}</p>
+
+<p class="signoff">{{department}}</p>
+<p class="signoff">{{doc_date}}</p>
+
+</body>
+</html>

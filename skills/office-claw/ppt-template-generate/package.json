@@ -1,0 +1,37 @@
+{
+  "name": "ppt-template-generate",
+  "version": "1.0.0",
+  "description": "从现有 PPT 文件逆向工程生成模板规范文件",
+  "main": "scripts/index.js",
+  "scripts": {
+    "start": "node scripts/index.js",
+    "extract": "python scripts/extract_structure.py",
+    "convert": "node scripts/convert_to_images.js",
+    "aggregate": "node scripts/aggregate.js",
+    "vlm": "node scripts/vlm-analyzer.js",
+    "test-vlm": "node scripts/index.js --test-vlm",
+    "check-deps": "node -e \"require('./scripts/convert_to_images.js').checkDependencies()\""
+  },
+  "keywords": [
+    "ppt",
+    "pptx",
+    "template",
+    "style",
+    "extract",
+    "reverse-engineering",
+    "vlm",
+    "vision"
+  ],
+  "author": "PPTX Agent Team",
+  "license": "SEE LICENSE IN ../../LICENSE",
+  "dependencies": {},
+  "devDependencies": {},
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "python": {
+    "dependencies": [
+      "python-pptx>=0.6.21"
+    ]
+  }
+}

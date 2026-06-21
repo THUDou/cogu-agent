@@ -1,5 +1,6 @@
 """COGU Scaling — 测试时缩放策略
-融合 OAgents TTS + Efficient Agents
+基于源码: OAgents agents.py (2579行 MultiStepAgent + TTS + n_rollouts + reflection)
+         + OAgents workflow.py (Step工作流)
 """
 from __future__ import annotations
 

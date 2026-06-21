@@ -102,6 +102,15 @@ class TurnEvent:
         return self.type in ("finish", "error", "max_iterations")
 
 
+@dataclass
+class InputValidationResult:
+    """输入验证结果 — 借鉴 OfficeAce/MiClaw 安全输入处理模式."""
+    is_valid: bool = True
+    sanitized: str = ""
+    error_message: str = ""
+    warning: str = ""
+
+
 _DEFAULT_SYSTEM_PROMPT = """You are COGU, a cognitive unified agent. You have access to tools and can use them to accomplish tasks.
 Think step by step. When you need information, use tools. When you have an answer, respond directly.
 Be concise and precise. Use Chinese when the user communicates in Chinese."""
@@ -201,6 +210,153 @@ class ReActAgent:
         if self._multi_provider:
             return self._multi_provider
         raise RuntimeError("No LLM client configured. Set client or multi_provider_client in constructor.")
+
+    def _validate_input(self, user_message: str, max_length: int = 50000) -> InputValidationResult:
+        """验证并清理用户输入 — 借鉴 OfficeAce 安全输入处理 & MiClaw 防护模式.
+        
+        执行多层验证：
+        1. 类型检查 — 确保输入为字符串
+        2. 空值/纯空白检查
+        3. 控制字符清理（保留换行符和制表符）
+        4. 长度限制检查
+        5. 潜在注入检测（警告级别，不阻止）
+        
+        借鉴 OfficeAce 模式：sanitize-first, then validate, warn on suspicious patterns.
+        借鉴 MiClaw 模式：rail-based validation with progressive severity.
+        
+        Args:
+            user_message: 原始用户输入
+            max_length: 最大允许字符数
+            
+        Returns:
+            InputValidationResult 包含验证状态、清理后的消息和警告信息
+        """
+        import re
+        
+        # 1. 类型检查
+        if not isinstance(user_message, str):
+            return InputValidationResult(
+                is_valid=False,
+                error_message="❌ 输入类型无效，请输入文本。",
+            )
+        
+        # 2. 空值检查
+        if not user_message or not user_message.strip():
+            return InputValidationResult(
+                is_valid=False,
+                error_message="❌ 请输入有效的问题或指令。",
+            )
+        
+        # 3. 清理 null 字节和危险控制字符
+        sanitized = user_message.replace('\x00', '')
+        # 移除 ASCII 控制字符（保留 \n \t）
+        sanitized = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]', '', sanitized)
+        
+        # 4. 清理后再次检查空值
+        if not sanitized.strip():
+            return InputValidationResult(
+                is_valid=False,
+                error_message="❌ 输入仅包含无效字符，请输入有效文本。",
+            )
+        
+        # 5. 长度检查
+        if len(sanitized) > max_length:
+            return InputValidationResult(
+                is_valid=False,
+                error_message=(
+                    f"❌ 输入过长（{len(sanitized)} 字符，最大 {max_length} 字符），"
+                    f"请简化你的问题。"
+                ),
+            )
+        
+        # 6. 潜在注入检测（借鉴 OfficeAce factcheck 安全模式 — 仅警告，不阻止）
+        warning = ""
+        injection_patterns = [
+            (r'\[system\]\(#.*?\)', '检测到可能的系统指令注入标记'),
+            (r'<\|im_start\|>', '检测到可能的角色切换标记'),
+            (r'\[INST\].*?\[/INST\]', '检测到可能的指令包装'),
+            (r'ignore\s+(all\s+)?(previous|prior|above)\s+instructions?', '检测到可能的指令覆盖尝试'),
+            (r'<\|endoftext\|>', '检测到可能的结束标记注入'),
+            (r'\[DONE\]', '检测到可能的流结束标记'),
+        ]
+        for pattern, desc in injection_patterns:
+            if re.search(pattern, sanitized, re.IGNORECASE):
+                warning = f"⚠️ {desc}（已标记，继续处理）"
+                self._logger.warning(f"input_validation.injection_detected: {desc}")
+                break
+        
+        return InputValidationResult(
+            is_valid=True,
+            sanitized=sanitized.strip(),
+            warning=warning,
+        )
+
+    def _is_retryable_error(self, error: Exception) -> bool:
+        """判断错误是否可重试 — 借鉴 MiClaw retry classifier 模式.
+        
+        Args:
+            error: 异常对象
+            
+        Returns:
+            True 如果应该重试
+        """
+        error_text = type(error).__name__.lower() + " " + str(error).lower()
+        retryable_keywords = ["connection", "timeout", "rate", "429", "502", "503", "504", "server error"]
+        return any(keyword in error_text for keyword in retryable_keywords)
+
+    async def _retry_llm_call(
+        self,
+        call_name: str,
+        call_fn,
+        max_retries: int = 3,
+        retry_delay: float = 1.0,
+    ):
+        """通用 LLM 调用重试包装器 — 借鉴 OfficeAce 韧性调用模式.
+        
+        对可重试错误（网络、超时、限流）使用指数退避重试。
+        不可重试错误（认证、参数错误）立即失败。
+        
+        Args:
+            call_name: 调用名称（用于日志）
+            call_fn: 异步无参数函数，返回 LLM 调用结果
+            max_retries: 最大重试次数
+            retry_delay: 初始退避延迟（秒）
+            
+        Returns:
+            LLM 调用结果，如果所有重试都失败则返回 None
+            
+        Raises:
+            不可重试的错误会直接抛出
+        """
+        last_error = None
+        for attempt in range(max_retries):
+            try:
+                result = await call_fn()
+                if attempt > 0:
+                    self._logger.info(f"{call_name}: succeeded after {attempt + 1} attempts")
+                return result
+            except Exception as e:
+                last_error = e
+                if not self._is_retryable_error(e):
+                    # 不可重试错误直接抛出
+                    raise
+                
+                if attempt < max_retries - 1:
+                    wait_time = retry_delay * (2 ** attempt)
+                    self._logger.warning(
+                        f"{call_name}: attempt {attempt + 1}/{max_retries} failed, "
+                        f"retrying in {wait_time:.1f}s: {e}"
+                    )
+                    if self._progress_callback:
+                        self._notify_progress(
+                            f"网络异常，{wait_time:.0f}秒后重试 ({attempt + 1}/{max_retries})..."
+                        )
+                    await asyncio.sleep(wait_time)
+                    continue
+        
+        # 所有重试用尽
+        self._logger.error(f"{call_name}: all {max_retries} attempts failed: {last_error}")
+        raise last_error
 
     def _format_user_friendly_error(self, e: Exception) -> str:
         """将技术错误转换为用户友好提示.
@@ -608,18 +764,16 @@ class ReActAgent:
     async def invoke(self, user_message: str) -> TurnResult:
         started = time.time()
         
-        # ✅ 输入验证
-        if not user_message or not user_message.strip():
+        # ✅ 增强输入验证（OfficeAce/MiClaw 多层安全验证模式）
+        validation = self._validate_input(user_message)
+        if not validation.is_valid:
             return TurnResult(
                 status=TurnStatus.ERROR,
-                content="❌ 请输入有效的问题或指令。",
+                content=validation.error_message,
             )
-        
-        if len(user_message) > 50000:
-            return TurnResult(
-                status=TurnStatus.ERROR,
-                content=f"❌ 输入过长（{len(user_message)} 字符，最大 50000 字符），请简化你的问题。",
-            )
+        user_message = validation.sanitized
+        if validation.warning:
+            self._logger.warning(f"invoke.input_suspicious: {validation.warning}")
         
         # ✅ 日志记录：开始处理
         self._logger.info(
@@ -816,14 +970,14 @@ class ReActAgent:
         return result
 
     async def stream(self, user_message: str) -> AsyncIterator[StreamFrame]:
-        # ✅ 输入验证
-        if not user_message or not user_message.strip():
-            yield StreamFrame(type="error", content="❌ 请输入有效的问题或指令。")
+        # ✅ 增强输入验证（OfficeAce/MiClaw 多层安全验证模式）
+        validation = self._validate_input(user_message)
+        if not validation.is_valid:
+            yield StreamFrame(type="error", content=validation.error_message)
             return
-        
-        if len(user_message) > 50000:
-            yield StreamFrame(type="error", content=f"❌ 输入过长（{len(user_message)} 字符，最大 50000 字符），请简化你的问题。")
-            return
+        user_message = validation.sanitized
+        if validation.warning:
+            self._logger.warning(f"stream.input_suspicious: {validation.warning}")
         
         if self._session:
             await self._session.pre_run({"message": user_message})
@@ -885,6 +1039,15 @@ class ReActAgent:
         use_planner: bool = False,
         use_memory_rag: bool = True,
     ) -> AsyncGenerator[TurnEvent, None]:
+        # ✅ 增强输入验证（OfficeAce/MiClaw 多层安全验证模式）
+        validation = self._validate_input(user_message)
+        if not validation.is_valid:
+            yield TurnEvent(type="error", content=validation.error_message)
+            return
+        user_message = validation.sanitized
+        if validation.warning:
+            self._logger.warning(f"query.input_suspicious: {validation.warning}")
+        
         started = time.time()
 
         if use_memory_rag and self._memory:
@@ -1164,6 +1327,22 @@ class ReActAgent:
         Runs the agent through multiple steps, recording trajectory.
         Returns a dict with: output, trajectory, step_count, success.
         """
+        # ✅ 增强输入验证（OfficeAce/MiClaw 多层安全验证模式）
+        validation = self._validate_input(task_description)
+        if not validation.is_valid:
+            return {
+                "output": validation.error_message,
+                "trajectory": [],
+                "step_count": 0,
+                "success": False,
+                "total_tool_calls": 0,
+                "total_elapsed_ms": 0,
+                "error": validation.error_message,
+            }
+        task_description = validation.sanitized
+        if validation.warning:
+            self._logger.warning(f"run_task.input_suspicious: {validation.warning}")
+        
         self._trajectory = []
         self._step_history = []
 
@@ -1236,6 +1415,17 @@ class ReActAgent:
 
         Returns TurnResult with content, tool_calls, tool_results.
         """
+        # ✅ 增强输入验证（OfficeAce/MiClaw 多层安全验证模式）
+        validation = self._validate_input(prompt)
+        if not validation.is_valid:
+            return TurnResult(
+                status=TurnStatus.ERROR,
+                content=validation.error_message,
+            )
+        prompt = validation.sanitized
+        if validation.warning:
+            self._logger.warning(f"step.input_suspicious: {validation.warning}")
+        
         if tools is None:
             tools = self._format_tools()
 
@@ -1250,13 +1440,46 @@ class ReActAgent:
         all_tool_results = []
         usage = {}
 
-        response: LLMResponse = await self._get_client().chat(
-            messages=messages,
-            system=self._get_system_prompt() if not self._session else "",
-            tools=tools or None,
-            temperature=self._agent_config.temperature,
-            top_p=self._agent_config.top_p,
-        )
+        # ✅ 重试机制（最多 3 次，指数退避）— 借鉴 MiClaw resilient agent 模式
+        max_retries = 3
+        retry_delay = 1.0
+        response = None
+        
+        for retry_attempt in range(max_retries):
+            try:
+                response: LLMResponse = await self._get_client().chat(
+                    messages=messages,
+                    system=self._get_system_prompt() if not self._session else "",
+                    tools=tools or None,
+                    temperature=self._agent_config.temperature,
+                    top_p=self._agent_config.top_p,
+                )
+                break
+            except Exception as e:
+                error_type = type(e).__name__
+                is_retryable = any(keyword in error_type.lower() + str(e).lower() 
+                                  for keyword in ["connection", "timeout", "rate", "429", "502", "503", "504"])
+                
+                if is_retryable and retry_attempt < max_retries - 1:
+                    wait_time = retry_delay * (2 ** retry_attempt)
+                    self._logger.warning(
+                        f"LLM step() call failed (attempt {retry_attempt + 1}/{max_retries}), "
+                        f"retrying in {wait_time}s: {e}"
+                    )
+                    await asyncio.sleep(wait_time)
+                    continue
+                
+                self._logger.error(f"Agent step() invocation failed: {e}", exc_info=True)
+                return TurnResult(
+                    status=TurnStatus.ERROR,
+                    content=self._format_user_friendly_error(e),
+                )
+        
+        if response is None:
+            return TurnResult(
+                status=TurnStatus.ERROR,
+                content="❌ LLM 调用失败，已达最大重试次数。请稍后重试。",
+            )
 
         full_thinking = response.thinking or ""
         full_content = response.content or ""

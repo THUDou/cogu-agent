@@ -14,6 +14,7 @@ from cogu.skills.spec import SkillSpec
 
 DEFAULT_USER_SKILLS_DIR = "~/.cogu/skills"
 DEFAULT_PROJECT_SKILLS_DIR = ".cogu/skills"
+_BUNDLED_SKILLS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), os.pardir, "skills")
 
 
 def _is_url(source: str) -> bool:
@@ -107,6 +108,9 @@ class SkillRegistry:
 
     def _refresh_search_paths(self):
         self._search_paths = []
+        bundled = os.path.normpath(_BUNDLED_SKILLS_DIR)
+        if os.path.isdir(bundled):
+            self._search_paths.append(bundled)
         if os.path.isdir(self.user_skills_dir):
             self._search_paths.append(self.user_skills_dir)
         if self._workspace:

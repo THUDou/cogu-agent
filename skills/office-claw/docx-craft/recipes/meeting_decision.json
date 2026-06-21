@@ -1,0 +1,10 @@
+{
+  "name": "meeting_decision",
+  "label": "决策类会议纪要",
+  "engine": "mammoth",
+  "template": "meeting_decision",
+  "description": "适用于战略规划、项目评审等需要形成决策结论的会议纪要。包含会议结论、讨论建议、遗留任务和附件清单。",
+  "fonts": { "body": { "ascii": "Arial", "eastAsia": "Arial", "hAnsi": "Arial", "size": 24 }, "heading": { "ascii": "Arial", "eastAsia": "Arial", "hAnsi": "Arial" } },
+  "page": { "width": 11906, "height": 16838, "preset": "a4", "margin": { "top": 1440, "bottom": 1440, "left": 1440, "right": 1440 }, "marginPreset": "standard" },
+  "sections": ["body"]
+}

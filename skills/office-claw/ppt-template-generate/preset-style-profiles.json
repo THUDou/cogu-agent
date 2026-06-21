@@ -1,0 +1,82 @@
+{
+  "schema_version": "ppt-template-generate-preset-style-profiles-v1",
+  "source_note": "Internal snapshot of pptx-craft preset typography parameters required by ppt-template-generate. Do not runtime-read pptx-craft.",
+  "profiles": [
+    {
+      "id": "business-classic",
+      "name": "商务经典",
+      "matching": {
+        "colors": ["#C00000", "#B22234", "#AA0000", "#FFFFFF", "#222222"],
+        "tone_keywords": ["商务", "汇报", "简约", "企业", "红色", "经典", "稳重"],
+        "component_keywords": ["白底", "卡片", "标题栏", "细线", "边框"],
+        "layout_keywords": ["汇报", "目录", "章节", "卡片", "左右分栏"],
+        "semantic_keywords": ["business", "classic", "corporate", "report", "minimal"],
+        "component_expectations": { "shadow": false, "gradient": false, "border": true, "rounded": false }
+      },
+      "typography_scale": [
+        { "role": "page_title", "label": "页面标题", "px": 35, "font_weight": 700, "line_height": 1.12, "letter_spacing": 0, "usage": "封面主标题、页面主标题" },
+        { "role": "section_title", "label": "一级标题 / 卡片标题", "px": 23, "font_weight": 700, "line_height": 1.2, "letter_spacing": 0, "usage": "章节标题、模块标题、卡片标题" },
+        { "role": "subsection_text", "label": "二级标题 / 重点正文", "px": 21, "font_weight": 600, "line_height": 1.28, "letter_spacing": 0, "usage": "重点说明、区块标题" },
+        { "role": "body_text", "label": "正文文本", "px": 19, "font_weight": 400, "line_height": 1.5, "letter_spacing": 0, "usage": "正文、列表项、卡片说明" },
+        { "role": "note_text", "label": "辅助文本", "px": 16, "font_weight": 400, "line_height": 1.45, "letter_spacing": 0, "usage": "页脚、来源、注释" }
+      ]
+    },
+    {
+      "id": "tech-minimal",
+      "name": "科技极简",
+      "matching": {
+        "colors": ["#2563EB", "#0EA5E9", "#06B6D4", "#111827", "#F8FAFC"],
+        "tone_keywords": ["科技", "极简", "蓝色", "数字化", "智能", "AI", "数据"],
+        "component_keywords": ["网格", "细线", "图标", "高亮", "蓝色强调"],
+        "layout_keywords": ["仪表盘", "数据", "指标", "对比", "流程"],
+        "semantic_keywords": ["tech", "minimal", "data", "ai", "digital", "dashboard"],
+        "component_expectations": { "shadow": false, "gradient": false, "border": true, "rounded": true }
+      },
+      "typography_scale": [
+        { "role": "page_title", "label": "页面标题", "px": 35, "font_weight": 700, "line_height": 1.08, "letter_spacing": 0, "usage": "封面主标题、页面主标题" },
+        { "role": "section_title", "label": "一级标题 / 卡片标题", "px": 23, "font_weight": 600, "line_height": 1.18, "letter_spacing": 0, "usage": "章节标题、模块标题、卡片标题" },
+        { "role": "subsection_text", "label": "二级标题 / 重点正文", "px": 21, "font_weight": 600, "line_height": 1.25, "letter_spacing": 0, "usage": "重点说明、区块标题" },
+        { "role": "body_text", "label": "正文文本", "px": 19, "font_weight": 400, "line_height": 1.48, "letter_spacing": 0, "usage": "正文、列表项、卡片说明" },
+        { "role": "note_text", "label": "辅助文本", "px": 16, "font_weight": 500, "line_height": 1.4, "letter_spacing": 0, "usage": "按钮、链接、说明、页脚" }
+      ]
+    },
+    {
+      "id": "elegant-narrative",
+      "name": "雅致叙事",
+      "matching": {
+        "colors": ["#7C3AED", "#9333EA", "#111827", "#F8F5F0", "#6B7280"],
+        "tone_keywords": ["雅致", "叙事", "人文", "温和", "故事", "品牌", "展示"],
+        "component_keywords": ["留白", "大图", "细线", "标签", "柔和"],
+        "layout_keywords": ["故事", "人物", "案例", "时间线", "图文"],
+        "semantic_keywords": ["elegant", "narrative", "story", "brand", "editorial"],
+        "component_expectations": { "shadow": false, "gradient": false, "border": false, "rounded": false }
+      },
+      "typography_scale": [
+        { "role": "page_title", "label": "页面标题", "px": 35, "font_weight": 600, "line_height": 1.14, "letter_spacing": 0, "usage": "封面主标题、页面主标题" },
+        { "role": "section_title", "label": "一级标题 / 卡片标题", "px": 23, "font_weight": 600, "line_height": 1.25, "letter_spacing": 0, "usage": "章节标题、模块标题" },
+        { "role": "subsection_text", "label": "二级标题 / 重点正文", "px": 21, "font_weight": 500, "line_height": 1.35, "letter_spacing": 0, "usage": "副标题、重点说明" },
+        { "role": "body_text", "label": "正文文本", "px": 16, "font_weight": 400, "line_height": 1.65, "letter_spacing": 0, "usage": "正文、叙述段落、卡片说明" },
+        { "role": "note_text", "label": "辅助文本", "px": 12, "font_weight": 400, "line_height": 1.45, "letter_spacing": 0, "usage": "标签、来源、注释" }
+      ]
+    },
+    {
+      "id": "industrial-tech",
+      "name": "工业科技",
+      "matching": {
+        "colors": ["#F97316", "#EA580C", "#111827", "#374151", "#F9FAFB"],
+        "tone_keywords": ["工业", "科技", "制造", "工程", "硬朗", "橙色", "深色"],
+        "component_keywords": ["斜切", "标签", "编号", "粗线", "深色底"],
+        "layout_keywords": ["流程", "设备", "指标", "步骤", "对比"],
+        "semantic_keywords": ["industrial", "engineering", "manufacturing", "process", "tech"],
+        "component_expectations": { "shadow": false, "gradient": false, "border": true, "rounded": false }
+      },
+      "typography_scale": [
+        { "role": "page_title", "label": "页面标题", "px": 35, "font_weight": 800, "line_height": 1.05, "letter_spacing": 0, "usage": "封面主标题、页面主标题" },
+        { "role": "section_title", "label": "一级标题 / 卡片标题", "px": 23, "font_weight": 700, "line_height": 1.15, "letter_spacing": 0, "usage": "章节标题、模块标题" },
+        { "role": "subsection_text", "label": "二级标题 / 重点正文", "px": 21, "font_weight": 700, "line_height": 1.25, "letter_spacing": 0, "usage": "重点说明、区块标题" },
+        { "role": "body_text", "label": "正文文本", "px": 16, "font_weight": 500, "line_height": 1.48, "letter_spacing": 0, "usage": "正文、列表项、卡片说明" },
+        { "role": "note_text", "label": "辅助文本", "px": 12, "font_weight": 500, "line_height": 1.35, "letter_spacing": 0, "usage": "编号、角标、来源、注释" }
+      ]
+    }
+  ]
+}

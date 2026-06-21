@@ -1,0 +1,10 @@
+{
+  "name": "meeting_daily",
+  "label": "日常例会会议纪要",
+  "engine": "mammoth",
+  "template": "meeting_daily",
+  "description": "适用于部门周例会、站会等日常周期性会议。包含多级议程、决议跟踪、任务监控和会议效率评估。",
+  "fonts": { "body": { "ascii": "SimSun", "eastAsia": "宋体", "hAnsi": "SimSun", "size": 24 }, "heading": { "ascii": "Heiti", "eastAsia": "黑体", "hAnsi": "Heiti" } },
+  "page": { "width": 11906, "height": 16838, "preset": "a4", "margin": { "top": 1440, "bottom": 1440, "left": 1440, "right": 1440 }, "marginPreset": "standard" },
+  "sections": ["body"]
+}

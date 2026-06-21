@@ -1,0 +1,96 @@
+{
+  "name": "report",
+  "label": "商业报告/分析",
+  "fonts": {
+    "body": {
+      "ascii": "Calibri",
+      "eastAsia": "微软雅黑",
+      "hAnsi": "Calibri",
+      "size": 22
+    },
+    "heading": {
+      "ascii": "Calibri Light",
+      "eastAsia": "微软雅黑",
+      "hAnsi": "Calibri Light"
+    }
+  },
+  "headings": [
+    { "level": 0, "size": 56, "bold": true, "spacing": { "before": 0, "after": 300 } },
+    { "level": 1, "size": 52, "bold": true, "color": "1F4E79", "spacing": { "before": 480, "after": 240 } },
+    { "level": 2, "size": 40, "bold": true, "color": "2E75B6", "spacing": { "before": 360, "after": 180 } },
+    { "level": 3, "size": 32, "bold": true, "color": "2E75B6", "spacing": { "before": 240, "after": 120 } },
+    { "level": 4, "size": 26, "bold": true, "spacing": { "before": 200, "after": 100 } },
+    { "level": 5, "size": 24, "bold": true, "color": "2E75B6", "spacing": { "before": 160, "after": 80 } },
+    { "level": 6, "size": 22, "bold": true, "italics": true, "color": "2E75B6", "spacing": { "before": 160, "after": 80 } }
+  ],
+  "page": {
+    "width": 11906,
+    "height": 16838,
+    "margin": {
+      "top": 1440,
+      "bottom": 1440,
+      "left": 1440,
+      "right": 1440
+    },
+    "preset": "a4",
+    "marginPreset": "standard"
+  },
+  "lineSpacing": 276,
+  "sections": ["cover", "executive_summary", "toc", "body", "appendix"],
+  "header": {
+    "text": "",
+    "align": "right"
+  },
+  "footer": {
+    "type": "page_x_of_y",
+    "align": "center"
+  },
+  "extendedStyles": {
+    "toc": {
+      "levels": [
+        { "level": 1, "indent": 0, "bold": true },
+        { "level": 2, "indent": 240, "bold": false },
+        { "level": 3, "indent": 480, "bold": false }
+      ]
+    },
+    "list": {
+      "bullet": { "indent": 720, "hanging": 360 },
+      "number": { "indent": 720, "hanging": 360 }
+    },
+    "quote": {
+      "normal": {
+        "indent": { "left": 720, "right": 720, "firstLine": 0 },
+        "spacing": { "before": 240, "after": 240 },
+        "italics": true,
+        "color": "404040"
+      },
+      "intense": {
+        "indent": { "left": 720, "right": 720, "firstLine": 0 },
+        "spacing": { "before": 240, "after": 240 },
+        "bold": true,
+        "italics": true,
+        "color": "1F4E79",
+        "leftBorder": { "style": "single", "size": 18, "space": 12, "color": "1F4E79" }
+      }
+    },
+    "table": {
+      "borders": {
+        "style": "single",
+        "size": 4,
+        "color": "BFBFBF"
+      },
+      "headerRow": {
+        "fill": "2F5496",
+        "color": "FFFFFF",
+        "bold": true
+      },
+      "bandedRows": {
+        "fill": "D9E2F3"
+      }
+    },
+    "comment": {
+      "textSize": 20,
+      "referenceSize": 16
+    }
+  }
+}

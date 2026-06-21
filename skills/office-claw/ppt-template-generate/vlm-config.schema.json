@@ -1,0 +1,116 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "VLM Configuration Schema",
+  "description": "Configuration schema for Visual Language Model analysis",
+  "type": "object",
+  "properties": {
+    "enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "Enable or disable VLM analysis"
+    },
+    "provider": {
+      "type": "string",
+      "enum": ["anthropic", "openai"],
+      "default": "anthropic",
+      "description": "VLM provider to use"
+    },
+    "model": {
+      "type": "string",
+      "description": "Model identifier (e.g., claude-sonnet-4-6, gpt-4o)"
+    },
+    "api": {
+      "type": "object",
+      "properties": {
+        "anthropic": {
+          "type": "object",
+          "properties": {
+            "apiKey": {
+              "type": "string",
+              "description": "API key (can use environment variable like ${ANTHROPIC_API_KEY})"
+            },
+            "baseUrl": {
+              "type": "string",
+              "default": "https://api.anthropic.com",
+              "description": "API base URL"
+            },
+            "model": {
+              "type": "string",
+              "default": "claude-sonnet-4-6"
+            },
+            "maxTokens": {
+              "type": "integer",
+              "default": 4096
+            }
+          },
+          "required": ["apiKey"]
+        },
+        "openai": {
+          "type": "object",
+          "properties": {
+            "apiKey": {
+              "type": "string",
+              "description": "API key (can use environment variable like ${OPENAI_API_KEY})"
+            },
+            "baseUrl": {
+              "type": "string",
+              "default": "https://api.openai.com/v1"
+            },
+            "model": {
+              "type": "string",
+              "default": "gpt-4o"
+            },
+            "maxTokens": {
+              "type": "integer",
+              "default": 4096
+            }
+          },
+          "required": ["apiKey"]
+        }
+      }
+    },
+    "analysis": {
+      "type": "object",
+      "properties": {
+        "maxImagesPerRequest": {
+          "type": "integer",
+          "default": 5,
+          "description": "Maximum number of images to include in a single API request"
+        },
+        "imageQuality": {
+          "type": "string",
+          "enum": ["low", "medium", "high"],
+          "default": "high",
+          "description": "Image quality for analysis"
+        },
+        "outputLanguage": {
+          "type": "string",
+          "default": "zh-CN",
+          "description": "Output language for analysis results"
+        },
+        "focusAreas": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["color_scheme", "layout_structure", "typography", "visual_style", "component_styles"]
+          },
+          "description": "Areas to focus on during analysis"
+        }
+      }
+    },
+    "prompts": {
+      "type": "object",
+      "properties": {
+        "system": {
+          "type": "string",
+          "description": "System prompt for the VLM"
+        },
+        "analysisPrompt": {
+          "type": "string",
+          "description": "User prompt for analysis"
+        }
+      }
+    }
+  },
+  "required": ["enabled", "provider", "api"]
+}

@@ -20,7 +20,7 @@ from cogu.core.session import Session
 from cogu.core.runner import Runner
 from cogu.api.client import DeepSeekClient
 from cogu.tools.base import ToolRegistry
-from cogu.tools.builtin.file import register_builtin_tools
+from cogu.tools.builtin.file import register_file_tools
 
 
 class CoguTUI(App):
@@ -106,7 +106,7 @@ class CoguTUI(App):
             model=self.model_name,
         )
         tool_registry = ToolRegistry()
-        register_builtin_tools(tool_registry)
+        register_file_tools(tool_registry)
 
         self._agent = ReActAgent(
             settings=settings,

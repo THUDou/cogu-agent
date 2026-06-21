@@ -942,6 +942,31 @@ class GatewaySkill(BaseSkill):
         return result
 
 
+class PromptSkill(BaseSkill):
+    def __init__(self, name: str, description: str = "", version: str = "0.1.0",
+                 tags: list = None, prompt_content: str = "", skill_dir: str = ""):
+        self.manifest = SkillManifest(
+            name=name,
+            version=version,
+            category=SkillCategory.CUSTOM,
+            level=SkillLevel.BASIC,
+            description=description,
+            tags=tags or [],
+        )
+        self._prompt_content = prompt_content
+        self._skill_dir = skill_dir
+
+    async def execute(self, **kwargs) -> dict:
+        return {
+            "success": True,
+            "skill_type": "prompt",
+            "name": self.manifest.name,
+            "prompt": self._prompt_content,
+            "skill_dir": self._skill_dir,
+            "message": "Prompt skill: pass this content to LLM as context",
+        }
+
+
 class BuiltinSkillRegistry:
     _instance = None
 
@@ -995,6 +1020,10 @@ class BuiltinSkillRegistry:
             self.register(skill)
             await skill.setup()
 
+        bundled_dir = Path(__file__).resolve().parent.parent.parent / "skills"
+        if bundled_dir.is_dir():
+            await self.load_from_directory(bundled_dir)
+
         self._initialized = True
 
     async def load_from_directory(self, directory: Path | str):
@@ -1013,6 +1042,77 @@ class BuiltinSkillRegistry:
                         await skill.setup()
             except Exception:
                 pass
+        for skill_md in dir_path.rglob("SKILL.md"):
+            skill_dir = skill_md.parent
+            if skill_dir.name.startswith(('.', '_')):
+                continue
+            try:
+                self._load_skill_md(skill_dir, skill_md)
+            except Exception:
+                pass
+        for meta_json in dir_path.rglob("_meta.json"):
+            skill_dir = meta_json.parent
+            if skill_dir.name.startswith(('.', '_')):
+                continue
+            skill_md = skill_dir / "SKILL.md"
+            if skill_md.exists():
+                continue
+            try:
+                self._load_meta_skill(skill_dir, meta_json)
+            except Exception:
+                pass
+
+    def _load_skill_md(self, skill_dir: Path, skill_md: Path):
+        content = skill_md.read_text(encoding="utf-8")
+        name = skill_dir.name
+        description = ""
+        tags = []
+        version = "0.1.0"
+        if content.startswith("---"):
+            parts = content.split("---", 2)
+            if len(parts) >= 3:
+                front = parts[1].strip()
+                for line in front.split("\n"):
+                    if line.startswith("name:"):
+                        name = line.split(":", 1)[1].strip().strip('"')
+                    elif line.startswith("description:"):
+                        description = line.split(":", 1)[1].strip().strip('"')
+                    elif line.startswith("tags:"):
+                        tags = [t.strip() for t in line.split(":", 1)[1].split(",")]
+                    elif line.startswith("version:"):
+                        version = line.split(":", 1)[1].strip()
+
+        skill = PromptSkill(
+            name=name,
+            description=description,
+            version=version,
+            tags=tags,
+            prompt_content=content,
+            skill_dir=str(skill_dir),
+        )
+        self.register(skill)
+
+    def _load_meta_skill(self, skill_dir: Path, meta_json: Path):
+        data = json.loads(meta_json.read_text(encoding="utf-8"))
+        name = data.get("name", skill_dir.name)
+        description = data.get("description", "")
+        version = data.get("version", "0.1.0")
+        tags = data.get("tags", [])
+        prompt_content = ""
+        for fname in ("SKILL.md", "README.md"):
+            fpath = skill_dir / fname
+            if fpath.exists():
+                prompt_content = fpath.read_text(encoding="utf-8")
+                break
+        skill = PromptSkill(
+            name=name,
+            description=description,
+            version=version,
+            tags=tags,
+            prompt_content=prompt_content,
+            skill_dir=str(skill_dir),
+        )
+        self.register(skill)
 
     @classmethod
     def instance(cls):

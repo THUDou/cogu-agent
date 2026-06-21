@@ -1,0 +1,235 @@
+{
+  "version": 1,
+  "skills": {
+    "self-improving-agent": {
+      "name": "self-improving-agent",
+      "zip_url": "https://lightmake.site/api/v1/download?slug=self-improving-agent",
+      "source": "skillhub",
+      "version": "1.0.11"
+    },
+    "bluebubbles": {
+      "name": "Bluebubbles",
+      "zip_url": "https://lightmake.site/api/v1/download?slug=bluebubbles",
+      "source": "skillhub",
+      "version": "1.0.0"
+    },
+    "github": {
+      "name": "Github",
+      "zip_url": "https://lightmake.site/api/v1/download?slug=github",
+      "source": "skillhub",
+      "version": "1.0.0"
+    },
+    "notion": {
+      "name": "Notion",
+      "zip_url": "https://lightmake.site/api/v1/download?slug=notion",
+      "source": "skillhub",
+      "version": "1.0.0"
+    },
+    "slack": {
+      "name": "Slack",
+      "zip_url": "https://lightmake.site/api/v1/download?slug=slack",
+      "source": "skillhub",
+      "version": "1.0.0"
+    },
+    "browser-use": {
+      "name": "Browser Use",
+      "zip_url": "https://lightmake.site/api/v1/download?slug=browser-use",
+      "source": "skillhub",
+      "version": "1.0.2"
+    },
+    "skill-creator": {
+      "name": "Skill Creator",
+      "zip_url": "https://lightmake.site/api/v1/download?slug=skill-creator",
+      "source": "skillhub",
+      "version": "0.1.0"
+    },
+    "skill-vetter": {
+      "name": "Skill Vetter",
+      "zip_url": "https://lightmake.site/api/v1/download?slug=skill-vetter",
+      "source": "skillhub",
+      "version": "1.0.0"
+    },
+    "wps-office": {
+      "name": "Wps Skill",
+      "zip_url": "https://lightmake.site/api/v1/download?slug=wps-office",
+      "source": "skillhub",
+      "version": "1.0.1"
+    },
+    "weekly-reporter-v2": {
+      "name": "Weekly Reporter Pro",
+      "zip_url": "https://lightmake.site/api/v1/download?slug=weekly-reporter-v2",
+      "source": "skillhub",
+      "version": "1.0.0"
+    },
+    "Ai-ppt-maker": {
+      "name": "Ai-ppt-maker",
+      "zip_url": "https://lightmake.site/api/v1/download?slug=Ai-ppt-maker",
+      "source": "skillhub",
+      "version": ""
+    },
+    "wbs-planner": {
+      "name": "WBS Planner",
+      "zip_url": "https://lightmake.site/api/v1/download?slug=wbs-planner",
+      "source": "skillhub",
+      "version": "1.1.0"
+    },
+    "summarize": {
+      "name": "Summarize",
+      "zip_url": "https://lightmake.site/api/v1/download?slug=summarize",
+      "source": "skillhub",
+      "version": "1.0.0"
+    },
+    "senior-data-scientist": {
+      "name": "Senior Data Scientist",
+      "zip_url": "https://lightmake.site/api/v1/download?slug=senior-data-scientist",
+      "source": "skillhub",
+      "version": "2.1.1"
+    },
+    "chart-image": {
+      "name": "Chart Image",
+      "zip_url": "https://lightmake.site/api/v1/download?slug=chart-image",
+      "source": "skillhub",
+      "version": "2.5.1"
+    },
+    "ai-avatar-generation": {
+      "name": "Ai Avatar Generation",
+      "zip_url": "https://lightmake.site/api/v1/download?slug=ai-avatar-generation",
+      "source": "skillhub",
+      "version": "0.1.1"
+    },
+    "system-monitor-pro": {
+      "name": "System Monitor Pro",
+      "zip_url": "https://lightmake.site/api/v1/download?slug=system-monitor-pro",
+      "source": "skillhub",
+      "version": "1.0.0"
+    },
+    "find-skills": {
+      "name": "Find Skills",
+      "zip_url": "https://lightmake.site/api/v1/download?slug=find-skills",
+      "source": "skillhub",
+      "version": "0.1.0"
+    },
+    "cost-report": {
+      "name": "Cost Tracking for Models",
+      "zip_url": "https://lightmake.site/api/v1/download?slug=cost-report",
+      "source": "skillhub",
+      "version": "1.0.2"
+    },
+    "svg-draw": {
+      "name": "SVG Draw",
+      "zip_url": "https://lightmake.site/api/v1/download?slug=svg-draw",
+      "source": "skillhub",
+      "version": "1.0.0"
+    },
+    "brand-cog": {
+      "name": "brand-cog",
+      "zip_url": "https://lightmake.site/api/v1/download?slug=brand-cog",
+      "source": "skillhub",
+      "version": "1.0.2"
+    },
+    "elevenlabs-music": {
+      "name": "ElevenLabs Music",
+      "zip_url": "https://lightmake.site/api/v1/download?slug=elevenlabs-music",
+      "source": "skillhub",
+      "version": "1.0.1"
+    },
+    "music-cog": {
+      "name": "music-cog",
+      "zip_url": "https://lightmake.site/api/v1/download?slug=music-cog",
+      "source": "skillhub",
+      "version": "1.0.1"
+    },
+    "writing-assistant": {
+      "name": "Writing Assistant",
+      "zip_url": "https://lightmake.site/api/v1/download?slug=writing-assistant",
+      "source": "skillhub",
+      "version": "0.1.0"
+    },
+    "context-manager": {
+      "name": "Smart Context Manager",
+      "zip_url": "https://lightmake.site/api/v1/download?slug=context-manager",
+      "source": "skillhub",
+      "version": "1.0.3"
+    },
+    "word-docx": {
+      "name": "Word / DOCX",
+      "zip_url": "https://lightmake.site/api/v1/download?slug=word-docx",
+      "source": "skillhub",
+      "version": "1.0.2"
+    },
+    "excel-xlsx": {
+      "name": "Excel / XLSX",
+      "zip_url": "https://lightmake.site/api/v1/download?slug=excel-xlsx",
+      "source": "skillhub",
+      "version": "1.0.2"
+    },
+    "powerpoint-pptx": {
+      "name": "Powerpoint / PPTX",
+      "zip_url": "https://lightmake.site/api/v1/download?slug=powerpoint-pptx",
+      "source": "skillhub",
+      "version": "1.0.1"
+    },
+    "nano-pdf": {
+      "name": "Nano Pdf",
+      "zip_url": "https://lightmake.site/api/v1/download?slug=nano-pdf",
+      "source": "skillhub",
+      "version": "1.0.0"
+    },
+    "humanizer": {
+      "name": "Humanizer",
+      "zip_url": "https://api.skillhub.cn/api/v1/download?slug=humanizer",
+      "source": "community",
+      "version": "1.0.0",
+      "installedAt": "2026-06-13T07:13:04Z"
+    },
+    "data-analysis": {
+      "name": "Data Analysis",
+      "zip_url": "https://api.skillhub.cn/api/v1/download?slug=data-analysis",
+      "source": "community",
+      "version": "1.0.2",
+      "installedAt": "2026-06-13T07:34:32Z"
+    },
+    "akshare": {
+      "name": "Akshare",
+      "zip_url": "https://api.skillhub.cn/api/v1/download?slug=akshare",
+      "source": "community",
+      "version": "1.0.0",
+      "installedAt": "2026-06-13T07:35:33Z"
+    },
+    "healthcheck": {
+      "name": "healthcheck",
+      "zip_url": "https://api.skillhub.cn/api/v1/download?slug=healthcheck",
+      "source": "community",
+      "version": "1.0.2",
+      "installedAt": "2026-06-13T07:36:30Z"
+    },
+    "code-generator": {
+      "name": "Code Generator",
+      "zip_url": "https://api.skillhub.cn/api/v1/download?slug=code-generator",
+      "source": "community",
+      "version": "2.3.4",
+      "installedAt": "2026-06-13T07:37:29Z"
+    },
+    "openclaw-agent-browser": {
+      "name": "Agent Browser",
+      "zip_url": "https://api.skillhub.cn/api/v1/download?slug=openclaw-agent-browser",
+      "source": "community",
+      "version": "1.0.0",
+      "installedAt": "2026-06-13T07:38:23Z"
+    },
+    "clawhub-cli": {
+      "name": "Clawhub Cli",
+      "zip_url": "https://api.skillhub.cn/api/v1/download?slug=clawhub-cli",
+      "source": "community",
+      "version": "1.0.2",
+      "installedAt": "2026-06-13T07:42:27Z"
+    },
+    "self-improvement": {
+      "name": "Self Improving Agent",
+      "zip_url": "https://api.skillhub.cn/api/v1/download?slug=self-improvement",
+      "source": "community",
+      "version": "1.0.0",
+      "installedAt": "2026-06-13T07:43:41Z"
+    }
+  }
+}

@@ -6,11 +6,11 @@ __pycache__/
 venv/
 env/
 .cogu/
+pangu-env/
 
 # Build artifacts
 dist/
 build/
-*.spec
 
 # IDE
 .vscode/
@@ -34,6 +34,8 @@ Thumbs.db
 .env
 secrets.json
 *.key
+api_tokens.json
+.vault_key
 
 # Large files (keep in releases)
 *.7z
@@ -41,6 +43,13 @@ secrets.json
 *.exe
 *.msi
 *.dmg
+
+# Model files (too large for git)
+pangu-model/*.safetensors
+pangu-model/*.bin
+pangu-model/*.onnx
+MINI/
+models/
 
 # Node
 node_modules/
@@ -50,3 +59,12 @@ studio-ui/dist/
 
 # Workbuddy
 .workbuddy/
+
+# Transformers cache
+.cache/
+
+# Playwright browsers
+.playwright-browsers/
+
+# Old installers
+COGU-Loong-0.9.*

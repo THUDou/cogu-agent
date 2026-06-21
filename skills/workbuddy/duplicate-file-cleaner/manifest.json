@@ -1,0 +1,22 @@
+{
+  "skill_id": "duplicate-file-cleaner",
+  "skill_name": "智能文件管家",
+  "skill_version": "2.0.0",
+  "description": "扫描识别重复文件、风险评估、智能整理与安全清理",
+  "author": "Skill Builder",
+  "openclaw_sdk_version": "2.0.0",
+  "categories": ["file-management", "utilities"],
+  "tags": ["duplicate-files", "file-cleanup", "disk-cleanup", "file-organizer"],
+  "entry_point": "SKILL.md",
+  "supported_platforms": ["windows", "macos", "linux"],
+  "python_version": ">=3.7",
+  "file_structure": {
+    "root": {
+      "SKILL.md": "技能入口文档（必需）",
+      "manifest.json": "技能元数据",
+      "README.md": "使用说明",
+      "scripts/": "可执行脚本目录",
+      "references/": "参考文档目录"
+    }
+  }
+}

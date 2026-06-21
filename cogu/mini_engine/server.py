@@ -42,15 +42,22 @@ class PanguAPIHandler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
 
         if path == "/v1/models":
+            models_data = [
+                {
+                    "id": "openPangu-Embedded-1B",
+                    "object": "model",
+                    "owned_by": "huawei-pangu",
+                }
+            ]
+            if engine and engine.backend_type == "qwen-gguf":
+                models_data.insert(0, {
+                    "id": "Qwen3.5-0.8B",
+                    "object": "model",
+                    "owned_by": "qwen-community",
+                })
             self._send_json({
                 "object": "list",
-                "data": [
-                    {
-                        "id": "openPangu-Embedded-1B",
-                        "object": "model",
-                        "owned_by": "huawei-pangu",
-                    }
-                ],
+                "data": models_data,
             })
         elif path == "/healthz":
             self._send_json({"status": "ok", "backend": engine.backend_type if engine else "not_loaded"})
@@ -143,14 +150,15 @@ class PanguAPIHandler(BaseHTTPRequestHandler):
 def main():
     global engine
 
-    parser = argparse.ArgumentParser(description="openPangu-Embedded-1B OpenAI-Compatible API Server")
+    parser = argparse.ArgumentParser(description="COGU Local Model OpenAI-Compatible API Server")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8199)
     parser.add_argument("--backend", default="auto", choices=["auto", "transformers", "gguf"])
+    parser.add_argument("--local-model", default="auto", choices=["auto", "qwen", "pangu"])
     parser.add_argument("--device", default="auto")
     args = parser.parse_args()
 
-    config = PanguEngineConfig(backend=args.backend, device=args.device)
+    config = PanguEngineConfig(backend=args.backend, device=args.device, local_model=args.local_model)
     engine = PanguEngine(config)
     engine.load()
 

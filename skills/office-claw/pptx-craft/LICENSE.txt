@@ -1,0 +1,23 @@
+华为云版权声明
+ 
+Copyright (c) 2026 华为云. All rights reserved.
+ 
+本软件（以下统称“本作品”）受《中华人民共和国著作权法》及相关国际知识产权公约、法律保护。未经华为云事先书面授权，任何单位或个人不得以任何形式、任何方式对本作品全部或部分内容实施使用、复制、修改、整合、发布、传播、再授权、销售及其他商业性使用行为。
+ 
+前述权利限制条款，适用于本作品所包含的全部文件及相关资源，包括但不限于源代码、配置文件、项目模板、技术文档、配套素材等。
+ 
+任何未经合法授权的使用、传播及其他侵权行为，均属于侵犯华为云著作权及其他合法权益的行为，华为云将依法追究侵权方法律责任，维护自身合法权益。
+ 
+若需获取本作品合法使用授权，请与华为云官方正式联系。
+ 
+================================================================================
+ 
+Copyright (c) 2026 Huawei Cloud. All rights reserved.
+ 
+This software (hereinafter collectively referred to as the "Work") is protected by the Copyright Law of the People's Republic of China, relevant international intellectual property conventions and applicable laws. Without the prior written authorization of Huawei Cloud, no entity or individual may use, copy, modify, integrate, publish, distribute, sublicense, sell or conduct any other commercial use of all or part of the Work in any form or by any means.
+ 
+The foregoing rights restrictions apply to all files and related resources contained in the Work, including but not limited to source code, configuration files, project templates, technical documentation, supporting materials, etc.
+ 
+Any unauthorized use, distribution or other infringing acts shall constitute an infringement of the copyright and other legitimate rights and interests of Huawei Cloud. Huawei Cloud shall pursue legal liabilities against infringers in accordance with the law to protect its legitimate rights and interests.
+ 
+If you need to obtain the legal license for using the Work, please formally contact Huawei Cloud.

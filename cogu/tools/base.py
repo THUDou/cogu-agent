@@ -19,6 +19,13 @@ class ToolCapability(Enum):
     NETWORK = auto()
 
 
+class PermissionDecision(Enum):
+    ALLOW = "allow"
+    DENY = "deny"
+    ASK = "ask"
+    CONTINUE = "continue"
+
+
 @dataclass
 class ToolResult:
     content: str
@@ -35,7 +42,15 @@ class ToolResult:
         return cls(content="", success=False, error=message)
 
 
+@dataclass
+class PermissionResult:
+    decision: PermissionDecision = PermissionDecision.CONTINUE
+    reason: str = ""
+
+
 class ToolSpec(ABC):
+    """Enhanced tool interface — based on Claude Code's 30+ method Tool pattern."""
+
     @abstractmethod
     def name(self) -> str: ...
 
@@ -56,8 +71,38 @@ class ToolSpec(ABC):
         return False
 
     @property
+    def is_read_only(self) -> bool:
+        return ToolCapability.READ_ONLY in self.capabilities()
+
+    @property
+    def is_destructive(self) -> bool:
+        return False
+
+    @property
     def tool_group(self) -> str:
         return ""
+
+    @property
+    def timeout(self) -> Optional[float]:
+        return None
+
+    @property
+    def max_result_size_chars(self) -> Optional[int]:
+        return None
+
+    def is_enabled(self, context: dict = None) -> bool:
+        return True
+
+    def validate_input(self, input: dict) -> tuple[bool, str]:
+        return True, ""
+
+    def process_result(self, output: ToolResult) -> ToolResult:
+        return output
+
+    def check_permissions(self, input: dict, context: dict = None) -> PermissionResult:
+        if self.approval_requirement() == ApprovalRequirement.REQUIRED:
+            return PermissionResult(PermissionDecision.ASK, "Tool requires approval")
+        return PermissionResult(PermissionDecision.CONTINUE)
 
     @abstractmethod
     async def execute(self, input: dict) -> ToolResult: ...
@@ -73,6 +118,11 @@ class FunctionTool(ToolSpec):
         self._capabilities: set[ToolCapability] = set()
         self._concurrency_safe = False
         self._tool_group = ""
+        self._read_only = False
+        self._destructive = False
+        self._enabled = True
+        self._timeout: Optional[float] = None
+        self._permission_check: Optional[Callable] = None
 
     def name(self) -> str:
         return self._name
@@ -97,6 +147,21 @@ class FunctionTool(ToolSpec):
     def tool_group(self) -> str:
         return self._tool_group
 
+    @property
+    def is_read_only(self) -> bool:
+        return self._read_only
+
+    @property
+    def is_destructive(self) -> bool:
+        return self._destructive
+
+    @property
+    def timeout(self) -> Optional[float]:
+        return self._timeout
+
+    def is_enabled(self, context: dict = None) -> bool:
+        return self._enabled
+
     def require_approval(self) -> "FunctionTool":
         self._approval = ApprovalRequirement.REQUIRED
         return self
@@ -109,9 +174,37 @@ class FunctionTool(ToolSpec):
         self._concurrency_safe = True
         return self
 
+    def mark_read_only(self) -> "FunctionTool":
+        self._read_only = True
+        self._capabilities.add(ToolCapability.READ_ONLY)
+        return self
+
+    def mark_destructive(self) -> "FunctionTool":
+        self._destructive = True
+        return self
+
     def with_group(self, group: str) -> "FunctionTool":
         self._tool_group = group
         return self
+
+    def with_timeout(self, timeout: float) -> "FunctionTool":
+        self._timeout = timeout
+        return self
+
+    def with_permission_check(self, check_fn: Callable) -> "FunctionTool":
+        self._permission_check = check_fn
+        return self
+
+    def check_permissions(self, input: dict, context: dict = None) -> PermissionResult:
+        if self._permission_check:
+            try:
+                result = self._permission_check(input, context)
+                if isinstance(result, PermissionResult):
+                    return result
+                return PermissionResult(PermissionDecision.CONTINUE)
+            except Exception:
+                return PermissionResult(PermissionDecision.DENY, "Permission check failed")
+        return super().check_permissions(input, context)
 
     @staticmethod
     def _extract_schema(func: Callable) -> dict:

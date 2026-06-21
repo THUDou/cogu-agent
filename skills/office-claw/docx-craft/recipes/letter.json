@@ -1,0 +1,79 @@
+{
+  "name": "letter",
+  "label": "信函",
+  "fonts": {
+    "body": {
+      "ascii": "Calibri",
+      "eastAsia": "微软雅黑",
+      "hAnsi": "Calibri",
+      "size": 22
+    },
+    "heading": {
+      "ascii": "Calibri",
+      "eastAsia": "微软雅黑",
+      "hAnsi": "Calibri"
+    }
+  },
+  "headings": [
+    { "level": 0, "size": 36, "bold": true, "spacing": { "before": 0, "after": 200 } },
+    { "level": 1, "size": 28, "bold": true, "spacing": { "before": 240, "after": 120 } },
+    { "level": 2, "size": 24, "bold": true, "spacing": { "before": 180, "after": 90 } },
+    { "level": 3, "size": 22, "bold": true, "spacing": { "before": 160, "after": 80 } }
+  ],
+  "page": {
+    "width": 12240,
+    "height": 15840,
+    "margin": {
+      "top": 1440,
+      "bottom": 1440,
+      "left": 1440,
+      "right": 1440
+    },
+    "preset": "letter",
+    "marginPreset": "standard"
+  },
+  "lineSpacing": 240,
+  "sections": ["body"],
+  "header": {
+    "text": "",
+    "align": "left"
+  },
+  "footer": {
+    "type": "page_number",
+    "align": "center"
+  },
+  "extendedStyles": {
+    "toc": {
+      "levels": [
+        { "level": 1, "indent": 0, "bold": true },
+        { "level": 2, "indent": 240, "bold": false }
+      ]
+    },
+    "list": {
+      "bullet": { "indent": 720, "hanging": 360 },
+      "number": { "indent": 720, "hanging": 360 }
+    },
+    "quote": {
+      "normal": {
+        "indent": { "left": 720, "right": 720, "firstLine": 0 },
+        "spacing": { "before": 240, "after": 240 },
+        "italics": true
+      }
+    },
+    "table": {
+      "borders": {
+        "style": "single",
+        "size": 4,
+        "color": "auto"
+      },
+      "headerRow": {
+        "fill": "F2F2F2",
+        "bold": true
+      }
+    },
+    "comment": {
+      "textSize": 20,
+      "referenceSize": 16
+    }
+  }
+}

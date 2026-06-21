@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="utf-8">
+  <style>
+    /*
+ * docx-craft — 研讨主题会议纪要 HTML 模板
+ * 结构对齐日常例会模板（agenda + resolution + efficiency 五行列）
+ * 字体: 黑体标题, 宋体正文 12pt
+ */
+    body {
+      font-family: 'SimSun', '宋体', serif;
+      font-size: 12pt;
+      line-height: 1.5;
+      margin: 72pt 72pt;
+      color: #000;
+    }
+
+    .title-main {
+      font-family: 'Heiti', '黑体', sans-serif;
+      font-size: 18pt;
+      font-weight: bold;
+      text-align: center;
+      margin: 0 0 18pt 0;
+    }
+
+    .section-heading {
+      font-family: 'Heiti', '黑体', sans-serif;
+      font-size: 14pt;
+      font-weight: bold;
+      margin: 16pt 0 8pt 0;
+    }
+
+    .group-heading {
+      font-weight: bold;
+      margin: 10pt 0 4pt 0;
+    }
+
+    .group-conclusion-label {
+      font-weight: bold;
+      margin: 6pt 0 4pt 0;
+    }
+
+    .group-conclusion-title {
+      font-weight: bold;
+      margin: 8pt 0 4pt 0;
+    }
+
+    .group-detail-l2 {
+      margin: 2pt 0 2pt 20pt;
+    }
+
+    .group-detail-l3 {
+      margin: 2pt 0 2pt 40pt;
+    }
+
+    .group-detail-l4 {
+      margin: 2pt 0 2pt 60pt;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 6pt 0 12pt 0;
+    }
+
+    table.meta {
+      border-top: 3px solid #000;
+      /* 上方粗黑线，3px是宽度，可以自己调 */
+      border-bottom: 3px solid #000;
+      /* 下方粗黑线 */
+    }
+
+    table.meta td {
+      border: none;
+      padding: 2pt 6pt;
+      vertical-align: top;
+    }
+
+    table.meta td.label {
+      font-weight: bold;
+      width: 15%;
+      white-space: nowrap;
+    }
+
+    table.track td,
+    table.track th {
+      border: 1px solid #000;
+      padding: 3pt 6pt;
+      vertical-align: top;
+    }
+
+    table.track th {
+      background-color: #C0C0C0;
+      font-weight: bold;
+      text-align: center;
+      border: none;
+    }
+
+    table.track td {
+      text-align: center;
+      border: none;
+    }
+
+    table.track td.merged {
+      text-align: left;
+      font-weight: bold;
+    }
+
+    table.efficiency td,
+    table.efficiency th {
+      border: 1px solid #000;
+      padding: 3pt 6pt;
+      vertical-align: middle;
+    }
+
+    table.efficiency th {
+      background-color: #C0C0C0;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    table.efficiency td {
+      text-align: center;
+    }
+
+    .distribution {
+      margin-top: 18pt;
+    }
+
+    .distribution-dept {
+      text-align: right;
+    }
+
+    .distribution-date {
+      text-align: right;
+    }
+
+    p {
+      margin: 0 0 3pt 0;
+    }
+
+    .note {
+      color: #999;
+      font-style: italic;
+    }
+  </style>
+</head>
+
+<body>
+
+  <p class="title-main">{{department}}{{topic}}研讨会议纪要</p>
+
+  <table class="meta">
+    <tr>
+      <td class="label">会议时间:</td>
+      <td>{{time}}</td>
+    </tr>
+    <tr>
+      <td class="label">会议地点:</td>
+      <td>{{location}}</td>
+    </tr>
+    <tr>
+      <td class="label">召 集 人:</td>
+      <td>{{convener}}</td>
+    </tr>
+    <tr>
+      <td class="label">与 会 人:</td>
+      <td>{{participants}}</td>
+    </tr>
+    <tr>
+      <td class="label">请假人员:</td>
+      <td>{{absentees}}</td>
+    </tr>
+    <tr>
+      <td class="label">纪要整理:</td>
+      <td>{{recorder}}</td>
+    </tr>
+    <tr>
+      <td class="label">纪要审核:</td>
+      <td>{{reviewer}}</td>
+    </tr>
+    <tr>
+      <td class="label">议 题:</td>
+      <td>{{topics}}</td>
+    </tr>
+  </table>
+
+  <br>
+  <p class="section-heading">上次会议决议完成情况:</p>
+  <table class="track">
+    <tr>
+      <th>序号</th>
+      <th>问题描述</th>
+      <th>完成时间、要求</th>
+      <th>责任人</th>
+      <th>完成情况</th>
+    </tr>
+    {{#each last_resolutions}}
+    <tr>
+      <td>{{number}}</td>
+      <td>{{description}}</td>
+      <td>{{deadline}}</td>
+      <td>{{owner}}</td>
+      <td>{{status}}</td>
+    </tr>
+    {{/each}}
+  </table>
+
+  <br>
+  <p class="section-heading">本次会议需跟踪事宜：</p>
+  <table class="track">
+    <tr>
+      <td class="merged" colspan="5"><strong>以下任务总监控人：{{task_monitor}}</strong></td>
+    </tr>
+    <tr class="header">
+      <th>序号</th>
+      <th>问题描述</th>
+      <th>完成时间、要求</th>
+      <th>责任人</th>
+      <th>完成情况</th>
+    </tr>
+    {{#each tracking_tasks}}
+    <tr>
+      <td>{{number}}</td>
+      <td>{{description}}</td>
+      <td>{{deadline}}</td>
+      <td>{{owner}}</td>
+      <td>{{status}}</td>
+    </tr>
+    {{/each}}
+    <tr>
+      <td class="merged" colspan="5"><strong>请各任务责任人在下次例会前反馈表中事务进展情况至{{feedback_contact}}（ID：{{feedback_id}}）邮箱！</strong></td>
+    </tr>
+  </table>
+
+  <br>
+  <p class="section-heading">本次会议主要内容：</p>
+
+  {{#each groups}}
+  <p class="group-heading">{{name}}：{{leader}}（组长）、{{members}}</p>
+  <p class="group-conclusion-label">主要结论：</p>
+  {{#each conclusions}}
+  <p class="group-conclusion-title">{{title}}</p>
+  {{#each items}}
+  <p class="group-detail-{{level}}">{{text}}</p>
+  {{/each}}
+  {{/each}}
+  {{/each}}
+
+  <div class="distribution">
+    <p class="distribution-dept">发放会议纪要部门：{{distribution_unit}}</p>
+    <p class="distribution-date">会议纪要发放日期：{{distribution_date}}</p>
+    <p>报送：{{report_to}}</p>
+    <p>主送：{{primary_to}}</p>
+    <p>抄送：{{cc_to}}</p>
+  </div>
+
+  <p class="section-heading">会议效率监控表：</p>
+  <table class="efficiency">
+    <tr>
+      <th class="label">开始/结束</th>
+      <th class="label" colspan="2">时间差</th>
+      <th class="label" colspan="3">情况说明</th>
+    </tr>
+    <tr>
+      <td>{{meeting_efficiency.start_time}}</td>
+      <td colspan="2">{{meeting_efficiency.start_delay}}</td>
+      <td colspan="3">{{meeting_efficiency.note}}</td>
+    </tr>
+    <tr>
+      <td>{{meeting_efficiency.end_time}}</td>
+      <td colspan="2">{{meeting_efficiency.end_early}}</td>
+      <td colspan="3">{{meeting_efficiency.end_note}}</td>
+    </tr>
+    <tr>
+      <td class="label">与会人数</td>
+      <td class="label">应与会</td>
+      <td>{{meeting_efficiency.expected_count}}</td>
+      <td class="label">实际与会</td>
+      <td>{{meeting_efficiency.actual_count}}</td>
+      <td>{{meeting_efficiency.attendance_note}}</td>
+    </tr>
+    <tr>
+      <td class="label">解决问题数</td>
+      <td colspan="2">{{meeting_efficiency.solved_count}}</td>
+      <td class="label">跟踪任务数</td>
+      <td>{{meeting_efficiency.tracking_count}}</td>
+      <td>{{meeting_efficiency.comment}}</td>
+    </tr>
+  </table>
+
+</body>
+
+</html>

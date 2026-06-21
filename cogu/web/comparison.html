@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>COGU vs OpenClaw vs OpenCode — 全面对比</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#050506;--bg2:#0A0A0B;--bg3:#0F0F11;
+  --card:#0D0D0F;--card-hover:#111114;
+  --border:rgba(255,255,255,.06);--border-hi:rgba(255,255,255,.12);
+  --text:#EDEDEF;--text2:#8A8F98;--text3:#555860;
+  --cogu:#6366F1;--cogu-g:rgba(99,102,241,.15);
+  --claw:#10B981;--claw-g:rgba(16,185,129,.15);
+  --code:#F59E0B;--code-g:rgba(245,158,11,.15);
+  --radius:12px;--radius-sm:8px;
+}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;letter-spacing:-.01em;overflow-x:hidden}
+.glow-top{position:fixed;top:-200px;left:50%;transform:translateX(-50%);width:800px;height:400px;background:radial-gradient(ellipse,rgba(99,102,241,.08),transparent 70%);pointer-events:none;z-index:0}
+.container{max-width:1280px;margin:0 auto;padding:0 24px;position:relative;z-index:1}
+.hero{padding:80px 0 48px;text-align:center}
+.hero-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 16px;border-radius:999px;border:1px solid var(--border-hi);background:var(--bg2);font-size:12px;color:var(--text2);margin-bottom:24px;letter-spacing:.04em}
+.hero-badge span{width:6px;height:6px;border-radius:50%;background:var(--cogu);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.hero h1{font-size:clamp(32px,5vw,56px);font-weight:800;letter-spacing:-.03em;line-height:1.1;margin-bottom:16px}
+.hero h1 .grad{background:linear-gradient(135deg,var(--cogu),#A855F7,var(--claw));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero p{font-size:18px;color:var(--text2);max-width:640px;margin:0 auto}
+.nav-pills{display:flex;justify-content:center;gap:8px;margin:32px 0 48px;flex-wrap:wrap}
+.nav-pill{padding:8px 20px;border-radius:999px;border:1px solid var(--border);background:transparent;color:var(--text2);font-size:13px;font-weight:500;cursor:pointer;transition:all .2s;text-decoration:none}
+.nav-pill:hover,.nav-pill.active{border-color:var(--cogu);color:var(--text);background:var(--cogu-g)}
+.section{margin-bottom:64px}
+.section-title{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:20px;padding-left:4px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media(max-width:900px){.grid-3{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:28px;transition:all .25s;position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--border-hi),transparent);opacity:0;transition:opacity .3s}
+.card:hover{border-color:var(--border-hi);background:var(--card-hover);transform:translateY(-2px)}
+.card:hover::before{opacity:1}
+.card.cogu:hover{border-color:rgba(99,102,241,.3)}
+.card.claw:hover{border-color:rgba(16,185,129,.3)}
+.card.code:hover{border-color:rgba(245,158,11,.3)}
+.card-header{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+.card-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;flex-shrink:0}
+.card-icon.cogu{background:var(--cogu-g);color:var(--cogu)}
+.card-icon.claw{background:var(--claw-g);color:var(--claw)}
+.card-icon.code{background:var(--code-g);color:var(--code)}
+.card-name{font-size:18px;font-weight:700;letter-spacing:-.02em}
+.card-ver{font-size:12px;color:var(--text3);margin-top:2px}
+.feat-list{list-style:none}
+.feat-list li{display:flex;align-items:flex-start;gap:8px;padding:6px 0;font-size:13.5px;color:var(--text2);line-height:1.5}
+.feat-list li .dot{width:4px;height:4px;border-radius:50%;background:var(--text3);margin-top:7px;flex-shrink:0}
+.feat-list li strong{color:var(--text);font-weight:500}
+.compare-table{width:100%;border-collapse:separate;border-spacing:0;font-size:13.5px}
+.compare-table thead th{padding:14px 16px;text-align:left;font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);border-bottom:1px solid var(--border);background:var(--bg2);position:sticky;top:0;z-index:2}
+.compare-table thead th:first-child{border-radius:var(--radius-sm) 0 0 0}
+.compare-table thead th:last-child{border-radius:0 var(--radius-sm) 0 0}
+.compare-table thead th.col-cogu{color:var(--cogu)}
+.compare-table thead th.col-claw{color:var(--claw)}
+.compare-table thead th.col-code{color:var(--code)}
+.compare-table tbody td{padding:12px 16px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:top}
+.compare-table tbody tr:hover{background:rgba(255,255,255,.02)}
+.compare-table tbody td:first-child{color:var(--text);font-weight:500;white-space:nowrap}
+.tag{display:inline-flex;align-items:center;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;letter-spacing:.02em}
+.tag.yes{background:rgba(16,185,129,.12);color:#34D399}
+.tag.no{background:rgba(239,68,68,.1);color:#F87171}
+.tag.partial{background:rgba(245,158,11,.1);color:#FBBF24}
+.score-bar{height:6px;border-radius:3px;background:rgba(255,255,255,.06);overflow:hidden;margin-top:6px}
+.score-fill{height:100%;border-radius:3px;transition:width 1s cubic-bezier(.16,1,.3,1)}
+.score-fill.cogu{background:linear-gradient(90deg,var(--cogu),#818CF8)}
+.score-fill.claw{background:linear-gradient(90deg,var(--claw),#34D399)}
+.score-fill.code{background:linear-gradient(90deg,var(--code),#FBBF24)}
+.verdict{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:40px;margin-top:32px}
+.verdict h3{font-size:20px;font-weight:700;margin-bottom:16px;letter-spacing:-.02em}
+.verdict p{color:var(--text2);font-size:14.5px;line-height:1.7;margin-bottom:12px}
+.verdict strong{color:var(--text)}
+.footer{text-align:center;padding:48px 0 32px;color:var(--text3);font-size:12px;border-top:1px solid var(--border)}
+.reveal{opacity:0;transform:translateY(20px);transition:all .6s cubic-bezier(.16,1,.3,1)}
+.reveal.visible{opacity:1;transform:translateY(0)}
+.archived-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;background:rgba(239,68,68,.1);color:#F87171;margin-left:8px;letter-spacing:.03em}
+</style>
+</head>
+<body>
+<div class="glow-top"></div>
+<div class="container">
+  <div class="hero reveal">
+    <div class="hero-badge"><span></span> 2026.6 · 基于源码 + GitHub 公开信息</div>
+    <h1>COGU vs <span class="grad">OpenClaw</span> vs OpenCode</h1>
+    <p>三大 AI Agent 项目的全维度对比 — 架构、记忆、推理、工具、生态</p>
+  </div>
+  <div class="nav-pills reveal">
+    <a class="nav-pill active" href="#overview">总览</a>
+    <a class="nav-pill" href="#architecture">架构</a>
+    <a class="nav-pill" href="#memory">记忆</a>
+    <a class="nav-pill" href="#reasoning">推理</a>
+    <a class="nav-pill" href="#tools">工具</a>
+    <a class="nav-pill" href="#integration">集成</a>
+    <a class="nav-pill" href="#table">全表</a>
+    <a class="nav-pill" href="#verdict">结论</a>
+  </div>
+
+  <!-- Overview -->
+  <div class="section reveal" id="overview">
+    <div class="section-title">项目总览</div>
+    <div class="grid-3">
+      <div class="card cogu">
+        <div class="card-header">
+          <div class="card-icon cogu">C</div>
+          <div><div class="card-name">COGU Loong</div><div class="card-ver">v1.3.0 · Python · MIT</div></div>
+        </div>
+        <ul class="feat-list">
+          <li><span class="dot"></span><strong>定位</strong>: 认知统一 Agent 框架</li>
+          <li><span class="dot"></span><strong>灵感</strong>: 华为JiuwenCLAW + 小米MiMo + 百度LoongFlow + DeepSeek + 清华CogAgent</li>
+          <li><span class="dot"></span><strong>语言</strong>: Python 3.11+ / FastAPI / pywebview</li>
+          <li><span class="dot"></span><strong>核心</strong>: ReAct推理 + 专家辩论 + 自进化 + 超级记忆 + 本地模型</li>
+          <li><span class="dot"></span><strong>桌面</strong>: COGU Loong (EXE + NSIS/Inno安装包)</li>
+          <li><span class="dot"></span><strong>本地模型</strong>: 盘古1B (2.6GB, OpenAI兼容API)</li>
+          <li><span class="dot"></span><strong>Stars</strong>: 新项目</li>
+        </ul>
+      </div>
+      <div class="card claw">
+        <div class="card-header">
+          <div class="card-icon claw">🦞</div>
+          <div><div class="card-name">OpenClaw</div><div class="card-ver">TypeScript · Node 22+ · MIT</div></div>
+        </div>
+        <ul class="feat-list">
+          <li><span class="dot"></span><strong>定位</strong>: 多渠道个人 AI 助手网关</li>
+          <li><span class="dot"></span><strong>口号</strong>: "EXFOLIATE! EXFOLIATE!" 🦞</li>
+          <li><span class="dot"></span><strong>语言</strong>: TypeScript ESM / pnpm monorepo</li>
+          <li><span class="dot"></span><strong>核心</strong>: 网关控制平面 + 20+渠道 + 插件SDK + 子智能体</li>
+          <li><span class="dot"></span><strong>桌面</strong>: Windows Hub 原生桌面伴侣</li>
+          <li><span class="dot"></span><strong>渠道</strong>: WhatsApp/Telegram/Slack/Discord/微信/QQ等20+</li>
+          <li><span class="dot"></span><strong>Stars</strong>: ⭐ 378K (GitHub #1 AI assistant)</li>
+        </ul>
+      </div>
+      <div class="card code">
+        <div class="card-header">
+          <div class="card-icon code">⌬</div>
+          <div><div class="card-name">OpenCode <span class="archived-badge">ARCHIVED → Crush</span></div><div class="card-ver">Go · Bubble Tea · MIT</div></div>
+        </div>
+        <ul class="feat-list">
+          <li><span class="dot"></span><strong>定位</strong>: 终端 AI 编程助手</li>
+          <li><span class="dot"></span><strong>状态</strong>: 2025.9归档，已迁移到 Charm 的 Crush</li>
+          <li><span class="dot"></span><strong>语言</strong>: Go 1.24+ / Cobra CLI / Bubble Tea TUI</li>
+          <li><span class="dot"></span><strong>核心</strong>: TUI交互 + 多LLM供应商 + 工具执行 + LSP</li>
+          <li><span class="dot"></span><strong>界面</strong>: 终端 TUI (Vim-like编辑器)</li>
+          <li><span class="dot"></span><strong>特色</strong>: GitHub Copilot支持 + 自定义命令 + MCP</li>
+          <li><span class="dot"></span><strong>Stars</strong>: ⭐ 12.9K</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Architecture -->
+  <div class="section reveal" id="architecture">
+    <div class="section-title">架构对比</div>
+    <div class="grid-3">
+      <div class="card cogu">
+        <div class="card-header"><div class="card-icon cogu">C</div><div><div class="card-name">单体 + 模块化</div></div></div>
+        <ul class="feat-list">
+          <li><span class="dot"></span>Python 单进程，FastAPI 服务</li>
+          <li><span class="dot"></span>28个松耦合模块，pip install</li>
+          <li><span class="dot"></span>CLI / TUI / Desktop / SDK 四入口</li>
+          <li><span class="dot"></span>SQLite + FTS5 本地优先存储</li>
+          <li><span class="dot"></span>无外部依赖服务，开箱即用</li>
+          <li><span class="dot"></span>PyInstaller 打包单 EXE (~72MB)</li>
+          <li><span class="dot"></span><strong>优势</strong>: 部署简单，Python生态丰富</li>
+          <li><span class="dot"></span><strong>劣势</strong>: 单进程并发受限</li>
+        </ul>
+      </div>
+      <div class="card claw">
+        <div class="card-header"><div class="card-icon claw">🦞</div><div><div class="card-name">网关 + 插件</div></div></div>
+        <ul class="feat-list">
+          <li><span class="dot"></span>WebSocket/HTTP 网关控制平面</li>
+          <li><span class="dot"></span>40+模块，pnpm monorepo (~1.5M代码)</li>
+          <li><span class="dot"></span>插件SDK完整隔离，热加载</li>
+          <li><span class="dot"></span>SQLite (Kysely) 共享+每Agent DB</li>
+          <li><span class="dot"></span>守护进程 (launchd/systemd/schtasks)</li>
+          <li><span class="dot"></span>设备节点配对 (iOS/Android/Desktop)</li>
+          <li><span class="dot"></span><strong>优势</strong>: 渠道覆盖最广，插件生态成熟</li>
+          <li><span class="dot"></span><strong>劣势</strong>: 代码量大，学习曲线陡</li>
+        </ul>
+      </div>
+      <div class="card code">
+        <div class="card-header"><div class="card-icon code">⌬</div><div><div class="card-name">Go 单体 + Cobra</div></div></div>
+        <ul class="feat-list">
+          <li><span class="dot"></span>Go 编译单二进制，Cobra CLI</li>
+          <li><span class="dot"></span>6个核心模块: cmd/app/config/db/llm/tui</li>
+          <li><span class="dot"></span>Bubble Tea TUI，Vim-like交互</li>
+          <li><span class="dot"></span>SQLite 持久化会话和配置</li>
+          <li><span class="dot"></span>LSP 集成 (gopls/typescript-language-server)</li>
+          <li><span class="dot"></span>sqlc 生成类型安全SQL</li>
+          <li><span class="dot"></span><strong>优势</strong>: 编译快，跨平台，TUI体验好</li>
+          <li><span class="dot"></span><strong>劣势</strong>: 已归档不再维护，功能相对基础</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Memory -->
+  <div class="section reveal" id="memory">
+    <div class="section-title">记忆系统对比</div>
+    <div class="grid-3">
+      <div class="card cogu">
+        <div class="card-header"><div class="card-icon cogu">C</div><div><div class="card-name">超级记忆 (6层)</div></div></div>
+        <ul class="feat-list">
+          <li><span class="dot"></span><strong>EnhancedSuperMemory</strong>: 统一入口</li>
+          <li><span class="dot"></span><strong>SuperMemory</strong>: SQLite FTS5 全文检索</li>
+          <li><span class="dot"></span><strong>GradeMemory</strong>: STM/MTM/LTM 三级 + 自动压缩</li>
+          <li><span class="dot"></span><strong>EntityGraph</strong>: 实体关系图</li>
+          <li><span class="dot"></span><strong>MemoryGraph</strong>: 记忆图谱 + 衰减</li>
+          <li><span class="dot"></span><strong>DreamMode</strong>: "睡眠整理"记忆</li>
+          <li><span class="dot"></span>5种召回策略: FTS/语义/混合/图/综合</li>
+          <li><span class="dot"></span>CodingMemory + TaskMemory</li>
+        </ul>
+      </div>
+      <div class="card claw">
+        <div class="card-header"><div class="card-icon claw">🦞</div><div><div class="card-name">梦想记忆</div></div></div>
+        <ul class="feat-list">
+          <li><span class="dot"></span><strong>Memory Host SDK</strong>: 梦想/查询/存储/多模态</li>
+          <li><span class="dot"></span><strong>混合检索</strong>: 向量 + FTS + MMR重排序</li>
+          <li><span class="dot"></span><strong>梦想引擎</strong>: 后台整理 (类人睡眠)</li>
+          <li><span class="dot"></span><strong>嵌入提供者</strong>: 本地/远程嵌入适配</li>
+          <li><span class="dot"></span><strong>根记忆文件</strong>: memory.md 工作区级</li>
+          <li><span class="dot"></span>时间衰减 + 批处理同步</li>
+          <li><span class="dot"></span>多模态记忆 (文本+图像+音频)</li>
+          <li><span class="dot"></span>插件可注册自定义嵌入提供者</li>
+        </ul>
+      </div>
+      <div class="card code">
+        <div class="card-header"><div class="card-icon code">⌬</div><div><div class="card-name">Auto Compact</div></div></div>
+        <ul class="feat-list">
+          <li><span class="dot"></span><strong>Auto Compact</strong>: 上下文窗口95%时自动摘要</li>
+          <li><span class="dot"></span><strong>会话持久化</strong>: SQLite 存储对话历史</li>
+          <li><span class="dot"></span><strong>Compact Session</strong>: 手动触发摘要压缩</li>
+          <li><span class="dot"></span><strong>OpenCode.md</strong>: 项目级记忆文件</li>
+          <li><span class="dot"></span>无向量检索，无语义搜索</li>
+          <li><span class="dot"></span>无多级记忆分层</li>
+          <li><span class="dot"></span>记忆能力相对基础</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reasoning -->
+  <div class="section reveal" id="reasoning">
+    <div class="section-title">推理与编排对比</div>
+    <div class="grid-3">
+      <div class="card cogu">
+        <div class="card-header"><div class="card-icon cogu">C</div><div><div class="card-name">多元推理</div></div></div>
+        <ul class="feat-list">
+          <li><span class="dot"></span><strong>ReActAgent</strong>: ReAct推理循环 + 记忆注入</li>
+          <li><span class="dot"></span><strong>ReasoningChain</strong>: BFS/DFS/MCTS/Beam搜索</li>
+          <li><span class="dot"></span><strong>TwoLevelPlanner</strong>: 意图→任务DAG→执行</li>
+          <li><span class="dot"></span><strong>DebateOrchestrator</strong>: 4种辩论 (标准/蜂群/法庭/辩证)</li>
+          <li><span class="dot"></span><strong>EgoLayer</strong>: 证据循环 + 回滚 + 快照</li>
+          <li><span class="dot"></span><strong>Conductor</strong>: 4种调度 (轮询/层级/并行/投票)</li>
+          <li><span class="dot"></span><strong>WorkflowEngine</strong>: 节点图DSL + Mermaid导出</li>
+          <li><span class="dot"></span><strong>自进化</strong>: 轨迹→适应度→进化</li>
+        </ul>
+      </div>
+      <div class="card claw">
+        <div class="card-header"><div class="card-icon claw">🦞</div><div><div class="card-name">嵌入式运行时</div></div></div>
+        <ul class="feat-list">
+          <li><span class="dot"></span><strong>嵌入式Agent</strong>: 宿主进程内运行LLM循环</li>
+          <li><span class="dot"></span><strong>子智能体</strong>: spawn + 注册表 + 孤儿恢复</li>
+          <li><span class="dot"></span><strong>上下文引擎</strong>: 可插拔 (bootstrap/ingest/compact)</li>
+          <li><span class="dot"></span><strong>压缩</strong>: 摘要/分块/回退自动触发</li>
+          <li><span class="dot"></span><strong>故障转移</strong>: 模型失败自动切换</li>
+          <li><span class="dot"></span><strong>Key轮换</strong>: API Key自动冷却/过期</li>
+          <li><span class="dot"></span><strong>ACP</strong>: Agent Communication Protocol</li>
+          <li><span class="dot"></span><strong>思考级别</strong>: low/medium/high</li>
+        </ul>
+      </div>
+      <div class="card code">
+        <div class="card-header"><div class="card-icon code">⌬</div><div><div class="card-name">单Agent + 工具</div></div></div>
+        <ul class="feat-list">
+          <li><span class="dot"></span><strong>单Agent</strong>: coder + task + title 三角色</li>
+          <li><span class="dot"></span><strong>sub-agent</strong>: 通过 agent 工具派遣子任务</li>
+          <li><span class="dot"></span><strong>自定义命令</strong>: Markdown文件定义命令模板</li>
+          <li><span class="dot"></span><strong>Auto Compact</strong>: 上下文溢出自动压缩</li>
+          <li><span class="dot"></span>无MCTS/Beam等高级推理</li>
+          <li><span class="dot"></span>无辩论/多Agent编排</li>
+          <li><span class="dot"></span>推理能力相对基础</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tools -->
+  <div class="section reveal" id="tools">
+    <div class="section-title">工具与安全对比</div>
+    <div class="grid-3">
+      <div class="card cogu">
+        <div class="card-header"><div class="card-icon cogu">C</div><div><div class="card-name">安全守卫 + GUI Agent</div></div></div>
+        <ul class="feat-list">
+          <li><span class="dot"></span><strong>ToolGuard</strong>: 6类威胁分类 + 审批/阻止</li>
+          <li><span class="dot"></span><strong>GUI Agent</strong>: CogAgent风格, 16种Action</li>
+          <li><span class="dot"></span><strong>Office</strong>: PDF/DOCX/XLSX/PPTX 读写</li>
+          <li><span class="dot"></span><strong>MCP</strong>: Model Context Protocol + A2A</li>
+          <li><span class="dot"></span><strong>DeepSearch</strong>: 多步搜索+溯源+报告</li>
+          <li><span class="dot"></span><strong>钉钉/飞书</strong>: IM适配器</li>
+          <li><span class="dot"></span><strong>权限</strong>: 4级认证 + RBAC + 凭据保险箱</li>
+        </ul>
+      </div>
+      <div class="card claw">
+        <div class="card-header"><div class="card-icon claw">🦞</div><div><div class="card-name">20+渠道 + 媒体生成</div></div></div>
+        <ul class="feat-list">
+          <li><span class="dot"></span><strong>20+渠道</strong>: WhatsApp/Telegram/Slack/微信/QQ等</li>
+          <li><span class="dot"></span><strong>媒体生成</strong>: 图像/视频/音乐生成</li>
+          <li><span class="dot"></span><strong>媒体理解</strong>: 视觉/音频转录/视频理解</li>
+          <li><span class="dot"></span><strong>MCP</strong>: 双向 (服务器+客户端)</li>
+          <li><span class="dot"></span><strong>Web搜索/抓取</strong>: 多提供者</li>
+          <li><span class="dot"></span><strong>TTS + Talk</strong>: 语音对话模式</li>
+          <li><span class="dot"></span><strong>安全审计</strong>: 8类审计 + 沙箱 + DM策略</li>
+        </ul>
+      </div>
+      <div class="card code">
+        <div class="card-header"><div class="card-icon code">⌬</div><div><div class="card-name">编程工具链 + LSP</div></div></div>
+        <ul class="feat-list">
+          <li><span class="dot"></span><strong>9个工具</strong>: bash/glob/grep/view/write/edit/patch/fetch/diagnostics</li>
+          <li><span class="dot"></span><strong>LSP</strong>: 代码智能 (gopls/typescript-language-server)</li>
+          <li><span class="dot"></span><strong>MCP</strong>: stdio/SSE 传输</li>
+          <li><span class="dot"></span><strong>Sourcegraph</strong>: 跨仓库代码搜索</li>
+          <li><span class="dot"></span><strong>权限</strong>: 工具执行审批 (allow/deny)</li>
+          <li><span class="dot"></span><strong>自定义命令</strong>: Markdown命令模板</li>
+          <li><span class="dot"></span><strong>GitHub Copilot</strong>: 实验性支持</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Integration -->
+  <div class="section reveal" id="integration">
+    <div class="section-title">LLM 与集成对比</div>
+    <div class="grid-3">
+      <div class="card cogu">
+        <div class="card-header"><div class="card-icon cogu">C</div><div><div class="card-name">9家供应商 + 本地模型</div></div></div>
+        <ul class="feat-list">
+          <li><span class="dot"></span>OpenAI / Claude / DeepSeek / Qwen / Zhipu / Moonshot / MiniMax / Doubao / 自定义</li>
+          <li><span class="dot"></span><strong>盘古1B</strong>: 本地推理 (transformers/GGUF双后端)</li>
+          <li><span class="dot"></span>OpenAI兼容API服务器 (端口8199)</li>
+          <li><span class="dot"></span>流式SSE + 重试</li>
+          <li><span class="dot"></span>FastAPI 7路由 + Gateway TCP</li>
+        </ul>
+      </div>
+      <div class="card claw">
+        <div class="card-header"><div class="card-icon claw">🦞</div><div><div class="card-name">10+供应商 + 故障转移</div></div></div>
+        <ul class="feat-list">
+          <li><span class="dot"></span>Anthropic / OpenAI / Google / Azure / Mistral / Cloudflare / LiteLLM / LM Studio / llama.cpp / OpenRouter</li>
+          <li><span class="dot"></span><strong>故障转移</strong>: 模型失败自动切换</li>
+          <li><span class="dot"></span><strong>Key轮换</strong>: 多API Key冷却/过期</li>
+          <li><span class="dot"></span>思考级别 (low/medium/high)</li>
+          <li><span class="dot"></span>OpenAI兼容HTTP端点</li>
+        </ul>
+      </div>
+      <div class="card code">
+        <div class="card-header"><div class="card-icon code">⌬</div><div><div class="card-name">7家供应商 + Copilot</div></div></div>
+        <ul class="feat-list">
+          <li><span class="dot"></span>OpenAI / Anthropic / Google Gemini / AWS Bedrock / Groq / Azure OpenAI / OpenRouter</li>
+          <li><span class="dot"></span><strong>GitHub Copilot</strong>: 实验性支持 (GPT-4o/Claude/Gemini)</li>
+          <li><span class="dot"></span><strong>本地模型</strong>: LOCAL_ENDPOINT自托管</li>
+          <li><span class="dot"></span>Auto Compact上下文管理</li>
+          <li><span class="dot"></span>非交互模式 (-p prompt)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Full comparison table -->
+  <div class="section reveal" id="table">
+    <div class="section-title">全维度对比表</div>
+    <div style="overflow-x:auto;border-radius:var(--radius);border:1px solid var(--border)">
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th style="width:22%">维度</th>
+            <th class="col-cogu" style="width:26%">COGU Loong</th>
+            <th class="col-claw" style="width:26%">OpenClaw</th>
+            <th class="col-code" style="width:26%">OpenCode (→Crush)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>语言</td><td>Python 3.11+</td><td>TypeScript / Node 22+</td><td>Go 1.24+</td></tr>
+          <tr><td>架构</td><td>单体模块化</td><td>网关 + 插件</td><td>Go单体 + Cobra CLI</td></tr>
+          <tr><td>代码量</td><td>~15K行</td><td>~1.5M行</td><td>~50K行 (185 commits)</td></tr>
+          <tr><td>GitHub Stars</td><td>新项目</td><td>⭐ 378K</td><td>⭐ 12.9K (已归档)</td></tr>
+          <tr><td>存储</td><td>SQLite + FTS5</td><td>SQLite (Kysely)</td><td>SQLite (sqlc)</td></tr>
+          <tr><td>LLM供应商</td><td>9家</td><td>10+</td><td>7 + GitHub Copilot</td></tr>
+          <tr><td>本地模型</td><td><span class="tag yes">盘古1B</span></td><td><span class="tag no">无</span></td><td><span class="tag partial">LOCAL_ENDPOINT</span></td></tr>
+          <tr><td>记忆层级</td><td>6层 (STM/MTM/LTM/图/实体/经验)</td><td>向量+FTS+梦想+多模态</td><td>Auto Compact + 会话持久化</td></tr>
+          <tr><td>推理模式</td><td>ReAct + MCTS + Beam + DAG</td><td>嵌入式 + 子智能体 + 上下文引擎</td><td>单Agent + 工具循环</td></tr>
+          <tr><td>辩论系统</td><td><span class="tag yes">4种模式</span></td><td><span class="tag no">无</span></td><td><span class="tag no">无</span></td></tr>
+          <tr><td>自进化</td><td><span class="tag yes">轨迹→适应度→进化</span></td><td><span class="tag no">无</span></td><td><span class="tag no">无</span></td></tr>
+          <tr><td>GUI Agent</td><td><span class="tag yes">CogAgent风格</span></td><td><span class="tag yes">Live Canvas</span></td><td><span class="tag no">无</span></td></tr>
+          <tr><td>IM渠道</td><td>钉钉/飞书</td><td>20+渠道</td><td><span class="tag no">无</span></td></tr>
+          <tr><td>语音</td><td><span class="tag no">无</span></td><td><span class="tag yes">Talk模式 + TTS</span></td><td><span class="tag no">无</span></td></tr>
+          <tr><td>媒体生成</td><td><span class="tag no">无</span></td><td><span class="tag yes">图像/视频/音乐</span></td><td><span class="tag no">无</span></td></tr>
+          <tr><td>MCP</td><td><span class="tag yes">客户端 + A2A</span></td><td><span class="tag yes">双向 + HTTP</span></td><td><span class="tag yes">stdio/SSE</span></td></tr>
+          <tr><td>插件系统</td><td><span class="tag partial">技能系统</span></td><td><span class="tag yes">完整SDK + 市场</span></td><td><span class="tag no">无</span></td></tr>
+          <tr><td>安全</td><td>ToolGuard + RBAC</td><td>8类审计 + 沙箱 + DM策略</td><td>工具审批 (allow/deny)</td></tr>
+          <tr><td>工作流</td><td>节点图DSL + Mermaid</td><td>Cron + 承诺系统</td><td>自定义命令 (Markdown)</td></tr>
+          <tr><td>桌面应用</td><td><span class="tag yes">pywebview + EXE</span></td><td><span class="tag yes">Windows Hub</span></td><td><span class="tag no">仅TUI</span></td></tr>
+          <tr><td>编辑器集成</td><td><span class="tag no">无</span></td><td><span class="tag no">无</span></td><td><span class="tag yes">LSP</span></td></tr>
+          <tr><td>部署难度</td><td><span class="tag yes">极低 (pip/EXE)</span></td><td><span class="tag partial">中等 (Node+pnpm)</span></td><td><span class="tag yes">低 (go install)</span></td></tr>
+          <tr><td>项目状态</td><td>活跃开发</td><td>活跃 (378K stars)</td><td>已归档 → Crush</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Scores -->
+  <div class="section reveal" id="scores">
+    <div class="section-title">能力评分</div>
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:32px">
+      <div class="grid-3" style="gap:32px">
+        <div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px">
+            <div class="card-icon cogu" style="width:28px;height:28px;font-size:13px;border-radius:6px">C</div>
+            <span style="font-weight:700;font-size:15px">COGU Loong</span>
+          </div>
+          <div id="scores-cogu"></div>
+        </div>
+        <div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px">
+            <div class="card-icon claw" style="width:28px;height:28px;font-size:13px;border-radius:6px">🦞</div>
+            <span style="font-weight:700;font-size:15px">OpenClaw</span>
+          </div>
+          <div id="scores-claw"></div>
+        </div>
+        <div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px">
+            <div class="card-icon code" style="width:28px;height:28px;font-size:13px;border-radius:6px">⌬</div>
+            <span style="font-weight:700;font-size:15px">OpenCode</span>
+          </div>
+          <div id="scores-code"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Verdict -->
+  <div class="section reveal" id="verdict">
+    <div class="section-title">结论</div>
+    <div class="verdict">
+      <h3>三者定位截然不同，各有不可替代的价值</h3>
+      <p><strong>COGU Loong</strong> 是唯一融合「推理多样性 + 专家辩论 + 自进化 + 本地模型」的认知框架。独特价值：ReAct/MCTS/Beam多元推理、4种辩论模式、EgoLayer证据循环、盘古1B离线推理、GUI Agent。适合需要深度推理和离线部署的场景。</p>
+      <p><strong>OpenClaw</strong> 是「渠道覆盖之王」(378K stars)。20+IM渠道、完整插件SDK、设备节点配对、语音Talk模式、媒体生成/理解、Live Canvas，使其成为个人AI助手的终极网关。适合需要多渠道触达和插件生态的场景。</p>
+      <p><strong>OpenCode</strong> 是「终端编程助手」(12.9K stars, 已归档→Crush)。Go编写的轻量TUI，Bubble Tea交互体验优秀，LSP代码智能，GitHub Copilot支持。但功能相对基础，无高级推理/记忆/渠道，项目已迁移到Charm团队的Crush继续开发。</p>
+      <p style="margin-top:20px;color:var(--cogu);font-weight:600">COGU 的差异化路径：不做渠道网关，不做终端IDE，专注「认知深度」— 让Agent像人一样辩论、反思、进化、做梦。</p>
+    </div>
+  </div>
+
+  <div class="footer">
+    COGU vs OpenClaw vs OpenCode · 技术对比 · 2026.6 · 基于 COGU v1.3.0 源码 + OpenClaw GitHub README + OpenCode GitHub README
+  </div>
+</div>
+
+<script>
+const scores = {
+  cogu: [
+    ['推理深度', 95], ['记忆系统', 90], ['辩论/思辨', 95], ['自进化', 90],
+    ['本地模型', 95], ['工具丰富度', 70], ['渠道覆盖', 30], ['插件生态', 40],
+    ['部署简易', 95], ['社区规模', 15]
+  ],
+  claw: [
+    ['推理深度', 75], ['记忆系统', 85], ['辩论/思辨', 20], ['自进化', 20],
+    ['本地模型', 10], ['工具丰富度', 95], ['渠道覆盖', 98], ['插件生态', 95],
+    ['部署简易', 60], ['社区规模', 98]
+  ],
+  code: [
+    ['推理深度', 50], ['记忆系统', 40], ['辩论/思辨', 10], ['自进化', 10],
+    ['本地模型', 30], ['工具丰富度', 55], ['渠道覆盖', 5], ['插件生态', 15],
+    ['部署简易', 85], ['社区规模', 55]
+  ]
+};
+const colors = { cogu: 'cogu', claw: 'claw', code: 'code' };
+Object.entries(scores).forEach(([key, items]) => {
+  const el = document.getElementById('scores-' + key);
+  items.forEach(([label, val]) => {
+    const row = document.createElement('div');
+    row.style.cssText = 'margin-bottom:12px';
+    row.innerHTML = `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:12.5px;color:var(--text2)">${label}</span><span style="font-size:12px;font-weight:600;color:var(--text)">${val}</span></div><div class="score-bar"><div class="score-fill ${colors[key]}" style="width:0%" data-target="${val}"></div></div>`;
+    el.appendChild(row);
+  });
+});
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.classList.add('visible');
+      e.target.querySelectorAll('.score-fill').forEach(bar => { setTimeout(() => { bar.style.width = bar.dataset.target + '%'; }, 200); });
+    }
+  });
+}, { threshold: 0.1 });
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+document.querySelectorAll('.nav-pill').forEach(pill => {
+  pill.addEventListener('click', () => { document.querySelectorAll('.nav-pill').forEach(p => p.classList.remove('active')); pill.classList.add('active'); });
+});
+</script>
+</body>
+</html>

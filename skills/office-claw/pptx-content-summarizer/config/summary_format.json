@@ -1,0 +1,28 @@
+{
+  "schema_version": "pptx-summary-format-v1",
+  "title": {
+    "level": 1,
+    "suffix": "摘要",
+    "blank_lines_after": 1
+  },
+  "sections": [
+    "文档信息",
+    "一句话总结",
+    "核心发现",
+    "详细展开",
+    "关键数据/决策点",
+    "行动启示/待回答问题"
+  ],
+  "heading_spacing": {
+    "h2_blank_lines_before": 1,
+    "h2_blank_lines_after": 0,
+    "h3_blank_lines_before": 1,
+    "h3_blank_lines_after": 0
+  },
+  "key_data": {
+    "section": "关键数据/决策点",
+    "item_format": "- 数字/指标：含义",
+    "strip_metric_brackets": true,
+    "require_digit_prefix": true
+  }
+}

@@ -44,6 +44,7 @@ class AgentConfig:
     model: str = "deepseek-chat"
     max_iterations: int = 25
     max_context_messages: int = 100
+    context_max_tokens: int = 128000
     default_window_rounds: int = 10
     temperature: float = 0.7
     top_p: float = 0.95
@@ -81,9 +82,10 @@ class PanguMiniConfig:
     backend: str = "auto"
     model_dir: str = ""
     gguf_path: str = ""
+    qwen_gguf_path: str = ""
+    local_model: str = "auto"
     api_port: int = 8199
     device: str = "auto"
-    _memorial: str = '2026.6.12 — COGU 诞生日，也是华为发布 OpenPangu 2.0 的日子。中国最早的大模型、领跑世界的大模型、国内首个全栈自主的大模型即将满血归来，宣布追赶"世界第一"。为做纪念，将此模型加入项目中。'
 
 
 @dataclass
@@ -118,7 +120,8 @@ class Settings:
         if "tools" in data:
             settings.tools = ToolConfig(**data["tools"])
         if "pangu_mini" in data:
-            settings.pangu_mini = PanguMiniConfig(**{k: v for k, v in data["pangu_mini"].items() if not k.startswith("_")})
+            pangu_data = {k: v for k, v in data["pangu_mini"].items() if not k.startswith("_")}
+            settings.pangu_mini = PanguMiniConfig(**pangu_data)
         if "providers" in data:
             settings.providers = [ProviderConfig(**p) for p in data["providers"]]
         return settings

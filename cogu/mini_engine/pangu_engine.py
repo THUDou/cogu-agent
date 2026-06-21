@@ -54,8 +54,33 @@ def _find_gguf_path() -> Path:
     return candidates[0]
 
 
+def _find_qwen_gguf_path() -> Path:
+    candidates = []
+    mini_base = Path(__file__).resolve().parent.parent.parent.parent / "MINI" / "models"
+    if mini_base.is_dir():
+        for d in mini_base.iterdir():
+            if d.is_dir() and "gguf" in d.name.lower():
+                for f in d.rglob("*.gguf"):
+                    if "q6" in f.name.lower() or "q8" in f.name.lower() or "q5" in f.name.lower():
+                        candidates.append(f)
+            if d.is_dir():
+                for sub in d.rglob("*.gguf"):
+                    if sub not in candidates:
+                        candidates.append(sub)
+    home_gguf = Path.home() / ".cogu" / "models"
+    if home_gguf.is_dir():
+        for f in home_gguf.rglob("*.gguf"):
+            if f not in candidates:
+                candidates.append(f)
+    for p in candidates:
+        if p.exists():
+            return p
+    return candidates[0] if candidates else Path("")
+
+
 MODEL_DIR = _find_model_dir()
 GGUF_MODEL_PATH = _find_gguf_path()
+QWEN_GGUF_PATH = _find_qwen_gguf_path()
 
 
 class PanguEngineConfig:
@@ -69,9 +94,13 @@ class PanguEngineConfig:
         temperature: float = 0.7,
         top_p: float = 0.9,
         context_length: int = 4096,
+        qwen_gguf_path: str = None,
+        local_model: str = "auto",
     ):
         self.model_dir = Path(model_dir) if model_dir else MODEL_DIR
         self.gguf_path = Path(gguf_path) if gguf_path else GGUF_MODEL_PATH
+        self.qwen_gguf_path = Path(qwen_gguf_path) if qwen_gguf_path else QWEN_GGUF_PATH
+        self.local_model = local_model
         self.backend = backend
         self.device = device
         self.max_new_tokens = max_new_tokens
@@ -81,126 +110,86 @@ class PanguEngineConfig:
 
 
 class PanguTransformersBackend:
-    """基于 transformers + PyTorch 的推理后端"""
+    """基于 transformers 4.53.2 + PyTorch 的推理后端（通过独立venv子进程）"""
 
     def __init__(self, config: PanguEngineConfig):
         self.config = config
-        self.model = None
-        self.tokenizer = None
+        self._process = None
         self._loaded = False
+
+    def _find_pangu_python(self) -> str:
+        base = Path(__file__).resolve().parent.parent.parent
+        candidates = [
+            base / "pangu-env" / "Scripts" / "python.exe",
+            base / "pangu-env" / "bin" / "python",
+        ]
+        for p in candidates:
+            if p.exists():
+                return str(p)
+        return sys.executable
 
     def load(self):
         if self._loaded:
             return
 
-        from transformers import AutoModelForCausalLM, AutoTokenizer
+        pangu_python = self._find_pangu_python()
+        script = str(Path(__file__).resolve().parent.parent.parent / "pangu-model" / "pangu_inference.py")
+        env = os.environ.copy()
+        env["PANGU_MODEL_DIR"] = str(self.config.model_dir)
+        env["PYTHONPATH"] = str(self.config.model_dir)
 
-        logger.info(f"[PanguEngine] Loading model from {self.config.model_dir} ...")
+        logger.info(f"[PanguEngine] Starting Pangu subprocess with {pangu_python} ...")
 
-        device_map = self.config.device
-        if device_map == "auto":
-            import torch
-            device_map = "cuda" if torch.cuda.is_available() else "cpu"
-
-        self.tokenizer = AutoTokenizer.from_pretrained(
-            str(self.config.model_dir),
-            use_fast=False,
-            trust_remote_code=True,
-            local_files_only=True,
+        import subprocess
+        self._process = subprocess.Popen(
+            [pangu_python, script],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=env,
+            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+            bufsize=1,
         )
 
-        self.model = AutoModelForCausalLM.from_pretrained(
-            str(self.config.model_dir),
-            trust_remote_code=True,
-            torch_dtype="auto",
-            device_map=device_map,
-            local_files_only=True,
-        )
+        line = self._process.stdout.readline().decode("utf-8").strip()
+        if line != "READY":
+            stderr = self._process.stderr.read().decode("utf-8", errors="replace")[:500]
+            raise RuntimeError(f"Pangu subprocess failed: {line}\n{stderr}")
 
         self._loaded = True
-        logger.info("[PanguEngine] Model loaded successfully.")
+        logger.info("[PanguEngine] Pangu subprocess ready.")
 
     def generate(self, prompt: str, system: str = "", stream: bool = False, **kwargs) -> str:
         self.load()
+        req = json.dumps({
+            "prompt": prompt,
+            "system": system,
+            "max_new_tokens": kwargs.get("max_new_tokens", self.config.max_new_tokens),
+        }, ensure_ascii=False)
+        self._process.stdin.write((req + "\n").encode("utf-8"))
+        self._process.stdin.flush()
 
-        messages = []
-        if system:
-            messages.append({"role": "system", "content": system})
-        messages.append({"role": "user", "content": prompt})
+        line = self._process.stdout.readline().decode("utf-8").strip()
+        if not line:
+            return ""
+        resp = json.loads(line)
+        return resp.get("content", "")
 
-        text = self.tokenizer.apply_chat_template(
-            messages, tokenize=False, add_generation_prompt=True
-        )
-        inputs = self.tokenizer([text], return_tensors="pt").to(self.model.device)
-
-        max_new_tokens = kwargs.get("max_new_tokens", self.config.max_new_tokens)
-        temperature = kwargs.get("temperature", self.config.temperature)
-        top_p = kwargs.get("top_p", self.config.top_p)
-
-        outputs = self.model.generate(
-            **inputs,
-            max_new_tokens=max_new_tokens,
-            temperature=temperature if temperature > 0 else 1.0,
-            top_p=top_p,
-            do_sample=temperature > 0,
-            eos_token_id=45892,
-        )
-
-        input_len = inputs.input_ids.shape[1]
-        generated = outputs[0, input_len:]
-        return self.tokenizer.decode(generated, skip_special_tokens=True)
-
-    def generate_stream(self, prompt: str, system: str = "", **kwargs) -> Generator[str, None, None]:
-        self.load()
-
-        messages = []
-        if system:
-            messages.append({"role": "system", "content": system})
-        messages.append({"role": "user", "content": prompt})
-
-        text = self.tokenizer.apply_chat_template(
-            messages, tokenize=False, add_generation_prompt=True
-        )
-        inputs = self.tokenizer([text], return_tensors="pt").to(self.model.device)
-
-        from transformers import TextIteratorStreamer
-        import threading
-
-        streamer = TextIteratorStreamer(
-            self.tokenizer, skip_prompt=True, skip_special_tokens=True
-        )
-
-        generation_kwargs = dict(
-            **inputs,
-            streamer=streamer,
-            max_new_tokens=kwargs.get("max_new_tokens", self.config.max_new_tokens),
-            temperature=kwargs.get("temperature", self.config.temperature) or 1.0,
-            top_p=kwargs.get("top_p", self.config.top_p),
-            do_sample=True,
-            eos_token_id=45892,
-        )
-
-        thread = threading.Thread(target=self.model.generate, kwargs=generation_kwargs)
-        thread.start()
-
-        for chunk in streamer:
-            if chunk:
-                yield chunk
-
-        thread.join()
+    def generate_stream(self, prompt: str, system: str = "", **kwargs):
+        content = self.generate(prompt, system=system, **kwargs)
+        yield content
 
     def unload(self):
-        self.model = None
-        self.tokenizer = None
+        if self._process and self._process.poll() is None:
+            try:
+                self._process.stdin.write(b"EXIT\n")
+                self._process.stdin.flush()
+                self._process.wait(timeout=10)
+            except Exception:
+                self._process.kill()
+            self._process = None
         self._loaded = False
-        import gc
-        gc.collect()
-        try:
-            import torch
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-        except Exception:
-            pass
+
 
 
 class PanguGGUFBackend:
@@ -302,11 +291,50 @@ class PanguEngine:
         self._backend_type = None
 
     def _select_backend(self):
+        if self.config.local_model == "qwen" and self.config.qwen_gguf_path.exists():
+            try:
+                import llama_cpp
+                qwen_cfg = PanguEngineConfig(
+                    gguf_path=str(self.config.qwen_gguf_path),
+                    qwen_gguf_path=str(self.config.qwen_gguf_path),
+                    context_length=self.config.context_length,
+                    max_new_tokens=self.config.max_new_tokens,
+                    temperature=self.config.temperature,
+                    top_p=self.config.top_p,
+                )
+                return PanguGGUFBackend(qwen_cfg), "qwen-gguf"
+            except ImportError:
+                pass
+
+        if self.config.local_model == "pangu":
+            if self.config.gguf_path.exists():
+                try:
+                    import llama_cpp
+                    return PanguGGUFBackend(self.config), "gguf"
+                except ImportError:
+                    pass
+            return PanguTransformersBackend(self.config), "transformers"
+
         if self.config.backend != "auto":
             if self.config.backend == "gguf":
                 return PanguGGUFBackend(self.config), "gguf"
             else:
                 return PanguTransformersBackend(self.config), "transformers"
+
+        if self.config.qwen_gguf_path.exists():
+            try:
+                import llama_cpp
+                qwen_cfg = PanguEngineConfig(
+                    gguf_path=str(self.config.qwen_gguf_path),
+                    qwen_gguf_path=str(self.config.qwen_gguf_path),
+                    context_length=self.config.context_length,
+                    max_new_tokens=self.config.max_new_tokens,
+                    temperature=self.config.temperature,
+                    top_p=self.config.top_p,
+                )
+                return PanguGGUFBackend(qwen_cfg), "qwen-gguf"
+            except ImportError:
+                pass
 
         if self.config.gguf_path.exists():
             try:
@@ -315,7 +343,11 @@ class PanguEngine:
             except ImportError:
                 pass
 
-        return PanguTransformersBackend(self.config), "transformers"
+        if self.config.model_dir.exists() and (self.config.model_dir / "model.safetensors").exists():
+            return PanguTransformersBackend(self.config), "transformers"
+
+        return PanguGGUFBackend(self.config), "gguf"
+
 
     @property
     def backend(self):
@@ -345,13 +377,13 @@ class PanguEngine:
             self._backend_type = None
 
     def to_openai_format(self, prompt: str, system: str = "", **kwargs) -> dict:
-        """返回 OpenAI 兼容格式的响应"""
         content = self.generate(prompt, system=system, **kwargs)
+        model_name = "Qwen3.5-0.8B" if self._backend_type == "qwen-gguf" else "openPangu-Embedded-1B"
         return {
-            "id": f"pangu-{int(time.time())}",
+            "id": f"local-{int(time.time())}",
             "object": "chat.completion",
             "created": int(time.time()),
-            "model": "openPangu-Embedded-1B",
+            "model": model_name,
             "choices": [
                 {
                     "index": 0,

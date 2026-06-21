@@ -20,6 +20,11 @@ class Provider(str, Enum):
     MOONSHOT = "moonshot"
     MINIMAX = "minimax"
     DOUBAO = "doubao"
+    HUAWEI_CLOUD = "huawei_cloud"
+    TENCENT_CLOUD = "tencent_cloud"
+    LOCAL_PANGU = "local_pangu"
+    LOCAL_QWEN = "local_qwen"
+    OLLAMA = "ollama"
     CUSTOM = "custom"
 
 
@@ -75,6 +80,37 @@ PROVIDER_DEFAULTS = {
         "chat_path": "/chat/completions",
         "default_model": "doubao-pro-32k",
         "headers_template": {"Authorization": "Bearer {api_key}"},
+    },
+    Provider.HUAWEI_CLOUD: {
+        "base_url": "https://maas-api.cn-north-4.myhuaweicloud.com/v1",
+        "chat_path": "/chat/completions",
+        "default_model": "pangu-plus",
+        "headers_template": {"Authorization": "Bearer {api_key}"},
+    },
+    Provider.TENCENT_CLOUD: {
+        "base_url": "https://hunyuan.tencentcloudapi.com/v1",
+        "chat_path": "/chat/completions",
+        "default_model": "hunyuan-lite",
+        "headers_template": {"Authorization": "Bearer {api_key}"},
+    },
+    Provider.LOCAL_PANGU: {
+        "base_url": "http://127.0.0.1:8199/v1",
+        "chat_path": "/chat/completions",
+        "default_model": "openPangu-Embedded-1B",
+        "headers_template": {},
+    },
+    Provider.LOCAL_QWEN: {
+        "base_url": "http://127.0.0.1:8199/v1",
+        "chat_path": "/chat/completions",
+        "default_model": "Qwen3.5-0.8B",
+        "headers_template": {},
+    },
+    Provider.OLLAMA: {
+        "base_url": "http://localhost:11434/v1",
+        "chat_path": "/chat/completions",
+        "models_path": "/models",
+        "default_model": "qwen3",
+        "headers_template": {},
     },
 }
 
@@ -338,14 +374,42 @@ class ApiTokenManager:
         self.save()
 
     def get_active_config(self) -> Optional[ProviderConfig]:
-        priority = [Provider.DEEPSEEK, Provider.OPENAI, Provider.CLAUDE, Provider.QWEN]
-        for p in priority:
+        cloud_priority = [
+            Provider.DEEPSEEK, Provider.OPENAI, Provider.CLAUDE,
+            Provider.QWEN, Provider.HUAWEI_CLOUD, Provider.TENCENT_CLOUD,
+            Provider.ZHIPU, Provider.MOONSHOT, Provider.MINIMAX, Provider.DOUBAO,
+        ]
+        for p in cloud_priority:
             cfg = self._providers.get(p)
             if cfg and cfg.enabled and cfg.api_key:
                 return cfg
         for cfg in self._providers.values():
-            if cfg.enabled and cfg.api_key:
+            if cfg.enabled and cfg.api_key and cfg.provider not in (Provider.LOCAL_PANGU, Provider.LOCAL_QWEN, Provider.OLLAMA):
                 return cfg
+        ollama_cfg = self._providers.get(Provider.OLLAMA)
+        if ollama_cfg and ollama_cfg.enabled:
+            return ollama_cfg
+        try:
+            from cogu.mini_engine.local_server_manager import check_ollama_available
+            if check_ollama_available():
+                ollama_cfg = ProviderConfig(provider=Provider.OLLAMA)
+                self._providers[Provider.OLLAMA] = ollama_cfg
+                return ollama_cfg
+        except Exception:
+            pass
+        local_priority = [Provider.LOCAL_QWEN, Provider.LOCAL_PANGU]
+        for p in local_priority:
+            cfg = self._providers.get(p)
+            if cfg and cfg.enabled:
+                return cfg
+        try:
+            from cogu.mini_engine.local_server_manager import ensure_local_model_available
+            local_cfg = ensure_local_model_available(self)
+            if local_cfg:
+                self._providers[local_cfg.provider] = local_cfg
+                return local_cfg
+        except Exception:
+            pass
         return None
 
     def to_env_dict(self) -> dict[str, str]:
@@ -472,6 +536,11 @@ ADAPTER_MAP = {
     Provider.MOONSHOT: OpenAICompatibleAdapter,
     Provider.MINIMAX: OpenAICompatibleAdapter,
     Provider.DOUBAO: OpenAICompatibleAdapter,
+    Provider.HUAWEI_CLOUD: OpenAICompatibleAdapter,
+    Provider.TENCENT_CLOUD: OpenAICompatibleAdapter,
+    Provider.LOCAL_PANGU: OpenAICompatibleAdapter,
+    Provider.LOCAL_QWEN: OpenAICompatibleAdapter,
+    Provider.OLLAMA: OpenAICompatibleAdapter,
     Provider.CLAUDE: ClaudeAdapter,
 }
 

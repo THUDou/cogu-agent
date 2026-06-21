@@ -1,0 +1,42 @@
+{
+  "deepseek": {
+    "api_key": "YOUR_DEEPSEEK_API_KEY_HERE",
+    "base_url": "https://api.deepseek.com",
+    "model": "deepseek-chat",
+    "temperature": 0.7,
+    "max_iterations": 10
+  },
+  "openai": {
+    "api_key": "YOUR_OPENAI_API_KEY_HERE",
+    "base_url": "https://api.openai.com/v1",
+    "model": "gpt-4o",
+    "temperature": 0.7
+  },
+  "memory": {
+    "auto_compress": true,
+    "recall_strategy": "hybrid",
+    "db_dir": ".cogu/memory",
+    "file_root": ".cogu/memory_files"
+  },
+  "debate": {
+    "default_mode": "standard",
+    "default_rounds": 2,
+    "default_experts": 5
+  },
+  "agent": {
+    "model": "deepseek-chat",
+    "temperature": 0.7,
+    "max_iterations": 10,
+    "enable_guardrails": true
+  },
+  "tool": {
+    "sandbox_enabled": false,
+    "approval_required": false,
+    "timeout_seconds": 300
+  },
+  "pangu_mini": {
+    "enabled": false,
+    "backend": "auto",
+    "api_port": 8199
+  }
+}

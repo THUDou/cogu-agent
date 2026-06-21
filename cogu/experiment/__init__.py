@@ -1,6 +1,11 @@
 """COGU Experiment — 实验评估框架
-融合 EvoMaster Playground→Exp→Agent 三层架构
+基于源码: EvoMaster core/playground.py (BasePlayground 1891行)
+         + EvoMaster core/exp.py (BaseExp + extract_agent_response)
 """
-from cogu.evolution.practice import PracticeBank, PracticeRunner, PracticeTask, PracticeResult
+from cogu.experiment.playground import (
+    BasePlayground, ExperimentRunner, TaskInstance, StepRecord, ExperimentResult,
+)
 
-__all__ = ["PracticeBank", "PracticeRunner", "PracticeTask", "PracticeResult"]
+__all__ = [
+    "BasePlayground", "ExperimentRunner", "TaskInstance", "StepRecord", "ExperimentResult",
+]

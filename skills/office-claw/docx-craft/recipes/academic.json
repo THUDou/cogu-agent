@@ -1,0 +1,91 @@
+{
+  "name": "academic",
+  "label": "学术论文/综述",
+  "fonts": {
+    "body": {
+      "ascii": "Times New Roman",
+      "eastAsia": "SimSun",
+      "hAnsi": "Times New Roman",
+      "size": 24
+    },
+    "heading": {
+      "ascii": "Times New Roman",
+      "eastAsia": "SimHei",
+      "hAnsi": "Times New Roman"
+    }
+  },
+  "headings": [
+    { "level": 0, "size": 44, "bold": true, "spacing": { "before": 0, "after": 240 } },
+    { "level": 1, "size": 32, "bold": true, "spacing": { "before": 480, "after": 240 } },
+    { "level": 2, "size": 28, "bold": true, "spacing": { "before": 360, "after": 180 } },
+    { "level": 3, "size": 26, "bold": true, "spacing": { "before": 240, "after": 120 } },
+    { "level": 4, "size": 24, "bold": true, "spacing": { "before": 200, "after": 100 } },
+    { "level": 5, "size": 24, "bold": true, "italics": true, "spacing": { "before": 160, "after": 80 } },
+    { "level": 6, "size": 24, "bold": false, "italics": true, "spacing": { "before": 160, "after": 80 } }
+  ],
+  "page": {
+    "width": 11906,
+    "height": 16838,
+    "margin": {
+      "top": 1440,
+      "bottom": 1440,
+      "left": 1800,
+      "right": 1440
+    },
+    "preset": "a4",
+    "marginPreset": "standard"
+  },
+  "lineSpacing": 480,
+  "sections": ["cover", "toc", "body", "appendix"],
+  "header": {
+    "text": "",
+    "align": "right"
+  },
+  "footer": {
+    "type": "page_number",
+    "align": "center"
+  },
+  "extendedStyles": {
+    "toc": {
+      "levels": [
+        { "level": 1, "indent": 0, "bold": true },
+        { "level": 2, "indent": 240, "bold": false },
+        { "level": 3, "indent": 480, "bold": false }
+      ]
+    },
+    "list": {
+      "bullet": { "indent": 720, "hanging": 360 },
+      "number": { "indent": 720, "hanging": 360 }
+    },
+    "quote": {
+      "normal": {
+        "indent": { "left": 720, "right": 720, "firstLine": 0 },
+        "spacing": { "before": 240, "after": 240 },
+        "italics": true
+      },
+      "intense": {
+        "indent": { "left": 720, "right": 720, "firstLine": 0 },
+        "spacing": { "before": 240, "after": 240 },
+        "bold": true,
+        "italics": true,
+        "color": "2F5496",
+        "leftBorder": { "style": "single", "size": 18, "space": 12, "color": "2F5496" }
+      }
+    },
+    "table": {
+      "borders": {
+        "style": "single",
+        "size": 4,
+        "color": "auto"
+      },
+      "headerRow": {
+        "fill": "F2F2F2",
+        "bold": true
+      }
+    },
+    "comment": {
+      "textSize": 20,
+      "referenceSize": 16
+    }
+  }
+}

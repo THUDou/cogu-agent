@@ -1,0 +1,36 @@
+{
+  "$schema": "./vlm-config.schema.json",
+  "enabled": true,
+  "provider": "openai",
+  "model": "${VLM_OPENAI_MODEL}",
+  "api": {
+    "anthropic": {
+      "apiKey": "${ANTHROPIC_API_KEY}",
+      "baseUrl": "https://api.anthropic.com",
+      "model": "claude-sonnet-4-6",
+      "maxTokens": 4096
+    },
+    "openai": {
+      "apiKey": "${VLM_OPENAI_API_KEY}",
+      "baseUrl": "${VLM_OPENAI_BASE_URL}",
+      "model": "${VLM_OPENAI_MODEL}",
+      "maxTokens": 128000
+    }
+  },
+  "analysis": {
+    "maxImagesPerRequest": 5,
+    "imageQuality": "high",
+    "outputLanguage": "zh-CN",
+    "focusAreas": [
+      "color_scheme",
+      "layout_structure",
+      "typography",
+      "visual_style",
+      "component_styles"
+    ]
+  },
+  "prompts": {
+    "system": "你是一位专业的PPT设计分析师，擅长从视觉角度分析演示文稿的设计风格和布局特征。请分析提供的幻灯片图片，提取设计规范信息。",
+    "analysisPrompt": "请分析这{count}张PPT幻灯片截图的设计特征，目标是生成可指导后续大模型复刻源PPT模板的结构化规范。请只输出一个合法 JSON 对象，不要输出 Markdown 代码块或解释文字。\n\n必须同时保留旧字段和新增增强字段：\n\n1. 旧字段（为了兼容现有聚合逻辑）：\n- \"配色方案\"：包含 \"主色调\"、\"辅助色\"、\"背景色\"、\"文字色\"、\"点缀色\"、\"整体风格\"。颜色尽量写颜色名称 + HEX；不要把纯文字黑白灰误判为主色。\n- \"字体风格\"：包含字号层级、字重差异、标题/正文观感、排版节奏。\n- \"布局结构\"：包含整体模式、边距估算、分栏/网格/视觉区说明。\n- \"视觉风格\"：包含整体风格、设计特点、设计关键词。\n- \"组件样式\"：包含边框、圆角、阴影、卡片/容器、装饰元素。\n\n2. 新增增强字段（字段名必须完全一致）：\n- \"page_roles\"：数组。每项包含 page（从1开始）、role（cover/section/content/divider/ending/toc/data/unknown）、confidence（0-1）、evidence（简短依据）。\n- \"fixed_composition\"：数组。描述页面类型的固定构图骨架，而不是单页分析。每项包含 page_type（cover/toc/section/content/data/ending/general）、required_elements（必须保留的视觉元素数组，如年份水印、中心边框、底部波浪、折角卡片、点阵）、layout_rule（这些元素的相对位置和层级关系）、avoid_rules（禁止用什么相似但错误的装饰替代）。这是复刻相似度最高优先级字段。\n- \"visual_assets\"：数组。只描述截图中影响模板复刻的视觉资产。每项包含 page、visual_role（background/background_texture/edge_decoration/repeated_decoration/decorative_texture/content_image/unknown）、must_reuse（布尔值）、usage（如何迁移使用）、confidence（high/medium/low）、evidence。\n- \"layout_semantics\"：数组。每项描述一种可复用页面版式，必须抽象为内容语义，而不只是上下左右位置。每项包含 page、layout_name、page_role、semantic_type、content_scenario、information_relation、slot_structure、selection_rule、title_position、body_structure、visual_structure、spacing_rules、reuse_rule、avoid_rules。semantic_type 只能使用 progressive（递进型）、parallel（分列/并列型）、comparison（对比型）、summary_detail（总分型）、process（流程型）、timeline（时间轴型）、matrix（矩阵型）、case（案例型）、data_focus（数据强调型）、image_text（图文说明型）、quote（观点引用型）、unknown。content_scenario 写适用场景；information_relation 写信息关系；slot_structure 写内容槽位；selection_rule 写后续生成时何种大纲/内容应选择该版式。\n- \"corrections\"：数组。用于指出视觉观察与常见工具提取结果可能冲突的地方。每项包含 target、observed、recommendation、reason、priority（high/medium/low）。例如主色被文字色污染、背景图被误判为普通图片、内容页样式过度拆分。\n- \"replication_rules\"：数组。写出后续生成新PPT时必须遵守的硬约束，每条应具体可执行，覆盖背景、字体、配色、标题位置、正文密度、图片/装饰迁移、版式语义选择、禁止事项。\n- \"overlay_policy\"：对象。检测使用背景图的页面（封面、章节页等）上方是否存在半透明遮罩层。必须包含：present（布尔值，true=有遮罩，false=无遮罩）；color（遮罩颜色如 \"rgba(0,0,0,0.35)\"，present 为 false 时设为 null）；description（一句话描述，如\"封面背景图直接呈现，无半透明遮罩\"或\"背景图上叠加深色遮罩以保证文字可读\"）。判断依据：观察背景图是否因半透明层覆盖而整体变暗或变亮；纯色或渐变装饰元素不算遮罩。\n\n判断原则：\n- 优先识别能提升复刻相似度的固定构图，而不是泛泛描述风格。\n- 版式语义要回答“这个版式适合表达什么内容关系”，例如递进、并列、对比、总分、流程、矩阵、案例或数据强调；不要只写元素位置。\n- 区分背景/纹理/装饰资产与普通内容图片；只有模板风格资产才标记 must_reuse=true。\n- 页面角色、固定构图和版式说明要服务于后续生成，不要写源PPT页码分析报告式废话。\n- 如果无法确定，请使用 unknown 或 low confidence，不要臆造。"
+  }
+}
