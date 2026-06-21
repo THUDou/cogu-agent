@@ -1,0 +1,290 @@
+﻿python : 866 INFO: PyInstaller: 6.16.0, contrib hooks: 2025.8
+At line:1 char:1
++ python -m PyInstaller COGU-Loong.spec --clean --noconfirm 2>&1 | Out- ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (866 INFO: PyIns...b hooks: 2025.8:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+866 INFO: Python: 3.13.5
+983 INFO: Platform: Windows-11-10.0.22631-SP0
+983 INFO: Python environment: C:\Python313
+1007 INFO: Removing temporary files and cleaning cache in C:\Users\ASUS\AppData\Local\pyinstaller
+1046 INFO: Module search paths (PYTHONPATH):
+['D:\\COGU AGENT\\cogu_agent',
+ 'C:\\Python313\\python313.zip',
+ 'C:\\Python313\\DLLs',
+ 'C:\\Python313\\Lib',
+ 'C:\\Python313',
+ 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python313\\site-packages',
+ '__editable__.ultralytics-8.3.176.finder.__path_hook__',
+ 'C:\\Python313\\Lib\\site-packages',
+ 'D:\\COGU AGENT\\cogu_agent',
+ 'C:\\Python313\\Lib\\site-packages\\win32',
+ 'C:\\Python313\\Lib\\site-packages\\win32\\lib',
+ 'C:\\Python313\\Lib\\site-packages\\Pythonwin',
+ 'C:\\Python313\\Lib\\site-packages\\setuptools\\_vendor',
+ 'D:\\COGU AGENT\\cogu_agent\\cogu\\desktop',
+ 'D:\\COGU AGENT\\cogu_agent']
+3334 INFO: Appending 'datas' from .spec
+3335 INFO: checking Analysis
+3336 INFO: Building Analysis because Analysis-00.toc is non existent
+3336 INFO: Looking for Python shared library...
+3336 INFO: Using Python shared library: C:\Python313\python313.dll
+3336 INFO: Running Analysis Analysis-00.toc
+3336 INFO: Target bytecode optimization level: 0
+3336 INFO: Initializing module dependency graph...
+3337 INFO: Initializing module graph hook caches...
+3377 INFO: Analyzing modules for base_library.zip ...
+8355 INFO: Processing standard module hook 'hook-heapq.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python313\\
+site-packages\\PyInstaller\\hooks'
+8655 INFO: Processing standard module hook 'hook-encodings.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python3
+13\\site-packages\\PyInstaller\\hooks'
+11153 INFO: Processing standard module hook 'hook-pickle.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python313
+\\site-packages\\PyInstaller\\hooks'
+12714 INFO: Caching module dependency graph...
+12769 INFO: Analyzing D:\COGU AGENT\cogu_agent\cogu\desktop\loong.py
+13023 INFO: Processing standard module hook 'hook-multiprocessing.util.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Pyt
+hon\\Python313\\site-packages\\PyInstaller\\hooks'
+13269 INFO: Processing standard module hook 'hook-xml.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python313\\s
+ite-packages\\PyInstaller\\hooks'
+13544 INFO: Processing standard module hook 'hook-_ctypes.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python31
+3\\site-packages\\PyInstaller\\hooks'
+13969 INFO: Processing standard module hook 'hook-uvicorn.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python31
+3\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+16158 INFO: Processing standard module hook 'hook-platform.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python3
+13\\site-packages\\PyInstaller\\hooks'
+16238 INFO: Processing pre-safe-import-module hook 'hook-typing_extensions.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\
+\Python\\Python313\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+16241 INFO: SetuptoolsInfo: initializing cached setuptools info...
+18317 INFO: Processing standard module hook 'hook-difflib.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python31
+3\\site-packages\\PyInstaller\\hooks'
+18912 INFO: Processing standard module hook 'hook-websockets.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Pytho
+n313\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+20826 INFO: Processing standard module hook 'hook-anyio.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python313\
+\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+23400 INFO: Processing standard module hook 'hook-pydantic.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python3
+13\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+25395 INFO: Processing standard module hook 'hook-pygments.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python3
+13\\site-packages\\PyInstaller\\hooks'
+30887 INFO: Processing standard module hook 'hook-sysconfig.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python
+313\\site-packages\\PyInstaller\\hooks'
+31579 INFO: Processing standard module hook 'hook-zoneinfo.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python3
+13\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+34329 INFO: Processing standard module hook 'hook-certifi.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python31
+3\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+35515 INFO: Processing standard module hook 'hook-sqlite3.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python31
+3\\site-packages\\PyInstaller\\hooks'
+38119 INFO: Processing standard module hook 'hook-regex.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python313\
+\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+38674 INFO: Processing standard module hook 'hook-jsonschema.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Pytho
+n313\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+39036 INFO: Processing standard module hook 'hook-jsonschema_specifications.py' from 'C:\\Users\\ASUS\\AppData\\Roaming
+\\Python\\Python313\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+39145 INFO: Processing pre-safe-import-module hook 'hook-importlib_resources.py' from 'C:\\Users\\ASUS\\AppData\\Roamin
+g\\Python\\Python313\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+39216 INFO: Processing standard module hook 'hook-urllib3.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python31
+3\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+39641 INFO: Processing standard module hook 'hook-charset_normalizer.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Pytho
+n\\Python313\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+39802 INFO: Processing standard module hook 'hook-cryptography.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Pyt
+hon313\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+44927 INFO: hook-cryptography: cryptography does not seem to be using dynamically linked OpenSSL.
+46194 INFO: Processing standard module hook 'hook-pywintypes.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Pytho
+n313\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+47343 INFO: Processing pre-safe-import-module hook 'hook-tomli.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Pyt
+hon313\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+47345 INFO: Setuptools: 'tomli' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.tomli'
+!
+47359 INFO: Processing standard module hook 'hook-setuptools.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Pytho
+n313\\site-packages\\PyInstaller\\hooks'
+47393 INFO: Processing pre-safe-import-module hook 'hook-distutils.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\
+\Python313\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+47462 INFO: Processing pre-safe-import-module hook 'hook-jaraco.functools.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\
+Python\\Python313\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+47463 INFO: Setuptools: 'jaraco.functools' appears to be a setuptools-vendored copy - creating alias to 'setuptools._ve
+ndor.jaraco.functools'!
+47483 INFO: Processing pre-safe-import-module hook 'hook-more_itertools.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Py
+thon\\Python313\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+47485 INFO: Setuptools: 'more_itertools' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vend
+or.more_itertools'!
+47877 INFO: Processing pre-safe-import-module hook 'hook-packaging.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\
+\Python313\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+48150 INFO: Processing pre-safe-import-module hook 'hook-jaraco.text.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Pytho
+n\\Python313\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+48152 INFO: Setuptools: 'jaraco.text' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.
+jaraco.text'!
+48168 INFO: Processing standard module hook 'hook-setuptools._vendor.jaraco.text.py' from 'C:\\Users\\ASUS\\AppData\\Ro
+aming\\Python\\Python313\\site-packages\\PyInstaller\\hooks'
+48172 INFO: Processing pre-safe-import-module hook 'hook-jaraco.context.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Py
+thon\\Python313\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+48173 INFO: Setuptools: 'jaraco.context' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vend
+or.jaraco.context'!
+48195 INFO: Processing pre-safe-import-module hook 'hook-backports.tarfile.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\
+\Python\\Python313\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+48196 INFO: Setuptools: 'backports.tarfile' appears to be a setuptools-vendored copy - creating alias to 'setuptools._v
+endor.backports.tarfile'!
+48363 INFO: Processing standard module hook 'hook-backports.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python
+313\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+48504 INFO: Processing pre-safe-import-module hook 'hook-importlib_metadata.py' from 'C:\\Users\\ASUS\\AppData\\Roaming
+\\Python\\Python313\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+48506 INFO: Setuptools: 'importlib_metadata' appears to be a setuptools-vendored copy - creating alias to 'setuptools._
+vendor.importlib_metadata'!
+48546 INFO: Processing standard module hook 'hook-setuptools._vendor.importlib_metadata.py' from 'C:\\Users\\ASUS\\AppD
+ata\\Roaming\\Python\\Python313\\site-packages\\PyInstaller\\hooks'
+48613 INFO: Processing pre-safe-import-module hook 'hook-zipp.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Pyth
+on313\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+48615 INFO: Setuptools: 'zipp' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.zipp'!
+49763 INFO: Processing pre-safe-import-module hook 'hook-wheel.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Pyt
+hon313\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+49764 INFO: Setuptools: 'wheel' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.wheel'
+!
+52728 INFO: Processing standard module hook 'hook-openpyxl.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python3
+13\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+54624 INFO: Processing standard module hook 'hook-lxml.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python313\\
+site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+56961 INFO: Processing standard module hook 'hook-lxml.etree.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Pytho
+n313\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+57010 INFO: Processing standard module hook 'hook-xml.etree.cElementTree.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\P
+ython\\Python313\\site-packages\\PyInstaller\\hooks'
+57372 INFO: Processing standard module hook 'hook-xml.dom.domreg.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\P
+ython313\\site-packages\\PyInstaller\\hooks'
+64415 INFO: Processing standard module hook 'hook-docx.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python313\\
+site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+67404 INFO: Processing standard module hook 'hook-pptx.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python313\\
+site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+79058 INFO: Processing standard module hook 'hook-jinja2.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python313
+\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+80168 INFO: Processing standard module hook 'hook-fsspec.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python313
+\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+82531 INFO: Processing standard module hook 'hook-webview.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python31
+3\\site-packages\\webview\\__pyinstaller'
+83670 INFO: Processing pre-safe-import-module hook 'hook-gi.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python
+313\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+83773 INFO: Processing standard module hook 'hook-PyQt5.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python313\
+\site-packages\\PyInstaller\\hooks'
+84382 INFO: Processing standard module hook 'hook-PyQt5.QtNetwork.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\
+Python313\\site-packages\\PyInstaller\\hooks'
+86160 INFO: Processing standard module hook 'hook-PyQt5.QtCore.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Pyt
+hon313\\site-packages\\PyInstaller\\hooks'
+88126 INFO: Processing standard module hook 'hook-PyQt5.QtWidgets.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\
+Python313\\site-packages\\PyInstaller\\hooks'
+89615 INFO: Processing standard module hook 'hook-PyQt5.QtGui.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Pyth
+on313\\site-packages\\PyInstaller\\hooks'
+91107 INFO: Processing standard module hook 'hook-clr.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python313\\s
+ite-packages\\pythonnet\\_pyinstaller'
+91537 INFO: Processing standard module hook 'hook-clr_loader.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Pytho
+n313\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+91858 INFO: Processing standard module hook 'hook-pycparser.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python
+313\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+94735 INFO: Analyzing hidden import 'cogu.cli'
+94739 INFO: Analyzing hidden import 'cogu.cli.main'
+95596 INFO: Processing pre-safe-import-module hook 'hook-platformdirs.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Pyth
+on\\Python313\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+95639 INFO: Processing standard module hook 'hook-platformdirs.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Pyt
+hon313\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+101327 INFO: Analyzing hidden import 'cogu.comm'
+101446 INFO: Analyzing hidden import 'cogu.compression'
+101527 INFO: Analyzing hidden import 'cogu.middleware'
+101670 INFO: Analyzing hidden import 'cogu.orchestrator'
+101731 INFO: Analyzing hidden import 'cogu.sdk'
+101786 INFO: Analyzing hidden import 'cogu.state'
+101869 INFO: Analyzing hidden import 'cogu.topology'
+101915 INFO: Analyzing hidden import 'cogu.mini_engine.pangu_engine'
+117152 INFO: Analyzing hidden import 'cogu.mini_engine.server'
+117162 INFO: Analyzing hidden import 'cogu.desktop'
+117164 INFO: Analyzing hidden import 'cogu.desktop.loong'
+117179 INFO: Analyzing hidden import 'cogu.desktop.launcher'
+117186 INFO: Analyzing hidden import 'cogu.desktop.provider_manager'
+117191 INFO: Analyzing hidden import 'cogu.desktop.tray_manager'
+117195 INFO: Analyzing hidden import 'cogu.desktop.update_checker'
+117200 INFO: Analyzing hidden import 'uvicorn.loops'
+117202 INFO: Analyzing hidden import 'uvicorn.loops.auto'
+117210 INFO: Analyzing hidden import 'uvicorn.protocols.http.auto'
+117212 INFO: Analyzing hidden import 'uvicorn.protocols.websockets.auto'
+117215 INFO: Analyzing hidden import 'uvicorn.lifespan'
+117217 INFO: Analyzing hidden import 'uvicorn.lifespan.on'
+117228 INFO: Analyzing hidden import 'anyio._backends'
+117230 INFO: Analyzing hidden import 'anyio._backends._asyncio'
+117420 INFO: Analyzing hidden import 'sqlite_fts4'
+117434 INFO: Analyzing hidden import 'System.Windows.Forms'
+117434 ERROR: Hidden import 'System.Windows.Forms' not found
+117435 INFO: Analyzing hidden import 'System.Drawing'
+117435 ERROR: Hidden import 'System.Drawing' not found
+117435 INFO: Analyzing hidden import 'bottlecb'
+117439 ERROR: Hidden import 'bottlecb' not found
+117439 INFO: Processing module hooks (post-graph stage)...
+117547 INFO: Processing standard module hook 'hook-pytest.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python31
+3\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+118131 INFO: Processing standard module hook 'hook-py.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python313\\s
+ite-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+120112 INFO: Processing standard module hook 'hook-pkg_resources.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\P
+ython313\\site-packages\\PyInstaller\\hooks'
+124931 INFO: Processing standard module hook 'hook-lxml.isoschematron.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Pyth
+on\\Python313\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+124985 WARNING: Hidden import "pycparser.lextab" not found!
+124985 WARNING: Hidden import "pycparser.yacctab" not found!
+128961 WARNING: Hidden import "sip" not found!
+129028 INFO: Processing standard module hook 'hook-lxml.objectify.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\
+Python313\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+129030 INFO: Processing standard module hook 'hook-tzdata.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python31
+3\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+132047 INFO: Performing binary vs. data reclassification (908 entries)
+133136 INFO: Looking for ctypes DLLs
+133664 INFO: Analyzing run-time hooks ...
+133688 INFO: Including run-time hook 'pyi_rth_inspect.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python313\\s
+ite-packages\\PyInstaller\\hooks\\rthooks'
+133693 INFO: Including run-time hook 'pyi_rth_setuptools.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python313
+\\site-packages\\PyInstaller\\hooks\\rthooks'
+133698 INFO: Including run-time hook 'pyi_rth_pkgutil.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python313\\s
+ite-packages\\PyInstaller\\hooks\\rthooks'
+133708 INFO: Including run-time hook 'pyi_rth_pywintypes.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python313
+\\site-packages\\_pyinstaller_hooks_contrib\\rthooks'
+133712 INFO: Including run-time hook 'pyi_rth_cryptography_openssl.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\
+\Python313\\site-packages\\_pyinstaller_hooks_contrib\\rthooks'
+133715 INFO: Including run-time hook 'pyi_rth_pkgres.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python313\\si
+te-packages\\PyInstaller\\hooks\\rthooks'
+133725 INFO: Including run-time hook 'pyi_rth_multiprocessing.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Pyth
+on313\\site-packages\\PyInstaller\\hooks\\rthooks'
+133730 INFO: Including run-time hook 'pyi_rth_pyqt5.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python313\\sit
+e-packages\\PyInstaller\\hooks\\rthooks'
+133735 INFO: Processing pre-find-module-path hook 'hook-_pyi_rth_utils.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Pyt
+hon\\Python313\\site-packages\\PyInstaller\\hooks\\pre_find_module_path'
+133744 INFO: Processing standard module hook 'hook-_pyi_rth_utils.py' from 'C:\\Users\\ASUS\\AppData\\Roaming\\Python\\
+Python313\\site-packages\\PyInstaller\\hooks'
+133864 INFO: Creating base_library.zip...
+133909 INFO: Looking for dynamic libraries
+C:\Users\ASUS\AppData\Roaming\Python\Python313\site-packages\PyInstaller\building\build_main.py:227: UserWarning: pkg_r
+esources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources packag
+e is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  __import__(package)
+C:\Users\ASUS\AppData\Roaming\Python\Python313\site-packages\requests\__init__.py:113: RequestsDependencyWarning: urlli
+b3 (2.5.0) or chardet (7.4.3)/charset_normalizer (3.4.3) doesn't match a supported version!
+  warnings.warn(
+147855 INFO: Extra DLL search directories (AddDllDirectory): ['C:\\Users\\ASUS\\AppData\\Roaming\\Python\\Python313\\si
+te-packages\\PyQt5\\Qt5\\bin', 'C:\\Python313\\Lib\\site-packages\\llama_cpp\\lib', 'C:\\Python313\\Lib\\site-packages\
+\llama_cpp\\lib', 'C:\\Python313\\Lib\\site-packages\\numpy.libs']
+147855 INFO: Extra DLL search directories (PATH): ['C:\\Python313\\Lib\\site-packages\\llama_cpp\\lib', 'C:\\Users\\ASU
+S\\AppData\\Roaming\\Python\\Python313\\site-packages\\PyQt5\\Qt5\\bin']
+151627 INFO: Warnings written to D:\COGU AGENT\cogu_agent\build\COGU-Loong\warn-COGU-Loong.txt
+151900 INFO: Graph cross-reference written to D:\COGU AGENT\cogu_agent\build\COGU-Loong\xref-COGU-Loong.html
+152004 INFO: checking PYZ
+152004 INFO: Building PYZ because PYZ-00.toc is non existent
+152004 INFO: Building PYZ (ZlibArchive) D:\COGU AGENT\cogu_agent\build\COGU-Loong\PYZ-00.pyz
+154194 INFO: Building PYZ (ZlibArchive) D:\COGU AGENT\cogu_agent\build\COGU-Loong\PYZ-00.pyz completed successfully.
+154271 INFO: checking PKG
+154271 INFO: Building PKG because PKG-00.toc is non existent
+154271 INFO: Building PKG (CArchive) COGU-Loong.pkg
+172622 INFO: Building PKG (CArchive) COGU-Loong.pkg completed successfully.
+172641 INFO: Bootloader C:\Users\ASUS\AppData\Roaming\Python\Python313\site-packages\PyInstaller\bootloader\Windows-64b
+it-intel\runw.exe
+172641 INFO: checking EXE
+172641 INFO: Building EXE because EXE-00.toc is non existent
+172641 INFO: Building EXE from EXE-00.toc
+172646 INFO: Copying bootloader EXE to D:\COGU AGENT\cogu_agent\dist\COGU-Loong.exe
+172661 INFO: Copying icon to EXE
+172671 INFO: Copying 0 resources to EXE
+172671 INFO: Embedding manifest in EXE
+172679 INFO: Appending PKG archive to EXE
+172758 INFO: Fixing EXE headers
+173192 INFO: Building EXE from EXE-00.toc completed successfully.
+173214 INFO: Build complete! The results are available in: D:\COGU AGENT\cogu_agent\dist

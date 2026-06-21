@@ -9,9 +9,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@xyflow/react": "^12.4.4",
+    "cogu-studio-ui": "file:",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "@xyflow/react": "^12.4.4"
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@types/react": "^18.3.12",
