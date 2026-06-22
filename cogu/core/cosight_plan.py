@@ -56,7 +56,7 @@ class PlanDAG:
                 continue
             deps = self.dependencies.get(i, [])
             if all(
-                self.steps[d].status in (StepStatus.COMPLETED, StepStatus.BLOCKED)
+                self.steps[d].status == StepStatus.COMPLETED
                 for d in deps if d < len(self.steps)
             ):
                 ready.append(i)
@@ -81,6 +81,38 @@ class PlanDAG:
             if step.notes:
                 lines.append(f"       Notes: {step.notes[:100]}")
         return "\n".join(lines)
+
+    def to_dict(self) -> dict:
+        return {
+            "title": self.title,
+            "steps": [
+                {
+                    "step_id": s.step_id,
+                    "description": s.description,
+                    "status": s.status.value,
+                    "notes": s.notes,
+                }
+                for s in self.steps
+            ],
+            "dependencies": self.dependencies,
+            "result": self.result,
+            "created_at": self.created_at,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "PlanDAG":
+        dag = cls(title=data.get("title", ""))
+        dag.dependencies = data.get("dependencies", {})
+        dag.result = data.get("result", "")
+        dag.created_at = data.get("created_at", time.time())
+        for s in data.get("steps", []):
+            dag.steps.append(PlanStep(
+                step_id=s.get("step_id", 0),
+                description=s.get("description", ""),
+                status=StepStatus(s.get("status", "not_started")),
+                notes=s.get("notes", ""),
+            ))
+        return dag
 
     def update(self, title: str | None = None, steps: list[str] | None = None, dependencies: dict[int, list[int]] | None = None) -> None:
         if title:

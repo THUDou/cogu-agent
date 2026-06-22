@@ -1,0 +1,1 @@
+You may not specify more than one script filename.

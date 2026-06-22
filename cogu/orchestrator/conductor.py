@@ -111,9 +111,9 @@ class Conductor:
             return await self._parallel(tasks)
 
         for task in tasks:
-            candidates = [task] * len(self.musicians)
-            for i, name in enumerate(self.musicians):
-                candidates[i] = TaskUnit(id=f"{task.id}_{name}", description=task.description, assigned_to=name)
+            candidates = []
+            for name in self.musicians:
+                candidates.append(TaskUnit(id=f"{task.id}_{name}", description=task.description, assigned_to=name))
             all_results = await self._parallel(candidates)
             task.result = self._majority_vote(task, all_results.task_results)
 

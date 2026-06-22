@@ -39,7 +39,7 @@ class _RunnerImpl:
             return True
 
         self._settings = settings or Settings.default()
-        workspace = self._settings.workspace
+        workspace = self._settings.workspace or os.getcwd()
         os.makedirs(workspace, exist_ok=True)
 
         self._clients = MultiProviderClient()

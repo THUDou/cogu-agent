@@ -111,7 +111,16 @@ class InputValidationResult:
     warning: str = ""
 
 
-_DEFAULT_SYSTEM_PROMPT = """You are COGU, a cognitive unified agent. You have access to tools and can use them to accomplish tasks.
+_SOUL_PATH = Path(__file__).parent / "soul.md"
+_SOUL_CONTENT = ""
+if _SOUL_PATH.exists():
+    _SOUL_CONTENT = _SOUL_PATH.read_text(encoding="utf-8")
+
+_DEFAULT_SYSTEM_PROMPT = f"""You are COGU Loong, a cognitive unified agent. You have access to tools and can use them to accomplish tasks.
+Think step by step. When you need information, use tools. When you have an answer, respond directly.
+Be concise and precise. Use Chinese when the user communicates in Chinese.
+
+{_SOUL_CONTENT}""" if _SOUL_CONTENT else """You are COGU, a cognitive unified agent. You have access to tools and can use them to accomplish tasks.
 Think step by step. When you need information, use tools. When you have an answer, respond directly.
 Be concise and precise. Use Chinese when the user communicates in Chinese."""
 

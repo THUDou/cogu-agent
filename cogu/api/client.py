@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 import time
 from dataclasses import dataclass, field
 from enum import Enum
@@ -32,11 +33,37 @@ class StreamEvent:
 
 
 @dataclass
+class UsageInfo:
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    total_tokens: int = 0
+
+    def __getitem__(self, key):
+        return getattr(self, key, 0)
+
+    def __contains__(self, key):
+        return key in ("prompt_tokens", "completion_tokens", "total_tokens")
+
+    def get(self, key, default=None):
+        return getattr(self, key, default)
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "UsageInfo":
+        if not d:
+            return cls()
+        return cls(
+            prompt_tokens=d.get("prompt_tokens", 0),
+            completion_tokens=d.get("completion_tokens", 0),
+            total_tokens=d.get("total_tokens", 0),
+        )
+
+
+@dataclass
 class LLMResponse:
     content: str = ""
     thinking: str = ""
     tool_calls: list[dict] = field(default_factory=list)
-    usage: dict = field(default_factory=dict)
+    usage: UsageInfo = field(default_factory=UsageInfo)
     finish_reason: str = ""
     model: str = ""
 
@@ -54,13 +81,13 @@ class DeepSeekClient:
     def __init__(
         self,
         api_key: str = "",
-        base_url: str = "https://api.deepseek.com",
+        base_url: str = "",
         model: str = "deepseek-chat",
         reasoning_effort: str = "medium",
         retry_config: RetryConfig = None,
     ):
-        self.api_key = api_key
-        self.base_url = base_url.rstrip("/")
+        self.api_key = api_key or os.environ.get("DEEPSEEK_API_KEY", "")
+        self.base_url = (base_url or os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com")).rstrip("/")
         self.model = model
         self.reasoning_effort = reasoning_effort
         self.retry_config = retry_config or RetryConfig()
@@ -189,11 +216,7 @@ class DeepSeekClient:
                 }
                 for tc in message.get("tool_calls", [])
             ],
-            usage={
-                "prompt_tokens": data.get("usage", {}).get("prompt_tokens", 0),
-                "completion_tokens": data.get("usage", {}).get("completion_tokens", 0),
-                "total_tokens": data.get("usage", {}).get("total_tokens", 0),
-            },
+            usage=UsageInfo.from_dict(data.get("usage", {})),
             finish_reason=choice.get("finish_reason", ""),
             model=data.get("model", ""),
         )

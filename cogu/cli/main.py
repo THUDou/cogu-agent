@@ -5,6 +5,14 @@ import os
 import sys
 from pathlib import Path
 
+try:
+    from dotenv import load_dotenv
+    for _env_path in [Path(".env"), Path.home() / ".cogu" / ".env"]:
+        if _env_path.exists():
+            load_dotenv(_env_path)
+except ImportError:
+    pass
+
 from cogu import __version__
 from cogu.core.runner import Runner
 from cogu.core.agent import ReActAgent
@@ -104,7 +112,7 @@ Examples:
     config_sub.add_parser("list", help="List configured providers")
     config_sub.add_parser("env", help="Show environment config path")
     set_parser = config_sub.add_parser("set", help="Set API key for a provider")
-    set_parser.add_argument("provider", help="Provider name (deepseek/openai/claude/zhipu/qwen/moonshot/siliconflow)")
+    set_parser.add_argument("provider", help="Provider name (deepseek/openai/claude/zhipu/qwen/moonshot/doubao/huawei_cloud/tencent_cloud/ollama)")
     set_parser.add_argument("api_key", help="API key")
     remove_parser = config_sub.add_parser("remove", help="Remove API key for a provider")
     remove_parser.add_argument("provider", help="Provider name")
@@ -162,10 +170,23 @@ class CLI:
 
     def _init_agent(self):
         api_key = self.config_mgr.get_api_key("deepseek") or os.environ.get("DEEPSEEK_API_KEY", "")
-        client = DeepSeekClient(
-            api_key=api_key,
-            model=self.args.model,
-        )
+        from cogu.core.api_config import ApiTokenManager, Provider
+        token_mgr = ApiTokenManager()
+        for p in Provider:
+            key = self.config_mgr.get_api_key(p.value) or os.environ.get(f"{p.value.upper()}_API_KEY", "")
+            if key:
+                token_mgr.add_provider(p, key)
+        active = token_mgr.get_active_config()
+        if active:
+            from cogu.api.client import MultiProviderClient
+            client = MultiProviderClient()
+            client.add_provider(active.provider.value, active.api_key, active.base_url, active.default_model)
+            client.model = active.default_model
+        else:
+            client = DeepSeekClient(
+                api_key=api_key,
+                model=self.args.model,
+            )
         tool_registry = ToolRegistry()
         register_builtin_tools(tool_registry)
         self.agent = ReActAgent(

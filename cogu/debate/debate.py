@@ -159,11 +159,22 @@ class DebateOrchestrator:
             return Consensus(topic=topic, confidence=0.0, debate_rounds=rounds)
 
         tr = pes_result.team_result
+        supporting = []
+        opposing = []
+        for o in tr.opinions:
+            if tr.consensus and o.opinion_id == tr.consensus.opinion_id:
+                continue
+            if o.role in (ExpertRole.CRITIC, ExpertRole.DEVILS_ADVOCATE):
+                opposing.append(o)
+            elif o.confidence >= self.config.min_confidence:
+                supporting.append(o)
+            else:
+                opposing.append(o)
         return Consensus(
             topic=topic,
             main_proposal=tr.consensus,
-            supporting_opinions=[o for o in tr.opinions if o.confidence >= self.config.min_confidence and (not tr.consensus or o.opinion_id != tr.consensus.opinion_id)],
-            opposing_opinions=[o for o in tr.opinions if o.confidence < self.config.min_confidence],
+            supporting_opinions=supporting,
+            opposing_opinions=opposing,
             minority_reports=tr.minority_reports,
             confidence=tr.consensus.confidence if tr.consensus else self._average_confidence(tr.opinions),
             debate_rounds=rounds,
