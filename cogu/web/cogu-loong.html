@@ -75,11 +75,11 @@ body {
 }
 #titlebar .logo-mark {
   width: 20px; height: 20px;
-  background: linear-gradient(135deg, #6366F1, #A855F7);
   border-radius: 5px;
+  overflow: hidden;
   display: flex; align-items: center; justify-content: center;
-  font-size: 11px; font-weight: 700; color: #fff;
 }
+#titlebar .logo-mark img { width: 100%; height: 100%; object-fit: cover; }
 #titlebar .logo-text {
   font-size: 13px; font-weight: 600; color: var(--text-primary);
   letter-spacing: -0.02em;
@@ -129,12 +129,12 @@ body {
 }
 .sidebar-header .brand-icon {
   width: 28px; height: 28px;
-  background: linear-gradient(135deg, #6366F1 0%, #A855F7 50%, #EC4899 100%);
   border-radius: 8px;
+  overflow: hidden;
   display: flex; align-items: center; justify-content: center;
-  font-size: 14px; color: #fff; font-weight: 700;
   box-shadow: 0 0 20px rgba(99,102,241,0.3);
 }
+.sidebar-header .brand-icon img { width: 100%; height: 100%; object-fit: cover; }
 .sidebar-header .brand-name {
   font-size: 15px; font-weight: 700; color: var(--text-primary);
   letter-spacing: -0.03em;
@@ -288,14 +288,14 @@ body {
 }
 .home-hero .hero-logo {
   width: 72px; height: 72px;
-  background: linear-gradient(135deg, #6366F1 0%, #A855F7 40%, #EC4899 80%, #F59E0B 100%);
   border-radius: 20px;
+  overflow: hidden;
   display: flex; align-items: center; justify-content: center;
   margin: 0 auto 24px;
-  font-size: 32px; color: #fff; font-weight: 800;
   box-shadow: 0 0 60px rgba(99,102,241,0.25), 0 0 120px rgba(168,85,247,0.1);
   position: relative;
 }
+.home-hero .hero-logo img { width: 100%; height: 100%; object-fit: cover; }
 .home-hero .hero-logo::after {
   content: '';
   position: absolute; inset: -2px;
@@ -533,7 +533,8 @@ body {
   margin-top: 2px;
 }
 .msg.user .avatar { background: var(--accent); color: #fff; }
-.msg.agent .avatar { background: linear-gradient(135deg, #6366F1, #A855F7); color: #fff; }
+.msg.agent .avatar { overflow: hidden; background: transparent; }
+.msg.agent .avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius-md); }
 .msg .bubble {
   max-width: 85%;
   padding: 12px 16px;
@@ -795,13 +796,13 @@ input[type="text"]:focus, input[type="password"]:focus, select:focus, textarea:f
 }
 .onboarding-card .ob-logo {
   width: 48px; height: 48px;
-  background: linear-gradient(135deg, #6366F1, #A855F7);
   border-radius: 14px;
+  overflow: hidden;
   display: flex; align-items: center; justify-content: center;
-  font-size: 22px; color: #fff; font-weight: 800;
   margin-bottom: 20px;
   box-shadow: 0 0 30px rgba(99,102,241,0.3);
 }
+.onboarding-card .ob-logo img { width: 100%; height: 100%; object-fit: cover; }
 .onboarding-card h2 {
   font-size: 22px; font-weight: 700; color: var(--text-primary);
   letter-spacing: -0.03em; margin-bottom: 4px;
@@ -897,7 +898,7 @@ input[type="text"]:focus, input[type="password"]:focus, select:focus, textarea:f
 
 <div id="onboarding-overlay" class="hidden">
   <div class="onboarding-card">
-    <div class="ob-logo">L</div>
+    <div class="ob-logo"><img src="logo.jpg" alt="L"></div>
     <h2>欢迎使用 COGU Loong</h2>
     <div class="ob-sub">首次使用，请配置 AI 服务以开始对话</div>
     <div class="field">
@@ -936,7 +937,7 @@ input[type="text"]:focus, input[type="password"]:focus, select:focus, textarea:f
 </div>
 
 <div id="titlebar">
-  <div class="logo-mark">L</div>
+  <div class="logo-mark"><img src="logo.jpg" alt="L"></div>
   <span class="logo-text">COGU Loong</span>
   <span class="logo-ver">v1.4.0</span>
   <div class="traffic-lights">
@@ -950,7 +951,7 @@ input[type="text"]:focus, input[type="password"]:focus, select:focus, textarea:f
   <div id="sidebar">
     <div class="sidebar-header">
       <div class="brand">
-        <div class="brand-icon">L</div>
+        <div class="brand-icon"><img src="logo.jpg" alt="L"></div>
         <span class="brand-name">Loong</span>
         <span class="brand-tag">PRO</span>
       </div>
@@ -1002,7 +1003,7 @@ input[type="text"]:focus, input[type="password"]:focus, select:focus, textarea:f
   <div id="main">
     <div class="view active" id="view-home">
       <div class="home-hero">
-        <div class="hero-logo">L</div>
+        <div class="hero-logo"><img src="logo.jpg" alt="COGU Loong"></div>
         <h1>COGU Loong</h1>
         <div class="hero-sub">国产原创全栈 AI Agent 系统 · 三级模型策略 · 94项纯本地技能</div>
 
@@ -1093,11 +1094,11 @@ input[type="text"]:focus, input[type="password"]:focus, select:focus, textarea:f
             <div class="model-option" onclick="selectModel('glm-4', '智谱GLM-4')">
               <span class="model-dot"></span> 智谱GLM-4
             </div>
-            <div class="model-option" onclick="selectModel('pangu-mini', '盘古 Mini (本地)')">
-              <span class="model-dot" style="background:var(--amber)"></span> 盘古 Mini (本地)
+            <div class="model-option" onclick="selectModel('qwen3.5-4.6b', 'Qwen3.5-4.6B (本地)')">
+              <span class="model-dot" style="background:var(--amber)"></span> Qwen3.5-4.6B (本地)
             </div>
-            <div class="model-option" onclick="selectModel('qwen-mini', 'Qwen Mini (本地)')">
-              <span class="model-dot" style="background:var(--amber)"></span> Qwen Mini (本地)
+            <div class="model-option" onclick="selectModel('pangu-1.39b', '盘古-1.39B (本地)')" style="display:none;" id="model-option-pangu">
+              <span class="model-dot" style="background:var(--red)"></span> 盘古-1.39B (本地)
             </div>
           </div>
         </div>
@@ -1194,8 +1195,19 @@ input[type="text"]:focus, input[type="password"]:focus, select:focus, textarea:f
         </div>
 
         <div class="settings-group">
-          <div class="settings-group-title">本地模型 (实验性)</div>
-          <div class="pangu-section revealed" id="pangu-section">
+          <div class="settings-group-title">本地模型</div>
+          <div class="setting-item">
+            <div>
+              <div class="setting-label">Qwen3.5-4.6B (GGUF)</div>
+              <div class="setting-desc" id="qwen-status-text">检测中…</div>
+            </div>
+            <span id="qwen-status-badge" style="font-size:11px;color:var(--text-muted);">--</span>
+          </div>
+          <div style="margin:10px 0;display:flex;gap:8px;">
+            <button class="btn primary" id="qwen-start-btn" onclick="qwenStart()" style="display:none;">启动服务</button>
+            <button class="btn danger" id="qwen-stop-btn" onclick="qwenStop()" style="display:none;">停止服务</button>
+          </div>
+          <div class="pangu-section" id="pangu-section">
             <div class="setting-item">
               <div>
                 <div class="setting-label">盘古 Mini 状态</div>
@@ -1404,7 +1416,7 @@ function addMessage(role, text) {
   const inner = $('chat-messages-inner');
   const div = document.createElement('div');
   div.className = 'msg ' + role;
-  div.innerHTML = '<div class="avatar">' + (role === 'user' ? 'U' : 'L') + '</div>' +
+  div.innerHTML = '<div class="avatar">' + (role === 'user' ? 'U' : '<img src="avatar.jpeg" alt="龙">') + '</div>' +
     '<div class="bubble">' + (text ? renderMarkdown(text) : '') + '</div>';
   inner.appendChild(div);
   div.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -1672,6 +1684,48 @@ async function panguCheckStatus() {
   }
 }
 
+async function qwenCheckStatus() {
+  try {
+    const r = await fetch(API + '/settings/pangu/status');
+    const d = await r.json();
+    const statusText = $('qwen-status-text');
+    const badge = $('qwen-status-badge');
+    const startBtn = $('qwen-start-btn');
+    const stopBtn = $('qwen-stop-btn');
+    const ggufAvailable = d.backends && d.backends.gguf;
+    if (ggufAvailable) {
+      statusText.textContent = 'GGUF模型已就绪';
+      badge.textContent = d.server_running ? '● 运行中' : '● 已停止';
+      badge.style.color = d.server_running ? 'var(--green)' : 'var(--amber)';
+      startBtn.style.display = d.server_running ? 'none' : '';
+      stopBtn.style.display = d.server_running ? '' : 'none';
+    } else {
+      statusText.textContent = '未检测到GGUF模型文件';
+      badge.textContent = '○ 未就绪';
+      badge.style.color = 'var(--text-muted)';
+      startBtn.style.display = 'none';
+      stopBtn.style.display = 'none';
+    }
+  } catch(e) {
+    $('qwen-status-text').textContent = '无法检测状态';
+  }
+}
+
+async function qwenStart() {
+  const btn = $('qwen-start-btn');
+  btn.textContent = '启动中...';
+  btn.disabled = true;
+  try { await fetch(API + '/settings/pangu/start', { method: 'POST' }); } catch(e) {}
+  btn.textContent = '启动服务';
+  btn.disabled = false;
+  setTimeout(qwenCheckStatus, 3000);
+}
+
+async function qwenStop() {
+  try { await fetch(API + '/settings/pangu/stop', { method: 'POST' }); } catch(e) {}
+  setTimeout(qwenCheckStatus, 1000);
+}
+
 async function panguDownload() {
   const btn = $('pangu-download-btn');
   btn.textContent = '下载中...';
@@ -1723,6 +1777,7 @@ document.addEventListener('keydown', e => {
 loadHomeSkills();
 checkOnboarding();
 panguCheckStatus();
+qwenCheckStatus();
 
 $('chat-model-label').textContent = localStorage.getItem('cogu-model') || 'DeepSeek-V4';
 $('status-model').textContent = '模型: ' + (localStorage.getItem('cogu-model') || 'DeepSeek-V4');

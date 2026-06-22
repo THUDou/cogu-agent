@@ -14,6 +14,9 @@ a = Analysis(
     datas=[
         ('cogu/web/cogu-loong.html', 'cogu/web'),
         ('cogu/web/dashboard.html', 'cogu/web'),
+        ('cogu/web/logo.jpg', 'cogu/web'),
+        ('cogu/web/avatar.jpeg', 'cogu/web'),
+        ('cogu/web/logo.ico', 'cogu/web'),
     ],
     hiddenimports=[
         'cogu',
@@ -216,5 +219,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=None,
+    icon='cogu/web/logo.ico',
 )
