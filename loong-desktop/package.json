@@ -1,0 +1,58 @@
+{
+  "name": "cogu-loong-desktop",
+  "version": "1.4.0",
+  "description": "COGU Loong - 国产原创全栈AI Agent桌面客户端",
+  "main": "dist/main/main.js",
+  "scripts": {
+    "dev": "tsc -p tsconfig.main.json && concurrently \"tsc -p tsconfig.main.json -w\" \"wait-on http://localhost:5173 && electron .\" \"cd src/renderer && npm run dev\"",
+    "build:main": "tsc -p tsconfig.main.json",
+    "build:renderer": "cd src/renderer && npm run build",
+    "build": "npm run build:main && npm run build:renderer",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "start": "electron ."
+  },
+  "build": {
+    "appId": "com.cogu.loong",
+    "productName": "COGU Loong",
+    "directories": {
+      "output": "../dist-electron"
+    },
+    "files": [
+      "dist/**/*",
+      "src/renderer/dist/**/*",
+      "assets/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../cogu",
+        "to": "cogu",
+        "filter": ["**/*.py", "**/*.html", "**/*.jpg", "**/*.jpeg", "**/*.ico", "**/*.json", "**/*.md", "**/*.toml"]
+      },
+      {
+        "from": "../skills",
+        "to": "skills"
+      }
+    ],
+    "win": {
+      "target": ["nsis"],
+      "icon": "assets/logo.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "COGU Loong"
+    }
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.0",
+    "typescript": "^5.3.3",
+    "concurrently": "^9.0.0",
+    "wait-on": "^8.0.0"
+  },
+  "dependencies": {
+    "electron-store": "^10.0.0"
+  }
+}
