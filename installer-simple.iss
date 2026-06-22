@@ -30,9 +30,10 @@ Name: "chinese"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 
 [Files]
+Source: "dist\COGU-Loong.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "cogu\*"; DestDir: "{app}\cogu"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "skills\*"; DestDir: "{app}\skills"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "pangu-model\*"; DestDir: "{app}\pangu-model"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "pangu-model\*"; DestDir: "{app}\pangu-model"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.safetensors"
 Source: "pangu-env\*"; DestDir: "{app}\pangu-env"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "pyproject.toml"; DestDir: "{app}"; Flags: ignoreversion
 Source: "README.md"; DestDir: "{app}"; Flags: ignoreversion
@@ -42,14 +43,15 @@ Source: "start-cogu.bat"; DestDir: "{app}"; Flags: ignoreversion
 Source: "studio-ui\*"; DestDir: "{app}\studio-ui"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "node_modules\"
 
 [Icons]
+Name: "{group}\COGU Loong - 桌面版"; Filename: "{app}\COGU-Loong.exe"
 Name: "{group}\COGU AGENT - 快速启动"; Filename: "{app}\quick-start.bat"
-Name: "{group}\COGU AGENT - 桌面版"; Filename: "{app}\start-cogu.bat"
+Name: "{group}\COGU AGENT - Gateway模式"; Filename: "{app}\start-cogu.bat"
 Name: "{group}\使用手册"; Filename: "{app}\USAGE.md"
 Name: "{group}\{cm:UninstallProgram,{#APPNAME}}"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\COGU AGENT"; Filename: "{app}\quick-start.bat"; Tasks: desktopicon
+Name: "{autodesktop}\COGU Loong"; Filename: "{app}\COGU-Loong.exe"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\quick-start.bat"; Description: "启动 COGU AGENT"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\COGU-Loong.exe"; Description: "启动 COGU Loong 桌面版"; Flags: nowait postinstall skipifsilent
 
 [Code]
 function NextButtonClick(CurPageID: Integer): Boolean;

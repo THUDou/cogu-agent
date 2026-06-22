@@ -1,12 +1,28 @@
 from __future__ import annotations
 
+import os
+from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 
 from cogu.app._lifespan import app_lifespan
 from cogu.app._router import chat_router, agent_router, session_router, tool_router, memory_router, settings_router, workflow_router
+
+
+def _find_dashboard_html() -> str:
+    candidates = []
+    if getattr(os, "frozen", False) or os.environ.get("COGU_FROZEN"):
+        base = os.environ.get("COGU_BASE", os.path.dirname(os.environ.get("COGU_EXE", "")))
+        candidates.append(os.path.join(base, "cogu", "web", "cogu-loong.html"))
+        candidates.append(os.path.join(base, "_internal", "cogu", "web", "cogu-loong.html"))
+    candidates.append(os.path.join(os.path.dirname(__file__), "..", "web", "cogu-loong.html"))
+    for p in candidates:
+        if os.path.isfile(p):
+            return os.path.abspath(p)
+    return ""
 
 
 def create_app(
@@ -40,5 +56,37 @@ def create_app(
     @app.get("/healthz")
     async def healthz():
         return {"status": "ok", "version": version}
+
+    @app.get("/")
+    async def dashboard_root():
+        html_path = _find_dashboard_html()
+        if html_path and os.path.isfile(html_path):
+            return HTMLResponse(content=Path(html_path).read_text(encoding="utf-8"))
+        return HTMLResponse(content="<html><body><h1>COGU Loong - Dashboard not found</h1></body></html>")
+
+    @app.get("/api/skills")
+    async def list_skills():
+        skills = []
+        try:
+            from cogu.skills.registry import SkillRegistry
+            reg = SkillRegistry()
+            for name, skill in reg._skills.items():
+                source = "builtin"
+                if hasattr(skill, '_skill_path'):
+                    sp = skill._skill_path.lower()
+                    if 'office-claw' in sp or 'miclaw' in sp:
+                        source = "office-claw"
+                    elif 'workbuddy' in sp:
+                        source = "workbuddy"
+                    elif 'doubao' in sp:
+                        source = "doubao-local"
+                skills.append({
+                    "name": name,
+                    "description": getattr(skill, 'description', '') or '',
+                    "source": source,
+                })
+        except Exception:
+            pass
+        return {"skills": skills, "total": len(skills)}
 
     return app
