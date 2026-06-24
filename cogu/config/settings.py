@@ -52,6 +52,18 @@ class AgentConfig:
 
 
 @dataclass
+class LoopConfig:
+    max_tokens: int = 200000
+    max_iterations: int = 50
+    max_wall_seconds: float = 600.0
+    warning_ratio: float = 0.8
+    kill_on_exceed: bool = True
+    state_dir: str = ""
+    log_enabled: bool = True
+    checkpoint_enabled: bool = True
+
+
+@dataclass
 class DebateConfig:
     num_experts: int = 3
     max_rounds: int = 5
@@ -96,6 +108,7 @@ class Settings:
     agent: AgentConfig = field(default_factory=AgentConfig)
     debate: DebateConfig = field(default_factory=DebateConfig)
     tools: ToolConfig = field(default_factory=ToolConfig)
+    loop: LoopConfig = field(default_factory=LoopConfig)
     tui: TUIConfig = field(default_factory=TUIConfig)
     pangu_mini: PanguMiniConfig = field(default_factory=PanguMiniConfig)
     workspace: str = ""
@@ -119,6 +132,8 @@ class Settings:
             settings.debate = DebateConfig(**data["debate"])
         if "tools" in data:
             settings.tools = ToolConfig(**data["tools"])
+        if "loop" in data:
+            settings.loop = LoopConfig(**data["loop"])
         if "pangu_mini" in data:
             pangu_data = {k: v for k, v in data["pangu_mini"].items() if not k.startswith("_")}
             settings.pangu_mini = PanguMiniConfig(**pangu_data)
@@ -133,6 +148,7 @@ class Settings:
             "agent": self.agent.__dict__,
             "debate": self.debate.__dict__,
             "tools": self.tools.__dict__,
+            "loop": self.loop.__dict__,
             "providers": [p.__dict__ for p in self.providers],
             "pangu_mini": {k: v for k, v in self.pangu_mini.__dict__.items() if not k.startswith("_")},
         }

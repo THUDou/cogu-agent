@@ -27,7 +27,7 @@ export default function Sidebar({ currentView, setCurrentView, collapsed, setCol
         {!collapsed && (
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg overflow-hidden glow-accent">
-              <img src="../../assets/logo.jpg" alt="" className="w-full h-full object-cover" />
+              <img src="./logo.jpg" alt="" className="w-full h-full object-cover" />
             </div>
             <span className="text-[15px] font-bold tracking-tight">Loong</span>
             <span className="text-[9px] font-medium text-accent bg-accent-soft px-1.5 py-0.5 rounded">PRO</span>

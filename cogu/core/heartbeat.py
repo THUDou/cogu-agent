@@ -2,6 +2,7 @@
 
 灵感来源: jiuwenswarm GatewayHeartbeatService + HEARTBEAT.md 文件驱动模式
 COGU 实现: 独立模块，支持活跃时段、多渠道中继、busy backoff
+LOOP增强: Goal绑定、Cron调度、失败重试策略
 """
 from __future__ import annotations
 
@@ -44,6 +45,14 @@ class HeartbeatConfig:
     relay_channel: str = ""
     enabled: bool = True
     max_consecutive_failures: int = 3
+    goal_mode: bool = False
+    max_iterations: int = 20
+    max_tokens: int = 100000
+    max_wall_seconds: float = 300.0
+    retry_on_failure: bool = True
+    max_retries: int = 3
+    retry_delay_seconds: int = 60
+    state_dir: str = ""
 
 
 @dataclass
@@ -238,6 +247,101 @@ class HeartbeatService:
             return await self.agent_handler(content)
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, self.agent_handler, content)
+
+    async def run_goal_heartbeat(self, goal_text: str, agent_factory: Callable[[], Any] | None = None) -> HeartbeatEvent:
+        event = HeartbeatEvent(timestamp=time.time(), content=goal_text, success=False)
+
+        if not self.config.goal_mode:
+            event.error = "goal_mode_disabled"
+            event.skipped = True
+            event.skip_reason = "goal_mode_not_enabled"
+            self._emit_event(event)
+            return event
+
+        last_error = None
+        for attempt in range(1, self.config.max_retries + 2):
+            try:
+                from cogu.loop.goal_runner import GoalRunner, GoalRunnerConfig, GoalStatus
+                from cogu.loop.budget import TokenBudget
+                from cogu.config.settings import LoopConfig
+
+                loop_cfg = LoopConfig()
+                runner_cfg = GoalRunnerConfig(
+                    max_tokens=self.config.max_tokens,
+                    max_iterations=self.config.max_iterations,
+                    max_wall_seconds=self.config.max_wall_seconds,
+                    state_dir=self.config.state_dir or "",
+                )
+                runner = GoalRunner(config=runner_cfg)
+                if agent_factory:
+                    runner.set_agent_factory(agent_factory)
+
+                result = await runner.run(goal_text)
+
+                if result.status == GoalStatus.COMPLETED:
+                    event.success = True
+                    event.response = f"Goal completed in {result.total_iterations} iterations"
+                    self._consecutive_failures = 0
+                    break
+                elif result.status == GoalStatus.BUDGET_EXCEEDED:
+                    event.error = "budget_exceeded"
+                    last_error = "budget_exceeded"
+                elif result.status == GoalStatus.TIMEOUT:
+                    event.error = "goal_timeout"
+                    last_error = "timeout"
+                else:
+                    event.error = f"goal_failed: {result.status.value}"
+                    last_error = event.error
+
+            except ImportError as e:
+                event.error = f"import_error: {e}"
+                last_error = event.error
+                break
+            except Exception as e:
+                event.error = str(e)
+                last_error = str(e)
+
+            if self.config.retry_on_failure and attempt <= self.config.max_retries:
+                await asyncio.sleep(self.config.retry_delay_seconds)
+            else:
+                break
+
+        if not event.success:
+            self._consecutive_failures += 1
+
+        if self._consecutive_failures >= self.config.max_consecutive_failures:
+            self.config.enabled = False
+            event.error = f"disabled_after_{self._consecutive_failures}_failures"
+
+        self._emit_event(event)
+        self._last_heartbeat = time.time()
+        return event
+
+    def set_automation_scheduler(self, scheduler: Any) -> None:
+        self._automation_scheduler = scheduler
+
+    def get_automation_scheduler(self) -> Any | None:
+        return getattr(self, "_automation_scheduler", None)
+
+    async def bind_goal_cron(self, goal_text: str, cron_expr: str, name: str = "") -> str:
+        try:
+            from cogu.loop.automation import AutomationDef, AutomationTrigger
+        except ImportError:
+            return ""
+
+        auto_def = AutomationDef(
+            name=name or f"heartbeat-goal-{int(time.time())}",
+            goal_text=goal_text,
+            trigger=AutomationTrigger.CRON,
+            cron_expr=cron_expr,
+            max_iterations=self.config.max_iterations,
+            max_tokens=self.config.max_tokens,
+            max_wall_seconds=self.config.max_wall_seconds,
+            retry_on_failure=self.config.retry_on_failure,
+            max_retries=self.config.max_retries,
+            retry_delay_seconds=self.config.retry_delay_seconds,
+        )
+        return auto_def.name
 
 
 _heartbeat_service: Optional[HeartbeatService] = None

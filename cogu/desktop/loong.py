@@ -15,6 +15,19 @@ APP_VERSION = "1.4.0"
 _SKILLS_CACHE = None
 
 
+def _find_assets_dir() -> str:
+    candidates = []
+    if getattr(sys, "frozen", False):
+        base = os.path.dirname(sys.executable)
+        candidates.append(os.path.join(base, "assets"))
+        candidates.append(os.path.join(base, "_internal", "assets"))
+    candidates.append(os.path.join(os.path.dirname(__file__), "..", "..", "loong-desktop", "assets"))
+    for p in candidates:
+        if os.path.isdir(p):
+            return os.path.abspath(p)
+    return ""
+
+
 def _find_html() -> str:
     candidates = []
     if getattr(sys, "frozen", False):
@@ -38,6 +51,7 @@ def _scan_skills():
         from cogu.core.skills_system import PromptSkill
         from cogu.skills.registry import SkillRegistry
         reg = SkillRegistry()
+        reg.discover()
         for name, skill in reg._skills.items():
             source = "builtin"
             if hasattr(skill, '_skill_path'):
@@ -93,7 +107,7 @@ def _scan_skills():
 def _get_or_create_app():
     try:
         from cogu.app import create_app
-        return create_app(version=APP_VERSION)
+        app = create_app(version=APP_VERSION)
     except Exception as e:
         from fastapi import FastAPI
         from fastapi.responses import HTMLResponse
@@ -297,7 +311,32 @@ def _get_or_create_app():
                 return HTMLResponse(content=Path(html_path).read_text(encoding="utf-8"))
             return HTMLResponse(content="<html><body><h1>COGU Loong - Dashboard not found</h1></body></html>")
 
-        return app
+
+    from fastapi.responses import FileResponse
+    assets_dir = _find_assets_dir()
+
+    @app.get("/logo.jpg")
+    async def serve_logo():
+        p = os.path.join(assets_dir, "logo.jpg") if assets_dir else ""
+        if p and os.path.isfile(p):
+            return FileResponse(p, media_type="image/jpeg")
+        return FileResponse(os.path.join(os.path.dirname(__file__), "..", "web", "logo.jpg"), media_type="image/jpeg")
+
+    @app.get("/avatar.jpeg")
+    async def serve_avatar():
+        p = os.path.join(assets_dir, "avatar.jpeg") if assets_dir else ""
+        if p and os.path.isfile(p):
+            return FileResponse(p, media_type="image/jpeg")
+        return FileResponse(os.path.join(os.path.dirname(__file__), "..", "web", "avatar.jpeg"), media_type="image/jpeg")
+
+    @app.get("/logo.ico")
+    async def serve_ico():
+        p = os.path.join(assets_dir, "logo.ico") if assets_dir else ""
+        if p and os.path.isfile(p):
+            return FileResponse(p, media_type="image/x-icon")
+        return FileResponse(os.path.join(os.path.dirname(__file__), "..", "web", "logo.ico"), media_type="image/x-icon")
+
+    return app
 
 
 class COGULoongDesktop:
@@ -331,6 +370,15 @@ class COGULoongDesktop:
         if not self._server_ready.wait(timeout=10):
             print("[ERROR] Server failed to start within 10 seconds")
             sys.exit(1)
+
+        if os.environ.get("COGU_DESKTOP") == "1":
+            print(f"[COGU] API server running at http://{APP_HOST}:{APP_PORT}/ (Electron mode)")
+            try:
+                while True:
+                    time.sleep(1)
+            except KeyboardInterrupt:
+                pass
+            return
 
         dashboard_url = f"http://{APP_HOST}:{APP_PORT}/"
 

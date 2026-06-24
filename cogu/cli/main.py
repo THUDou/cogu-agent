@@ -23,6 +23,17 @@ from cogu.memory import EnhancedSuperMemory, EnhancedMemoryConfig, RecallStrateg
 from cogu.debate import DebateOrchestrator, DebateConfig, DebateMode
 from cogu.skills import SkillRegistry, SkillExecutor, SkillExecStatus
 from cogu.core.skills_system import get_builtin_skill_registry
+from cogu.loop.goal_runner import GoalRunner, GoalRunnerConfig, GoalResult, GoalStatus
+from cogu.loop.cli import (
+    register_goal_parser,
+    register_loop_start_parser,
+    register_loop_audit_parser,
+    register_loop_cost_parser,
+)
+from cogu.loop.cli.loop_start import cmd_loop_start
+from cogu.loop.cli.loop_audit import cmd_loop_audit
+from cogu.loop.cli.loop_cost import cmd_loop_cost
+from cogu.config.settings import LoopConfig
 from cogu.api.client import DeepSeekClient, MultiProviderClient
 from cogu.tools.base import ToolRegistry
 from cogu.tools.builtin import register_builtin_tools
@@ -36,6 +47,11 @@ def create_parser() -> argparse.ArgumentParser:
         epilog="""
 Examples:
   cogu run "Write a sorting algorithm in Python"
+  cogu goal "Make all tests pass"
+  cogu loop start daily-triage --once
+  cogu loop start ci-sweeper --level L2
+  cogu loop-audit --days 7
+  cogu loop-cost --days 30 --budget 500000
   cogu debate "Should we use async or sync architecture?"
   cogu skills list --all
   cogu skills install /path/to/skill
@@ -59,6 +75,14 @@ Examples:
     run_parser.add_argument("--strategy", default="hybrid", choices=["fts", "semantic", "hybrid", "comprehensive"], help="Memory recall strategy")
     run_parser.add_argument("--no-memory", action="store_true", help="Disable memory")
     run_parser.add_argument("--skills", nargs="*", help="Skills to load")
+
+    goal_parser = sub.add_parser("goal", help="Run agent in GOAL mode (autonomous loop until done or budget exhausted)")
+    goal_parser.add_argument("goal_text", nargs="+", help="Goal description (e.g. 'Make all tests pass')")
+    goal_parser.add_argument("--max-tokens", type=int, default=200000, help="Max tokens before kill")
+    goal_parser.add_argument("--max-iterations", type=int, default=50, help="Max iterations")
+    goal_parser.add_argument("--max-wall", type=float, default=600.0, help="Max wall time in seconds")
+    goal_parser.add_argument("--no-kill", action="store_true", help="Do not kill on budget exceed")
+    goal_parser.add_argument("--state-dir", default="", help="State/log persistence directory")
 
     debate_parser = sub.add_parser("debate", help="Run expert debate")
     debate_parser.add_argument("topic", nargs="+", help="Debate topic")
@@ -119,6 +143,10 @@ Examples:
     model_parser = config_sub.add_parser("model", help="Set default model")
     model_parser.add_argument("model", help="Model name")
     model_parser.add_argument("--provider", default="deepseek", help="Provider name")
+
+    register_loop_start_parser(sub)
+    register_loop_audit_parser(sub)
+    register_loop_cost_parser(sub)
 
     sub.add_parser("version", help="Show version")
 
@@ -239,6 +267,40 @@ class CLI:
         result = await self.agent.invoke(user_message=prompt)
         print(result.content)
         return 0
+
+    async def cmd_goal(self) -> int:
+        goal_text = " ".join(self.args.goal_text)
+
+        state_dir = self.args.state_dir
+        if not state_dir:
+            state_dir = str(Path(self.workspace) / ".cogu" / "loop")
+
+        loop_config = self.settings.loop
+        config = GoalRunnerConfig(
+            max_tokens=self.args.max_tokens or loop_config.max_tokens,
+            max_iterations=self.args.max_iterations or loop_config.max_iterations,
+            max_wall_seconds=self.args.max_wall or loop_config.max_wall_seconds,
+            warning_ratio=loop_config.warning_ratio,
+            kill_on_exceed=not self.args.no_kill,
+            state_dir=state_dir,
+            log_enabled=True,
+            checkpoint_enabled=True,
+            progress_callback=lambda msg: print(f"\r{msg}", end="", flush=True),
+        )
+
+        runner = GoalRunner(config=config)
+        runner.bind_agent(self.agent)
+
+        print(f"GOAL mode: {goal_text}")
+        print(f"  Budget: {config.max_tokens} tokens | {config.max_iterations} iter | {config.max_wall_seconds}s\n")
+
+        result = await runner.run(goal_text)
+
+        print(f"\n{'='*60}")
+        print(result.summary())
+        print(f"{'='*60}")
+
+        return 0 if result.ok else 1
 
     async def cmd_debate(self) -> int:
         topic = " ".join(self.args.topic)
@@ -425,6 +487,19 @@ class CLI:
             print("Node.js not found. Please install Node.js and run: cd studio-ui && npm install")
         return 0
 
+    async def cmd_loop(self) -> int:
+        action = getattr(self.args, "loop_action", None)
+        if action == "start":
+            return await cmd_loop_start(self.args, self.workspace, self.settings)
+        print("Usage: cogu loop start <pattern> [--once] [--level L0-L3]")
+        return 1
+
+    async def cmd_loop_audit_handler(self) -> int:
+        return await cmd_loop_audit(self.args, self.workspace, self.settings)
+
+    async def cmd_loop_cost_handler(self) -> int:
+        return await cmd_loop_cost(self.args, self.workspace, self.settings)
+
     async def cmd_version(self) -> int:
         print(f"cogu v{__version__}")
         return 0
@@ -511,6 +586,10 @@ class CLI:
 
         handlers = {
             "run": self.cmd_run,
+            "goal": self.cmd_goal,
+            "loop": self.cmd_loop,
+            "loop-audit": self.cmd_loop_audit_handler,
+            "loop-cost": self.cmd_loop_cost_handler,
             "debate": self.cmd_debate,
             "skills": self.cmd_skills,
             "memory": self.cmd_memory,

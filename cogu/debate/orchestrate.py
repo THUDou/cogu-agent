@@ -8,6 +8,7 @@ class OrchestrationMode(Enum):
     SEQUENTIAL = "sequential"
     HANDOFF = "handoff"
     BACKBONE = "backbone"
+    MAKER_CHECKER = "maker_checker"
 
 
 @dataclass
@@ -147,3 +148,110 @@ class GraphOrchestrator:
                     if in_degree[node.name] == 0:
                         queue.append(node.name)
         return order
+
+
+class MakerCheckerVerdict(Enum):
+    APPROVE = "approve"
+    REJECT = "reject"
+    ESCALATE_HUMAN = "escalate_human"
+
+
+@dataclass
+class MakerCheckerResult:
+    verdict: MakerCheckerVerdict = MakerCheckerVerdict.REJECT
+    maker_output: Any = None
+    checker_output: Any = None
+    evidence: dict = field(default_factory=dict)
+    reasons: list[str] = field(default_factory=list)
+    suggested_next_step: str = ""
+    total_iterations: int = 0
+    total_time: float = 0.0
+
+
+class MakerCheckerOrchestrator:
+    def __init__(
+        self,
+        maker_fn: Callable[[Any], Any],
+        checker_fn: Callable[[Any, Any], MakerCheckerVerdict],
+        max_checker_iterations: int = 3,
+    ):
+        self.maker_fn = maker_fn
+        self.checker_fn = checker_fn
+        self.max_checker_iterations = max_checker_iterations
+        self._denylist_paths: list[str] = [
+            ".env", "auth/", "payments/", "secrets/", "credentials/",
+        ]
+
+    def set_denylist(self, paths: list[str]) -> None:
+        self._denylist_paths = paths
+
+    async def execute(self, target: str, initial_context: Any = None) -> MakerCheckerResult:
+        import time
+        start = time.time()
+        result = MakerCheckerResult()
+
+        for iteration in range(1, self.max_checker_iterations + 1):
+            result.total_iterations = iteration
+
+            maker_output = await self._run_maker(target, initial_context, result.reasons)
+            result.maker_output = maker_output
+
+            checker_verdict, evidence, reasons = await self._run_checker(
+                target, maker_output, initial_context
+            )
+            result.checker_output = {"verdict": checker_verdict.value, "evidence": evidence}
+            result.evidence = evidence
+
+            if checker_verdict == MakerCheckerVerdict.APPROVE:
+                result.verdict = MakerCheckerVerdict.APPROVE
+                break
+            elif checker_verdict == MakerCheckerVerdict.ESCALATE_HUMAN:
+                result.verdict = MakerCheckerVerdict.ESCALATE_HUMAN
+                result.reasons = reasons
+                break
+            else:
+                result.reasons = reasons
+                result.verdict = MakerCheckerVerdict.REJECT
+                if iteration >= self.max_checker_iterations:
+                    result.suggested_next_step = (
+                        f"Max checker iterations ({self.max_checker_iterations}) reached. "
+                        "Human review required."
+                    )
+                    result.verdict = MakerCheckerVerdict.ESCALATE_HUMAN
+
+        result.total_time = time.time() - start
+        return result
+
+    async def _run_maker(self, target: str, context: Any, previous_reasons: list[str]) -> Any:
+        if asyncio.iscoroutinefunction(self.maker_fn):
+            return await self.maker_fn(target, context, previous_reasons)
+        return self.maker_fn(target, context, previous_reasons)
+
+    async def _run_checker(
+        self, target: str, maker_output: Any, context: Any
+    ) -> tuple[MakerCheckerVerdict, dict, list[str]]:
+        try:
+            from cogu.loop.maker_checker import MakerChecker
+
+            if asyncio.iscoroutinefunction(self.checker_fn):
+                verdict, evidence, reasons = await self.checker_fn(target, maker_output, context)
+            else:
+                verdict, evidence, reasons = self.checker_fn(target, maker_output, context)
+
+            mc_verdict = MakerCheckerVerdict(verdict.value) if hasattr(verdict, "value") else MakerCheckerVerdict.REJECT
+            return mc_verdict, evidence, reasons
+        except ImportError:
+            if asyncio.iscoroutinefunction(self.checker_fn):
+                output = await self.checker_fn(target, maker_output)
+            else:
+                output = self.checker_fn(target, maker_output)
+
+            if isinstance(output, dict):
+                verdict_str = output.get("verdict", "reject")
+                evidence = output.get("evidence", {})
+                reasons = output.get("reasons", [])
+                try:
+                    return MakerCheckerVerdict(verdict_str), evidence, reasons
+                except ValueError:
+                    return MakerCheckerVerdict.REJECT, evidence, reasons
+            return MakerCheckerVerdict.REJECT, {}, ["Checker returned ambiguous result"]

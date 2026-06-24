@@ -8,7 +8,7 @@ export default function TitleBar({ version }: Props) {
   return (
     <div className="h-9 bg-panel border-b border-white/[0.06] flex items-center px-4 titlebar-drag flex-shrink-0">
       <div className="w-5 h-5 rounded overflow-hidden flex-shrink-0">
-        <img src="../../assets/logo.jpg" alt="" className="w-full h-full object-cover" />
+        <img src="./logo.jpg" alt="" className="w-full h-full object-cover" />
       </div>
       <span className="text-[13px] font-semibold text-white ml-2 tracking-tight">COGU Loong</span>
       <span className="text-[10px] text-white/30 ml-1">v{version}</span>

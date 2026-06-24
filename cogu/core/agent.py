@@ -1686,6 +1686,30 @@ class ReActAgent:
             results.append(result)
         return results
 
+    async def run_goal(self, goal_text: str, **kwargs) -> "GoalResult":
+        from cogu.loop.goal_runner import GoalRunner, GoalRunnerConfig, GoalResult
+        from cogu.config.settings import LoopConfig
+
+        loop_config = LoopConfig()
+        if self._settings and hasattr(self._settings, "loop"):
+            loop_config = self._settings.loop
+
+        config = GoalRunnerConfig(
+            max_tokens=kwargs.get("max_tokens", loop_config.max_tokens),
+            max_iterations=kwargs.get("max_iterations", loop_config.max_iterations),
+            max_wall_seconds=kwargs.get("max_wall_seconds", loop_config.max_wall_seconds),
+            warning_ratio=kwargs.get("warning_ratio", loop_config.warning_ratio),
+            kill_on_exceed=kwargs.get("kill_on_exceed", loop_config.kill_on_exceed),
+            state_dir=kwargs.get("state_dir", loop_config.state_dir),
+            log_enabled=kwargs.get("log_enabled", loop_config.log_enabled),
+            checkpoint_enabled=kwargs.get("checkpoint_enabled", loop_config.checkpoint_enabled),
+            progress_callback=self._progress_callback,
+        )
+
+        runner = GoalRunner(config=config)
+        runner.bind_agent(self)
+        return await runner.run(goal_text)
+
     @property
     def session(self) -> Optional[Session]:
         return self._session

@@ -139,6 +139,20 @@ class _RunnerImpl:
         async for frame in agent.stream(user_message):
             yield frame
 
+    async def start_loop(
+        self,
+        goal_text: str,
+        session: Session = None,
+        model: str = "",
+        **kwargs,
+    ):
+        if session is None:
+            session = self._create_session()
+        self._active_sessions[session.session_id] = session
+
+        agent = self.create_agent(model=model, session=session)
+        return await agent.run_goal(goal_text, **kwargs)
+
     def register_tool(self, tool) -> None:
         if not self._tool_registry:
             raise RuntimeError("Runner not initialized.")
@@ -221,6 +235,21 @@ class Runner:
             system_prompt=system_prompt,
         ):
             yield frame
+
+    @classmethod
+    async def start_loop(
+        cls,
+        goal_text: str,
+        session: Session = None,
+        model: str = "",
+        **kwargs,
+    ):
+        return await GLOBAL_RUNNER.start_loop(
+            goal_text=goal_text,
+            session=session,
+            model=model,
+            **kwargs,
+        )
 
     @classmethod
     def register_tool(cls, tool) -> None:

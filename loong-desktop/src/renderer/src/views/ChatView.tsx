@@ -93,7 +93,7 @@ export default function ChatView({ state }: Props) {
                 msg.role === 'user' ? 'bg-accent text-white' : ''
               }`}>
                 {msg.role === 'user' ? 'U' : (
-                  <img src="../../assets/avatar.jpeg" alt="" className="w-full h-full object-cover rounded-lg" />
+                  <img src="./avatar.jpeg" alt="" className="w-full h-full object-cover rounded-lg" />
                 )}
               </div>
               <div className={`max-w-[85%] px-4 py-3 rounded-xl text-sm leading-relaxed ${

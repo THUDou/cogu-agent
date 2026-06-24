@@ -18,6 +18,11 @@ from cogu.mcp.a2a_adapter import (
     A2APart,
     A2AResponse,
 )
+from cogu.mcp.scope_policy import (
+    MCPScopeLevel,
+    MCPScopePolicy,
+    LoopMCPScopePolicy,
+)
 
 __all__ = [
     "MCPManager",
@@ -33,4 +38,7 @@ __all__ = [
     "A2AMessage",
     "A2APart",
     "A2AResponse",
+    "MCPScopeLevel",
+    "MCPScopePolicy",
+    "LoopMCPScopePolicy",
 ]

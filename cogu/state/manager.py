@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
+from typing import Any, Optional
 
 from cogu.state.backend import StateBackend, StateRecord, StateBackendType
 
 logger = logging.getLogger(__name__)
+
+LOOP_STATE_PREFIX = "loop:"
 
 
 class StateManager:
@@ -95,6 +97,77 @@ class StateManager:
                 count = await primary_be.sync(secondary, keys, direction)
                 results[f"{primary_be.name}->{secondary.name}"] = count
         return results
+
+    def _loop_key(self, key: str, *, pattern_id: str = "") -> str:
+        if pattern_id:
+            return f"{LOOP_STATE_PREFIX}{pattern_id}:{key}"
+        return f"{LOOP_STATE_PREFIX}{key}"
+
+    async def push_loop_state(
+        self,
+        key: str,
+        value: Any,
+        metadata: Optional[dict] = None,
+        *,
+        pattern_id: str = "",
+        backend: Optional[str] = None,
+    ) -> list[StateRecord]:
+        loop_key = self._loop_key(key, pattern_id=pattern_id)
+        return await self.push(loop_key, value, metadata, backend=backend)
+
+    async def pull_loop_state(
+        self,
+        key: str,
+        *,
+        pattern_id: str = "",
+        backend: Optional[str] = None,
+    ) -> Optional[StateRecord]:
+        loop_key = self._loop_key(key, pattern_id=pattern_id)
+        return await self.pull(loop_key, backend=backend)
+
+    async def delete_loop_state(
+        self,
+        key: str,
+        *,
+        pattern_id: str = "",
+        backend: Optional[str] = None,
+    ) -> int:
+        loop_key = self._loop_key(key, pattern_id=pattern_id)
+        return await self.delete(loop_key, backend=backend)
+
+    async def list_loop_keys(
+        self,
+        pattern_id: str = "",
+        *,
+        backend: Optional[str] = None,
+    ) -> list[str]:
+        prefix = f"{LOOP_STATE_PREFIX}{pattern_id}:" if pattern_id else LOOP_STATE_PREFIX
+        raw_keys = await self.list_keys(prefix, backend=backend)
+        strip_len = len(LOOP_STATE_PREFIX)
+        if pattern_id:
+            strip_len += len(pattern_id) + 1
+        return [k[strip_len:] for k in raw_keys]
+
+    async def get_loop_summary(
+        self,
+        pattern_id: str = "",
+        *,
+        backend: Optional[str] = None,
+    ) -> dict[str, Any]:
+        keys = await self.list_loop_keys(pattern_id=pattern_id, backend=backend)
+        summary: dict[str, Any] = {
+            "pattern_id": pattern_id or "all",
+            "keys": len(keys),
+            "entries": {},
+        }
+        for k in keys:
+            record = await self.pull_loop_state(k, pattern_id=pattern_id, backend=backend)
+            if record:
+                summary["entries"][k] = {
+                    "updated_at": getattr(record, "updated_at", None),
+                    "size": len(str(record.value)) if record.value else 0,
+                }
+        return summary
 
     @property
     def running(self) -> bool:

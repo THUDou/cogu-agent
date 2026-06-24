@@ -1020,11 +1020,31 @@ class BuiltinSkillRegistry:
             self.register(skill)
             await skill.setup()
 
+        loop_skills = self._load_loop_skills()
+        for skill in loop_skills:
+            self.register(skill)
+            await skill.setup()
+
         bundled_dir = Path(__file__).resolve().parent.parent.parent / "skills"
         if bundled_dir.is_dir():
             await self.load_from_directory(bundled_dir)
 
         self._initialized = True
+
+    def _load_loop_skills(self) -> list[BaseSkill]:
+        try:
+            from cogu.skills.loop_triage import LoopTriageSkill
+            from cogu.skills.loop_verifier import LoopVerifierSkill
+            from cogu.skills.loop_budget import LoopBudgetSkill
+            from cogu.skills.minimal_fix import MinimalFixSkill
+            return [
+                LoopTriageSkill(),
+                LoopVerifierSkill(),
+                LoopBudgetSkill(),
+                MinimalFixSkill(),
+            ]
+        except ImportError:
+            return []
 
     async def load_from_directory(self, directory: Path | str):
         dir_path = Path(directory)

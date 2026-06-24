@@ -70,6 +70,7 @@ def create_app(
         try:
             from cogu.skills.registry import SkillRegistry
             reg = SkillRegistry()
+            reg.discover()
             for name, skill in reg._skills.items():
                 source = "builtin"
                 if hasattr(skill, '_skill_path'):
