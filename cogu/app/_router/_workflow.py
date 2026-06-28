@@ -1,4 +1,6 @@
-"""AgentStudio 工作流 REST API — 嵌入现有 Web 界面"""
+"""AgentStudio 工作流 REST API — 嵌入现有 Web 界面
+集成: Canvas Schema转换 + 30+节点类型 + Plugin节点 + Knowledge节点
+"""
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
@@ -28,6 +30,10 @@ class WorkflowCreateRequest(BaseModel):
 
 class WorkflowRunRequest(BaseModel):
     variables: dict[str, Any] = {}
+
+
+class CanvasConvertRequest(BaseModel):
+    canvas: dict[str, Any] = {}
 
 
 @router.get("")
@@ -63,6 +69,33 @@ async def create_workflow(req: WorkflowCreateRequest):
         wf.add_edge(edge)
     engine.save_workflow(wf)
     return wf.to_dict()
+
+
+@router.post("/from-canvas")
+async def create_from_canvas(req: CanvasConvertRequest):
+    from cogu.studio.canvas_schema import canvas_to_workflow_schema
+    schema = canvas_to_workflow_schema(req.canvas)
+    engine = _get_engine()
+    from cogu.studio import WorkflowDefinition, WorkflowNode, WorkflowEdge, NodeType, EdgeType
+    wf = WorkflowDefinition(
+        name=req.canvas.get("name", "Canvas Workflow"),
+        description="Created from Canvas JSON",
+    )
+    for ns in schema.nodes:
+        try:
+            nt = NodeType(ns.node_type)
+        except ValueError:
+            nt = NodeType.CODE
+        node = WorkflowNode(
+            id=ns.key, type=nt, label=ns.label,
+            config=ns.config, metadata={"category": ns.category.value},
+        )
+        wf.add_node(node)
+    for conn in schema.connections:
+        edge = WorkflowEdge(source=conn.source_node_key, target=conn.target_node_key)
+        wf.add_edge(edge)
+    engine.save_workflow(wf)
+    return {"workflow_id": wf.id, "schema": schema.to_dict(), "workflow": wf.to_dict()}
 
 
 @router.get("/{workflow_id}")

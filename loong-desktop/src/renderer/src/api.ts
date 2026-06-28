@@ -22,6 +22,54 @@ export interface PanguStatus {
   backends: { transformers: boolean; gguf: boolean };
 }
 
+export interface Plugin {
+  plugin_id: string;
+  name: string;
+  description: string;
+  version: string;
+  tool_count: number;
+  category: string;
+  tags: string[];
+}
+
+export interface NodeTypeDef {
+  type: string;
+  display_key: string;
+  category: string;
+  description: string;
+  icon: string;
+  color: string;
+  is_composite: boolean;
+}
+
+export interface TraceSpan {
+  trace_id: string;
+  span_id: string;
+  span_type: string;
+  span_name: string;
+  duration: number;
+  status_code: string;
+  start_time: number;
+}
+
+export interface MetricsSummary {
+  [key: string]: any;
+}
+
+export interface EvalResult {
+  avg_score: number;
+  pass_rate: number;
+  evaluated_items: number;
+  total_items: number;
+}
+
+export interface KnowledgeDoc {
+  doc_id: string;
+  content: string;
+  score: number;
+  source: string;
+}
+
 export async function fetchSkills(): Promise<Skill[]> {
   const res = await fetch(`${API_BASE}/skills`);
   const data = await res.json();
@@ -81,4 +129,101 @@ export async function streamChat(message: string, sessionId: string, model?: str
     body: JSON.stringify({ message, session_id: sessionId, model }),
   });
   return res.body!;
+}
+
+export async function fetchPlugins(): Promise<Plugin[]> {
+  const res = await fetch(`${API_BASE}/plugins`);
+  const data = await res.json();
+  return data.plugins || [];
+}
+
+export async function registerPlugin(name: string, openapiDoc: any): Promise<any> {
+  const res = await fetch(`${API_BASE}/plugins`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, openapi_doc: openapiDoc }),
+  });
+  return res.json();
+}
+
+export async function executePluginTool(pluginId: string, toolId: string, args: any = {}): Promise<any> {
+  const res = await fetch(`${API_BASE}/plugins/${pluginId}/execute`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tool_id: toolId, args }),
+  });
+  return res.json();
+}
+
+export async function fetchNodeTypes(category?: string): Promise<NodeTypeDef[]> {
+  const url = category ? `${API_BASE}/node-types?category=${category}` : `${API_BASE}/node-types`;
+  const res = await fetch(url);
+  const data = await res.json();
+  return data.node_types || [];
+}
+
+export async function convertCanvas(canvas: any): Promise<any> {
+  const res = await fetch(`${API_BASE}/node-types/canvas/convert`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(canvas),
+  });
+  return res.json();
+}
+
+export async function fetchTraces(traceId?: string, limit: number = 50): Promise<TraceSpan[]> {
+  const url = traceId ? `${API_BASE}/observability/traces?trace_id=${traceId}&limit=${limit}` : `${API_BASE}/observability/traces?limit=${limit}`;
+  const res = await fetch(url);
+  const data = await res.json();
+  return data.spans || [];
+}
+
+export async function fetchMetricsSummary(hours: number = 24): Promise<MetricsSummary> {
+  const res = await fetch(`${API_BASE}/observability/metrics/summary?hours=${hours}`);
+  return res.json();
+}
+
+export async function fetchModelMetrics(model?: string): Promise<any> {
+  const url = model ? `${API_BASE}/observability/metrics/model?model=${model}` : `${API_BASE}/observability/metrics/model`;
+  const res = await fetch(url);
+  return res.json();
+}
+
+export async function fetchPipelineStats(): Promise<any> {
+  const res = await fetch(`${API_BASE}/observability/pipeline/stats`);
+  return res.json();
+}
+
+export async function fetchBuiltinEvaluators(): Promise<any[]> {
+  const res = await fetch(`${API_BASE}/evaluators/builtins`);
+  const data = await res.json();
+  return data.evaluators || [];
+}
+
+export async function runEvaluation(evaluatorIds: string[], items: any[]): Promise<EvalResult> {
+  const res = await fetch(`${API_BASE}/evaluators/run`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ evaluator_ids: evaluatorIds, items }),
+  });
+  return res.json();
+}
+
+export async function knowledgeRetrieve(query: string, topK: number = 5): Promise<KnowledgeDoc[]> {
+  const res = await fetch(`${API_BASE}/knowledge/retrieve`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query, top_k: topK }),
+  });
+  const data = await res.json();
+  return data.documents || [];
+}
+
+export async function knowledgeIndex(knowledgeId: string, documents: any[]): Promise<any> {
+  const res = await fetch(`${API_BASE}/knowledge/index`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ knowledge_id: knowledgeId, documents }),
+  });
+  return res.json();
 }

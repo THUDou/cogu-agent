@@ -27,16 +27,19 @@
       {
         "from": "../cogu",
         "to": "cogu",
-        "filter": ["**/*.py", "**/*.html", "**/*.jpg", "**/*.jpeg", "**/*.ico", "**/*.json", "**/*.md", "**/*.toml"]
+        "filter": ["**/*.py", "**/*.html", "**/*.jpg", "**/*.jpeg", "**/*.ico", "**/*.json", "**/*.md", "**/*.toml", "**/*.txt", "**/*.cfg"]
       },
       {
         "from": "../skills",
-        "to": "skills"
+        "to": "skills",
+        "filter": ["**/*", "!**/__pycache__/**", "!**/node_modules/**", "!**/*.gguf", "!**/*.safetensors", "!**/*.bin", "!**/refs/**"]
       }
     ],
     "win": {
-      "target": ["nsis"],
-      "icon": "assets/logo.ico"
+      "target": ["dir"],
+      "icon": "assets/logo.jpg",
+      "sign": false,
+      "forceCodeSigning": false
     },
     "nsis": {
       "oneClick": false,

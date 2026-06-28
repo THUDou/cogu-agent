@@ -30,6 +30,7 @@ from cogu.core.skills_system import (
     GuiVisionSkill,
     CodeOfficeSkill,
 )
+from cogu.core.goal_judge import GoalJudge, GoalCondition, JudgeVerdict, JudgeResult
 
 __all__ = [
     "HeartbeatService",
@@ -107,4 +108,8 @@ __all__ = [
     "ReasoningSkill",
     "GuiVisionSkill",
     "CodeOfficeSkill",
+    "GoalJudge",
+    "GoalCondition",
+    "JudgeVerdict",
+    "JudgeResult",
 ]

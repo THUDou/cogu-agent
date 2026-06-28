@@ -773,6 +773,21 @@ class ReActAgent:
     async def invoke(self, user_message: str) -> TurnResult:
         started = time.time()
         
+        try:
+            from cogu.observability.span_collector import TracingContext, SpanType, SpanStatus
+            from cogu.observability.metrics import ModelMetrics, ToolMetrics, AgentMetrics
+            _tracing = TracingContext.get_instance()
+            _model_metrics = ModelMetrics()
+            _tool_metrics = ToolMetrics()
+            _agent_metrics = AgentMetrics()
+            _trace_span = _tracing.start_trace("agent.invoke", SpanType.AGENT)
+        except Exception:
+            _tracing = None
+            _model_metrics = None
+            _tool_metrics = None
+            _agent_metrics = None
+            _trace_span = None
+        
         # ✅ 增强输入验证（OfficeAce/MiClaw 多层安全验证模式）
         validation = self._validate_input(user_message)
         if not validation.is_valid:
@@ -878,6 +893,19 @@ class ReActAgent:
                 full_content += response.content
             usage = response.usage
 
+            if _model_metrics:
+                try:
+                    model_name = getattr(self._agent_config, 'model', 'unknown')
+                    _model_metrics.record_request(
+                        model=model_name,
+                        success=True,
+                        duration_s=(time.time() - started),
+                        input_tokens=usage.get("prompt_tokens", 0),
+                        output_tokens=usage.get("completion_tokens", 0),
+                    )
+                except Exception:
+                    pass
+
             # ✅ 日志记录：LLM 响应
             self._logger.debug(
                 "agent.invoke.llm_response",
@@ -933,6 +961,16 @@ class ReActAgent:
                 all_tool_results.append(result)
                 tool_result_texts.append(f"[{tc['name']}]: {result.content or result.error}")
                 
+                if _tool_metrics:
+                    try:
+                        _tool_metrics.record_call(
+                            tool_name=tc['name'],
+                            success=result.success,
+                            duration_s=0.1,
+                        )
+                    except Exception:
+                        pass
+                
                 # ✅ 日志记录：工具执行完成
                 self._logger.debug(
                     "agent.invoke.tool_completed",
@@ -976,6 +1014,17 @@ class ReActAgent:
         )
 
         await self._run_post_hooks(result)
+        
+        if _trace_span:
+            try:
+                from cogu.observability.span_collector import SpanStatus as SS
+                _trace_span.set_tag("iterations", self._turn_counter)
+                _trace_span.set_tag("status", final_status.value)
+                _trace_span.set_tag("elapsed_ms", (time.time() - started) * 1000)
+                _tracing.finish_trace(_trace_span, SS.OK if final_status == TurnStatus.FINISHED else SS.ERROR)
+            except Exception:
+                pass
+        
         return result
 
     async def stream(self, user_message: str) -> AsyncIterator[StreamFrame]:

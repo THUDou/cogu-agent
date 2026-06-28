@@ -6,6 +6,8 @@ import HomeView from './views/HomeView';
 import ChatView from './views/ChatView';
 import SkillsView from './views/SkillsView';
 import SettingsView from './views/SettingsView';
+import StudioView from './views/StudioView';
+import ObserveView from './views/ObserveView';
 
 export default function App() {
   const state = useAppState();
@@ -16,6 +18,8 @@ export default function App() {
       case 'chat': return <ChatView state={state} />;
       case 'skills': return <SkillsView />;
       case 'settings': return <SettingsView />;
+      case 'studio': return <StudioView />;
+      case 'observe': return <ObserveView />;
       default: return <HomeView state={state} />;
     }
   };

@@ -13,6 +13,8 @@ const NAV_ITEMS: { view: ViewType; icon: string; label: string }[] = [
   { view: 'home', icon: '⌂', label: '首页' },
   { view: 'chat', icon: '💬', label: '对话' },
   { view: 'skills', icon: '⚡', label: '技能' },
+  { view: 'studio', icon: '🔧', label: 'Studio' },
+  { view: 'observe', icon: '📊', label: '可观测' },
   { view: 'settings', icon: '⚙', label: '设置' },
 ];
 

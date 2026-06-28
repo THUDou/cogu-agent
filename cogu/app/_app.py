@@ -9,7 +9,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
 from cogu.app._lifespan import app_lifespan
-from cogu.app._router import chat_router, agent_router, session_router, tool_router, memory_router, settings_router, workflow_router
+from cogu.app._router import (
+    chat_router, agent_router, session_router, tool_router,
+    memory_router, settings_router, workflow_router,
+    plugin_router, evaluator_router, playground_router,
+    observability_router, knowledge_router, node_types_router,
+)
 
 
 def _find_dashboard_html() -> str:
@@ -52,6 +57,12 @@ def create_app(
     app.include_router(memory_router)
     app.include_router(settings_router)
     app.include_router(workflow_router)
+    app.include_router(plugin_router)
+    app.include_router(evaluator_router)
+    app.include_router(playground_router)
+    app.include_router(observability_router)
+    app.include_router(knowledge_router)
+    app.include_router(node_types_router)
 
     @app.get("/healthz")
     async def healthz():

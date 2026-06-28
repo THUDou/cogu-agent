@@ -14,7 +14,7 @@ declare global {
   }
 }
 
-export type ViewType = 'home' | 'chat' | 'skills' | 'settings';
+export type ViewType = 'home' | 'chat' | 'skills' | 'settings' | 'studio' | 'observe';
 
 export interface Message {
   role: 'user' | 'agent';

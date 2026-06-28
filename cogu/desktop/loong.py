@@ -228,6 +228,75 @@ def _get_or_create_app():
         async def search_memory(body: dict):
             return {"results": [], "total": 0}
 
+        @app.get("/api/plugins")
+        async def list_plugins():
+            return {"plugins": [], "total": 0}
+
+        @app.post("/api/plugins")
+        async def register_plugin(body: dict):
+            return {"error": "not_configured"}
+
+        @app.get("/api/evaluators/builtins")
+        async def list_builtin_evaluators():
+            from cogu.experiment.evaluator import BUILTIN_PROMPT_TEMPLATES
+            evals = [{"name": n, "type": "prompt"} for n in BUILTIN_PROMPT_TEMPLATES]
+            return {"evaluators": evals, "total": len(evals)}
+
+        @app.post("/api/evaluators/run")
+        async def run_evaluation(body: dict):
+            return {"status": "not_configured", "avg_score": 0, "pass_rate": 0}
+
+        @app.get("/api/playground/prompts")
+        async def list_playground_prompts():
+            return {"prompts": [], "total": 0}
+
+        @app.post("/api/playground/prompts")
+        async def create_playground_prompt(body: dict):
+            return {"prompt_id": "", "name": body.get("name", ""), "created": True}
+
+        @app.get("/api/observability/traces")
+        async def list_traces(trace_id: str = "", limit: int = 50):
+            return {"spans": [], "total": 0}
+
+        @app.get("/api/observability/metrics/summary")
+        async def metrics_summary(hours: int = 24):
+            return {"metrics": {}}
+
+        @app.get("/api/observability/metrics/model")
+        async def model_metrics(model: str = "", since_hours: float = 1):
+            return {"qpm": 0, "success_ratio": 0, "avg_latency_s": 0, "ttft_avg_s": 0}
+
+        @app.get("/api/observability/metrics/tool")
+        async def tool_metrics(tool_name: str = "", since_hours: float = 1):
+            return {"avg_latency_s": 0, "success_ratio": 0}
+
+        @app.get("/api/observability/pipeline/stats")
+        async def pipeline_stats():
+            return {"received": 0, "processed": 0, "exported": 0, "errors": 0}
+
+        @app.post("/api/knowledge/retrieve")
+        async def knowledge_retrieve(body: dict):
+            return {"query": body.get("query", ""), "documents": [], "total_count": 0, "elapsed_ms": 0}
+
+        @app.post("/api/knowledge/index")
+        async def knowledge_index(body: dict):
+            return {"indexed": 0, "knowledge_id": body.get("knowledge_id", "")}
+
+        @app.get("/api/node-types")
+        async def list_node_types(category: str = ""):
+            from cogu.studio.node_types import get_node_type_registry
+            registry = get_node_type_registry()
+            items = list(registry.values())
+            if category:
+                items = [i for i in items if i.get("category") == category]
+            return {"node_types": items, "total": len(items)}
+
+        @app.post("/api/node-types/canvas/convert")
+        async def convert_canvas(body: dict):
+            from cogu.studio.canvas_schema import canvas_to_workflow_schema
+            schema = canvas_to_workflow_schema(body)
+            return schema.to_dict()
+
         @app.get("/api/settings/pangu/status")
         async def pangu_status():
             model_path = Path.home() / ".cogu" / "pangu-model"

@@ -10,6 +10,7 @@ from cogu.loop.budget import TokenBudget, BudgetExceeded
 from cogu.loop.goal_parser import GoalParser, ParsedGoal, GoalType
 from cogu.loop.run_log import RunLog, LogLevel
 from cogu.loop.state_file import StateFile, GoalState
+from cogu.core.goal_judge import GoalJudge, GoalCondition, JudgeVerdict, JudgeResult
 
 
 class GoalStatus(Enum):
@@ -18,6 +19,8 @@ class GoalStatus(Enum):
     BUDGET_EXCEEDED = "budget_exceeded"
     CANCELLED = "cancelled"
     TIMEOUT = "timeout"
+    EVAL_PASSED = "eval_passed"
+    EVAL_FAILED = "eval_failed"
 
 
 @dataclass
@@ -30,10 +33,12 @@ class GoalResult:
     elapsed_seconds: float = 0.0
     run_log: Optional[RunLog] = None
     error: str = ""
+    eval_score: float = 0.0
+    eval_results: list[dict] = field(default_factory=list)
 
     @property
     def ok(self) -> bool:
-        return self.status == GoalStatus.SUCCESS
+        return self.status in (GoalStatus.SUCCESS, GoalStatus.EVAL_PASSED)
 
     def summary(self) -> str:
         lines = [
@@ -41,6 +46,8 @@ class GoalResult:
             f"Status: {self.status.value}",
             f"Iterations: {self.iterations} | Tokens: {self.tokens_used} | Elapsed: {self.elapsed_seconds:.1f}s",
         ]
+        if self.eval_score > 0:
+            lines.append(f"Eval Score: {self.eval_score:.2f}")
         if self.error:
             lines.append(f"Error: {self.error}")
         if self.content:
@@ -59,6 +66,12 @@ class GoalRunnerConfig:
     log_enabled: bool = True
     checkpoint_enabled: bool = True
     progress_callback: Optional[Callable[[str], None]] = None
+    judge_enabled: bool = True
+    judge_max_retries: int = 3
+    judge_model: str = "Qwen3.5-0.8B"
+    eval_enabled: bool = False
+    eval_types: list[str] = field(default_factory=lambda: ["relevance", "helpfulness"])
+    eval_pass_threshold: float = 0.6
 
 
 class GoalRunner:
@@ -70,9 +83,16 @@ class GoalRunner:
         self._run_log: Optional[RunLog] = None
         self._state_file: Optional[StateFile] = None
         self._cancelled = False
+        self._judge: Optional[GoalJudge] = None
+        self._judge_retries: int = 0
 
     def bind_agent(self, agent):
         self._agent = agent
+        self._judge = GoalJudge()
+        if hasattr(agent, "_client") and agent._client:
+            self._judge.bind_client(agent._client)
+        if hasattr(agent, "_multi_provider") and agent._multi_provider:
+            self._judge.bind_multi_provider(agent._multi_provider)
 
     def cancel(self):
         self._cancelled = True
@@ -125,6 +145,7 @@ class GoalRunner:
         final_content = ""
         total_tokens = 0
         final_status = GoalStatus.SUCCESS
+        self._judge_retries = 0
 
         try:
             for iteration in range(1, self.config.max_iterations + 1):
@@ -167,6 +188,20 @@ class GoalRunner:
                     break
 
                 if self._check_termination(parsed, result, iteration):
+                    if self.config.judge_enabled and self._judge:
+                        judge_result = await self._run_judge(parsed, result, iteration)
+                        if judge_result and not judge_result.is_achieved:
+                            self._judge_retries += 1
+                            if self._judge_retries <= self.config.judge_max_retries:
+                                self._notify(f"  [JUDGE] {judge_result.verdict.value} — continuing (retry {self._judge_retries}/{self.config.judge_max_retries})")
+                                self._run_log.warn(
+                                    f"Judge says {judge_result.verdict.value}: {judge_result.reasoning[:200]}",
+                                    iteration=iteration,
+                                )
+                                continue
+                            else:
+                                self._notify(f"  [JUDGE] max retries reached, accepting agent claim")
+                                self._run_log.warn("Judge max retries reached", iteration=iteration)
                     final_status = GoalStatus.SUCCESS
                     self._run_log.milestone(f"Goal achieved at iter {iteration}", iteration=iteration)
                     break
@@ -182,6 +217,52 @@ class GoalRunner:
 
         elapsed = time.time() - started
 
+        eval_score = 0.0
+        eval_results = []
+        if final_status == GoalStatus.SUCCESS and self.config.eval_enabled and final_content:
+            try:
+                from cogu.experiment.evaluator import (
+                    EvaluatorConfig, EvaluatorType, EvalItem,
+                    ExperimentConfig, ExperimentRunner as EvalRunner,
+                )
+                eval_configs = []
+                for etype in self.config.eval_types:
+                    eval_configs.append(EvaluatorConfig(
+                        evaluator_id=f"goal_eval_{etype}",
+                        name=etype,
+                        evaluator_type=EvaluatorType.PROMPT,
+                        pass_threshold=self.config.eval_pass_threshold,
+                    ))
+                eval_item = EvalItem(
+                    item_id="goal_result",
+                    input=goal_text,
+                    output=final_content,
+                )
+                eval_config = ExperimentConfig(
+                    name="goal_evaluation",
+                    evaluator_configs=eval_configs,
+                    items=[eval_item],
+                )
+                llm_client = None
+                if self._agent and hasattr(self._agent, '_get_client'):
+                    try:
+                        llm_client = self._agent._get_client()
+                    except Exception:
+                        pass
+                eval_runner = EvalRunner(eval_config, llm_client=llm_client)
+                eval_result = eval_runner.run()
+                eval_score = eval_result.avg_score
+                eval_results = eval_result.item_results
+                if eval_score >= self.config.eval_pass_threshold:
+                    final_status = GoalStatus.EVAL_PASSED
+                else:
+                    self._run_log.warn(
+                        f"Eval score {eval_score:.2f} below threshold {self.config.eval_pass_threshold}",
+                        iteration=self._state_file.iteration,
+                    )
+            except Exception as e:
+                self._run_log.warn(f"Eval error: {e}", iteration=self._state_file.iteration)
+
         result = GoalResult(
             status=final_status,
             goal_text=goal_text,
@@ -190,7 +271,9 @@ class GoalRunner:
             tokens_used=total_tokens,
             elapsed_seconds=elapsed,
             run_log=self._run_log,
-            error="" if final_status == GoalStatus.SUCCESS else f"{final_status.value}",
+            error="" if final_status in (GoalStatus.SUCCESS, GoalStatus.EVAL_PASSED) else f"{final_status.value}",
+            eval_score=eval_score,
+            eval_results=eval_results,
         )
 
         self._notify(f"[DONE] {result.summary()}")
@@ -252,6 +335,34 @@ class GoalRunner:
             if signal in content_lower:
                 return True
         return False
+
+    async def _run_judge(self, parsed: ParsedGoal, result, iteration: int) -> Optional[JudgeResult]:
+        if not self._judge:
+            return None
+        try:
+            conversation = []
+            if hasattr(self._agent, "_session") and self._agent._session:
+                conversation = list(self._agent._session.conversation)
+            elif hasattr(self._agent, "session") and self._agent.session:
+                conversation = list(self._agent.session.conversation)
+
+            goal = GoalCondition(
+                goal_text=parsed.raw,
+                success_criteria=parsed.success_criteria.split("\n") if parsed.success_criteria else [],
+                max_judge_retries=self.config.judge_max_retries,
+                judge_model=self.config.judge_model,
+            )
+
+            judge_result = await self._judge.judge(
+                goal=goal,
+                conversation=conversation,
+                agent_final_message=result.content,
+            )
+            self._notify(f"  [JUDGE] {judge_result.summary()}")
+            return judge_result
+        except Exception as e:
+            self._run_log.warn(f"Judge error: {e}", iteration=iteration)
+            return None
 
     def _notify(self, msg: str):
         cb = self.config.progress_callback
