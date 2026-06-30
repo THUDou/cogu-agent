@@ -31,6 +31,7 @@ from cogu.core.skills_system import (
     CodeOfficeSkill,
 )
 from cogu.core.goal_judge import GoalJudge, GoalCondition, JudgeVerdict, JudgeResult
+from cogu.core.function_router import FunctionRouter, CompletionChecker, RouteResult, ToolDefinition
 
 __all__ = [
     "HeartbeatService",
@@ -112,4 +113,8 @@ __all__ = [
     "GoalCondition",
     "JudgeVerdict",
     "JudgeResult",
+    "FunctionRouter",
+    "CompletionChecker",
+    "RouteResult",
+    "ToolDefinition",
 ]
