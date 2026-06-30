@@ -4,11 +4,6 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
-/**
- * @file 空的ttf格式json对象
- * @author mengke01(kekee000@gmail.com)
- */
-/* eslint-disable  */
 var _default = exports.default = {
   "version": 1,
   "numTables": 10,

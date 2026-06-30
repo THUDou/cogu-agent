@@ -1,10 +1,3 @@
-"""Canvas -> WorkflowSchema 转换层
-
-参考: Coze Studio backend/domain/workflow/internal/canvas/adaptor/to_schema.go
-核心: CanvasToWorkflowSchema() 将前端 JSON 转为后端可执行的 WorkflowSchema
-      PruneIsolatedNodes() 剪枝孤立节点
-      NodeAdaptor.Adapt() 每个节点类型的转换适配器
-"""
 from __future__ import annotations
 
 import uuid

@@ -25,14 +25,6 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
  * https://github.com/ynakajima/ttf.js
  */
 var TTFReader = exports.default = /*#__PURE__*/function () {
-  /**
-   * ttf读取器的构造函数
-   *
-   * @param {Object} options 写入参数
-   * @param {boolean} options.hinting 保留hinting信息
-   * @param {boolean} options.compound2simple 复合字形转简单字形
-   * @constructor
-   */
   function TTFReader() {
     var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
     _classCallCheck(this, TTFReader);
@@ -43,37 +35,26 @@ var TTFReader = exports.default = /*#__PURE__*/function () {
     this.options = options;
   }
 
-  /**
-   * 初始化读取
-   *
-   * @param {ArrayBuffer} buffer buffer对象
-   * @return {Object} ttf对象
-   */
   return _createClass(TTFReader, [{
     key: "readBuffer",
     value: function readBuffer(buffer) {
       var reader = new _reader.default(buffer, 0, buffer.byteLength, false);
       var ttf = {};
 
-      // version
       ttf.version = reader.readFixed(0);
       if (ttf.version !== 0x1) {
         _error.default.raise(10101);
       }
 
-      // num tables
       ttf.numTables = reader.readUint16();
       if (ttf.numTables <= 0 || ttf.numTables > 100) {
         _error.default.raise(10101);
       }
 
-      // searchRange
       ttf.searchRange = reader.readUint16();
 
-      // entrySelector
       ttf.entrySelector = reader.readUint16();
 
-      // rangeShift
       ttf.rangeShift = reader.readUint16();
       ttf.tables = new _directory.default(reader.offset).read(reader, ttf);
       if (!ttf.tables.glyf || !ttf.tables.head || !ttf.tables.cmap || !ttf.tables.hmtx) {
@@ -81,7 +62,6 @@ var TTFReader = exports.default = /*#__PURE__*/function () {
       }
       ttf.readOptions = this.options;
 
-      // 读取支持的表数据
       Object.keys(_support.default).forEach(function (tableName) {
         if (ttf.tables[tableName]) {
           var offset = ttf.tables[tableName].offset;
@@ -95,11 +75,6 @@ var TTFReader = exports.default = /*#__PURE__*/function () {
       return ttf;
     }
 
-    /**
-     * 关联glyf相关的信息
-     *
-     * @param {Object} ttf ttf对象
-     */
   }, {
     key: "resolveGlyf",
     value: function resolveGlyf(ttf) {
@@ -107,7 +82,6 @@ var TTFReader = exports.default = /*#__PURE__*/function () {
       var glyf = ttf.glyf;
       var subsetMap = ttf.readOptions.subset ? ttf.subsetMap : null; // 当前ttf的子集列表
 
-      // unicode
       Object.keys(codes).forEach(function (c) {
         var i = codes[c];
         if (subsetMap && !subsetMap[i]) {
@@ -119,7 +93,6 @@ var TTFReader = exports.default = /*#__PURE__*/function () {
         glyf[i].unicode.push(+c);
       });
 
-      // advanceWidth
       ttf.hmtx.forEach(function (item, i) {
         if (subsetMap && !subsetMap[i]) {
           return;
@@ -128,7 +101,6 @@ var TTFReader = exports.default = /*#__PURE__*/function () {
         glyf[i].leftSideBearing = item.leftSideBearing;
       });
 
-      // format = 2 的post表会携带glyf name信息
       if (ttf.post && 2 === ttf.post.format) {
         var nameIndex = ttf.post.nameIndex;
         var names = ttf.post.names;
@@ -144,8 +116,6 @@ var TTFReader = exports.default = /*#__PURE__*/function () {
         });
       }
 
-      // 设置了subsetMap之后需要选取subset中的字形
-      // 并且对复合字形转换成简单字形
       if (subsetMap) {
         var subGlyf = [];
         Object.keys(subsetMap).forEach(function (i) {
@@ -156,17 +126,11 @@ var TTFReader = exports.default = /*#__PURE__*/function () {
           subGlyf.push(glyf[i]);
         });
         ttf.glyf = subGlyf;
-        // 转换之后不存在复合字形了
         ttf.maxp.maxComponentElements = 0;
         ttf.maxp.maxComponentDepth = 0;
       }
     }
 
-    /**
-     * 清除非必须的表
-     *
-     * @param {Object} ttf ttf对象
-     */
   }, {
     key: "cleanTables",
     value: function cleanTables(ttf) {
@@ -180,7 +144,6 @@ var TTFReader = exports.default = /*#__PURE__*/function () {
       }
       delete ttf.subsetMap;
 
-      // 不携带hinting信息则删除hint相关表
       if (!this.options.hinting) {
         delete ttf.fpgm;
         delete ttf.cvt;
@@ -195,7 +158,6 @@ var TTFReader = exports.default = /*#__PURE__*/function () {
         delete ttf.kerx;
       }
 
-      // 复合字形转简单字形
       if (this.options.compound2simple && ttf.maxp.maxComponentElements) {
         ttf.glyf.forEach(function (glyf, index) {
           if (glyf.compound) {
@@ -207,12 +169,6 @@ var TTFReader = exports.default = /*#__PURE__*/function () {
       }
     }
 
-    /**
-     * 获取解析后的ttf文档
-     *
-     * @param {ArrayBuffer} buffer buffer对象
-     * @return {Object} ttf文档
-     */
   }, {
     key: "read",
     value: function read(buffer) {
@@ -222,9 +178,6 @@ var TTFReader = exports.default = /*#__PURE__*/function () {
       return this.ttf;
     }
 
-    /**
-     * 注销
-     */
   }, {
     key: "dispose",
     value: function dispose() {

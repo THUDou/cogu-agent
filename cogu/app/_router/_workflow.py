@@ -1,6 +1,3 @@
-"""AgentStudio 工作流 REST API — 嵌入现有 Web 界面
-集成: Canvas Schema转换 + 30+节点类型 + Plugin节点 + Knowledge节点
-"""
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException

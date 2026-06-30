@@ -1,9 +1,3 @@
-"""
-inspect_workbook.py
-工作簿结构检查脚本：读取所有 sheet 名称，并为每个 sheet 输出前 15 行原始矩阵。
-针对数据处理场景优化：重点关注数据类型、缺失值、合并单元格等信息。
-要求：不省略空行；识别并输出合并单元格范围。
-"""
 import json
 import sys
 from datetime import date, datetime, time
@@ -122,7 +116,6 @@ def suggest_header_row(ws, max_rows_to_check=5):
 
 
 def get_cell_data_type(cell):
-    """获取单元格数据类型"""
     if cell.value is None:
         return "empty"
     if isinstance(cell.value, (int, float)):
@@ -165,7 +158,6 @@ def extract_preview(ws):
 
 
 def analyze_column(ws, col_idx):
-    """分析单列数据特征"""
     col_letter = openpyxl.utils.get_column_letter(col_idx)
     values = []
     for r in range(2, ws.max_row + 1):

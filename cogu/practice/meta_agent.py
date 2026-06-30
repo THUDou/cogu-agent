@@ -1,8 +1,3 @@
-"""MetaAgent — 需求→部署编排器
-
-灵感来源: Youtu-Agent meta/simple_agent_generator.py
-基于源码: utu/meta/simple_agent_generator.py (4-step pipeline)
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -31,7 +26,6 @@ class AgentConfig:
 
 
 class RequirementClarifier:
-    """需求澄清 — 交互式需求采访"""
 
     def __init__(self, llm_client: Any = None):
         self.llm = llm_client
@@ -52,7 +46,6 @@ class RequirementClarifier:
 
 
 class ConfigAssembler:
-    """配置组装 — 从需求生成 AgentConfig"""
 
     def __init__(self, llm_client: Any = None):
         self.llm = llm_client
@@ -87,7 +80,6 @@ class ConfigAssembler:
 
 
 class MetaAgent:
-    """Meta-Agent — 需求→部署编排器"""
 
     def __init__(self, llm_client: Any = None):
         self.clarifier = RequirementClarifier(llm_client)

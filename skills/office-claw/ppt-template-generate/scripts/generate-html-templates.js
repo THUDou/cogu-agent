@@ -121,7 +121,6 @@ function isDuplicateBackgroundAsset(outputDir, backgroundAsset, candidateAssetPa
   return fileBytesEqual(bgPath, candidatePath);
 }
 
-// decoration-map.json 是 Stage 5.5 由 Agent 手动写入的产物，首次生成时不存在属正常情况
 function loadDecorationMap(outputDir) {
   const p = path.join(outputDir, 'temp', 'decoration-map.json');
   if (!fs.existsSync(p)) return null;
@@ -132,7 +131,6 @@ function isSafeDecorationId(id) { return /^[a-z][a-z0-9-]*$/.test(String(id || '
 
 function isSafeDecorationCss(css) {
   const text = String(css || '');
-  // Count braces to prevent CSS structure injection
   const opens = (text.match(/\{/g) || []).length;
   const closes = (text.match(/\}/g) || []).length;
   return /position\s*:\s*absolute\b/i.test(text) &&
@@ -223,7 +221,6 @@ function renderBaseHtml({ spec, pageRole, backgroundAsset, decorationMap, output
   const titlePt = fontSize(spec, 'title', 30);
   const bodyPt = fontSize(spec, 'body', 18);
   const notePt = fontSize(spec, 'note', 11);
-  // CSS spec: 1pt = 96/72px (96 DPI baseline, consistent with ppt-template-generate extraction)
   const titlePx = Math.round(titlePt * 4 / 3);
   const bodyPx = Math.round(bodyPt * 4 / 3);
   const notePx = Math.round(notePt * 4 / 3);
@@ -297,7 +294,6 @@ function collectPageRoles(spec) {
   const roles = new Set(['cover', 'section', 'content']); // always include these three
   for (const item of spec?.fixed_composition || []) {
     const pageType = String(item?.page_type || '').toLowerCase();
-    // toc/catalog/agenda pages use the section base layout
     if (/toc|catalog|agenda|目录/.test(pageType)) roles.add('section');
     if (/closing|ending|thanks|结束|致谢/.test(pageType)) roles.add('closing');
   }
@@ -312,8 +308,6 @@ function generateHtmlTemplates(spec, outputDir) {
 
   const backgroundAsset = pickBackgroundAsset(spec);
   const fileDecorationMap = validateDecorationMap(loadDecorationMap(targetDir));
-  // reusable_style_assets with placement are rendered directly as <img> tags;
-  // only file-based decoration-map is used for the decoration pipeline here.
   const decorationMap = fileDecorationMap;
 
   const pageRoles = collectPageRoles(spec);

@@ -6,13 +6,8 @@ Object.defineProperty(exports, "__esModule", {
 exports.default = void 0;
 var _I18n = _interopRequireDefault(require("../common/I18n"));
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-/**
- * @file 语言字符串管理
- * @author mengke01(kekee000@gmail.com)
- */
 
 var zh = {
-  // error define
   10001: '超出读取范围：${0}, ${1}',
   10002: '超出写入范围：${0}, ${1}',
   10003: '未知数据类型：${0}, ${1}',
@@ -40,7 +35,6 @@ var zh = {
   10303: 'otf字形轮廓数据为空'
 };
 var en = {
-  // error define
   10001: 'Reading index out of range: ${0}, ${1}',
   10002: 'Writing index out of range: ${0}, ${1}',
   10003: 'Unknown datatype: ${0}, ${1}',

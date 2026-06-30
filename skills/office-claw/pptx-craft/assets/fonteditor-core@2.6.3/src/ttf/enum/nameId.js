@@ -1,7 +1,3 @@
-/**
- * @file ttf `name`编码表
- * @author mengke01(kekee000@gmail.com)
- */
 
 const nameId = {
     0: 'copyright',
@@ -25,7 +21,6 @@ const nameId = {
     19: 'sampleText'
 };
 
-// 反转names
 const nameIdHash = {};
 Object.keys(nameId).forEach(id => {
     nameIdHash[nameId[id]] = +id;

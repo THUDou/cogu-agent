@@ -1,13 +1,3 @@
-#!/usr/bin/env python3
-"""
-在指定 sheet 的指定锚点单元格创建图表（bar/line/pie/scatter/area）。
-
-用法：
-  python scripts/create_chart.py file.xlsx Data A1:D10 bar G2 \
-      --title "季度销售" --x-axis "季度" --y-axis "销售额" --show-data-labels
-  # 跨 sheet 数据源
-  python scripts/create_chart.py file.xlsx Dashboard "Raw!A1:D10" line B5
-"""
 import argparse
 
 from openpyxl.chart import AreaChart, BarChart, LineChart, PieChart, Reference, ScatterChart, Series
@@ -110,7 +100,6 @@ def main():
     chart.width = args.width
     chart.height = args.height
 
-    # openpyxl 的 add_chart 接收 "G2" 字符串锚点；我们已经做过 parse_cell 校验
     anchor_str = f"{args.target_cell.upper()}"
     try:
         chart_ws.add_chart(chart, anchor_str)

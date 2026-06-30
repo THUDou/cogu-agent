@@ -16,12 +16,10 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
  * @file 数据写入器
  * @author mengke01(kekee000@gmail.com)
  */
-// 检查数组支持情况
 if (typeof ArrayBuffer === 'undefined' || typeof DataView === 'undefined') {
   throw new Error('not support ArrayBuffer and DataView');
 }
 
-// 数据类型
 var dataType = {
   Int8: 1,
   Int16: 2,
@@ -33,15 +31,6 @@ var dataType = {
   Float64: 8
 };
 
-/**
- * 读取器
- *
- * @constructor
- * @param {Array.<byte>} buffer 缓冲数组
- * @param {number} offset 起始偏移
- * @param {number=} length 数组长度
- * @param {boolean=} littleEndian 是否小尾
- */
 var Writer = /*#__PURE__*/function () {
   function Writer(buffer, offset, length, littleEndian) {
     _classCallCheck(this, Writer);
@@ -52,30 +41,17 @@ var Writer = /*#__PURE__*/function () {
     this.view = new DataView(buffer, this.offset, this.length);
   }
 
-  /**
-   * 读取指定的数据类型
-   *
-   * @param {string} type 数据类型
-   * @param {number} value value值
-   * @param {number=} offset 位移
-   * @param {boolean=} littleEndian 是否小尾
-   *
-   * @return {this}
-   */
   return _createClass(Writer, [{
     key: "write",
     value: function write(type, value, offset, littleEndian) {
-      // 使用当前位移
       if (undefined === offset) {
         offset = this.offset;
       }
 
-      // 使用小尾
       if (undefined === littleEndian) {
         littleEndian = this.littleEndian;
       }
 
-      // 扩展方法
       if (undefined === dataType[type]) {
         return this['write' + type](value, offset, littleEndian);
       }
@@ -85,14 +61,6 @@ var Writer = /*#__PURE__*/function () {
       return this;
     }
 
-    /**
-     * 写入指定的字节数组
-     *
-     * @param {ArrayBuffer} value 写入值
-     * @param {number=} length 数组长度
-     * @param {number=} offset 起始偏移
-     * @return {this}
-     */
   }, {
     key: "writeBytes",
     value: function writeBytes(value, length, offset) {
@@ -122,13 +90,6 @@ var Writer = /*#__PURE__*/function () {
       return this;
     }
 
-    /**
-     * 写空数据
-     *
-     * @param {number} length 长度
-     * @param {number=} offset 起始偏移
-     * @return {this}
-     */
   }, {
     key: "writeEmpty",
     value: function writeEmpty(length, offset) {
@@ -146,15 +107,6 @@ var Writer = /*#__PURE__*/function () {
       return this;
     }
 
-    /**
-     * 写入一个string
-     *
-     * @param {string} str 字符串
-     * @param {number=} length 长度
-     * @param {number=} offset 偏移
-     *
-     * @return {this}
-     */
   }, {
     key: "writeString",
     value: function writeString() {
@@ -165,7 +117,6 @@ var Writer = /*#__PURE__*/function () {
         offset = this.offset;
       }
 
-      // eslint-disable-next-line no-control-regex
       length = length || str.replace(/[^\x00-\xff]/g, '11').length;
       if (length < 0 || offset + length > this.length) {
         _error.default.raise(10002, this.length, offset + length);
@@ -174,8 +125,6 @@ var Writer = /*#__PURE__*/function () {
       for (var i = 0, l = str.length, charCode; i < l; ++i) {
         charCode = str.charCodeAt(i) || 0;
         if (charCode > 127) {
-          // unicode编码可能会超出2字节,
-          // 写入与编码有关系，此处不做处理
           this.writeUint16(charCode);
         } else {
           this.writeUint8(charCode);
@@ -185,26 +134,12 @@ var Writer = /*#__PURE__*/function () {
       return this;
     }
 
-    /**
-     * 写入一个字符
-     *
-     * @param {string} value 字符
-     * @param {number=} offset 偏移
-     * @return {this}
-     */
   }, {
     key: "writeChar",
     value: function writeChar(value, offset) {
       return this.writeString(value, offset);
     }
 
-    /**
-     * 写入fixed类型
-     *
-     * @param {number} value 写入值
-     * @param {number=} offset 偏移
-     * @return {number} float
-     */
   }, {
     key: "writeFixed",
     value: function writeFixed(value, offset) {
@@ -215,14 +150,6 @@ var Writer = /*#__PURE__*/function () {
       return this;
     }
 
-    /**
-     * 写入长日期
-     *
-     * @param {Date} value 日期对象
-     * @param {number=} offset 偏移
-     *
-     * @return {Date} Date对象
-     */
   }, {
     key: "writeLongDateTime",
     value: function writeLongDateTime(value, offset) {
@@ -230,7 +157,6 @@ var Writer = /*#__PURE__*/function () {
         offset = this.offset;
       }
 
-      // new Date(1970, 1, 1).getTime() - new Date(1904, 1, 1).getTime();
       var delta = -2077545600000;
       if (typeof value === 'undefined') {
         value = delta;
@@ -247,12 +173,6 @@ var Writer = /*#__PURE__*/function () {
       return this;
     }
 
-    /**
-     * 跳转到指定偏移
-     *
-     * @param {number=} offset 偏移
-     * @return {this}
-     */
   }, {
     key: "seek",
     value: function seek(offset) {
@@ -267,11 +187,6 @@ var Writer = /*#__PURE__*/function () {
       return this;
     }
 
-    /**
-     * 跳转到写入头部位置
-     *
-     * @return {this}
-     */
   }, {
     key: "head",
     value: function head() {
@@ -279,20 +194,12 @@ var Writer = /*#__PURE__*/function () {
       return this;
     }
 
-    /**
-     * 获取缓存的byte数组
-     *
-     * @return {ArrayBuffer}
-     */
   }, {
     key: "getBuffer",
     value: function getBuffer() {
       return this.view.buffer;
     }
 
-    /**
-     * 注销
-     */
   }, {
     key: "dispose",
     value: function dispose() {

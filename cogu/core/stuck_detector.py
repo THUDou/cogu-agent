@@ -1,8 +1,3 @@
-"""Stuck Detector — Stuck 检测 + 策略切换
-
-基于源码: OpenManus is_stuck() + duplicate_threshold
-COGU 实现: 独立模块 + 多种检测策略
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -18,7 +13,6 @@ class StuckDetectionResult:
 
 
 class StuckDetector:
-    """Stuck 检测器 — 检测 Agent 卡住并建议策略切换"""
 
     def __init__(self, duplicate_threshold: int = 3, history_size: int = 20):
         self._duplicate_threshold = duplicate_threshold

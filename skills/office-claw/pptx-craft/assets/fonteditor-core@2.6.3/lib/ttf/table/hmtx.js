@@ -6,12 +6,6 @@ Object.defineProperty(exports, "__esModule", {
 exports.default = void 0;
 var _table = _interopRequireDefault(require("./table"));
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-/**
- * @file hmtx 表
- * @author mengke01(kekee000@gmail.com)
- *
- * https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6hmtx.html
- */
 var _default = exports.default = _table.default.create('hmtx', [], {
   read: function read(reader, ttf) {
     var offset = this.offset;
@@ -27,11 +21,9 @@ var _default = exports.default = _table.default.create('hmtx', [], {
       hMetrics.push(hMetric);
     }
 
-    // 最后一个宽度
     var advanceWidth = hMetrics[numOfLongHorMetrics - 1].advanceWidth;
     var numOfLast = ttf.maxp.numGlyphs - numOfLongHorMetrics;
 
-    // 获取后续的hmetrics
     for (i = 0; i < numOfLast; ++i) {
       hMetric = {};
       hMetric.advanceWidth = advanceWidth;
@@ -48,7 +40,6 @@ var _default = exports.default = _table.default.create('hmtx', [], {
       writer.writeInt16(ttf.glyf[i].leftSideBearing);
     }
 
-    // 最后一个宽度
     var numOfLast = ttf.glyf.length - numOfLongHorMetrics;
     for (i = 0; i < numOfLast; ++i) {
       writer.writeInt16(ttf.glyf[numOfLongHorMetrics + i].leftSideBearing);
@@ -56,9 +47,7 @@ var _default = exports.default = _table.default.create('hmtx', [], {
     return writer;
   },
   size: function size(ttf) {
-    // 计算同最后一个advanceWidth相等的元素个数
     var numOfLast = 0;
-    // 最后一个advanceWidth
     var advanceWidth = ttf.glyf[ttf.glyf.length - 1].advanceWidth;
     for (var i = ttf.glyf.length - 2; i >= 0; i--) {
       if (advanceWidth === ttf.glyf[i].advanceWidth) {

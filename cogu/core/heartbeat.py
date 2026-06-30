@@ -1,9 +1,3 @@
-"""Heartbeat — 周期性 Agent 唤醒系统
-
-灵感来源: jiuwenswarm GatewayHeartbeatService + HEARTBEAT.md 文件驱动模式
-COGU 实现: 独立模块，支持活跃时段、多渠道中继、busy backoff
-LOOP增强: Goal绑定、Cron调度、失败重试策略
-"""
 from __future__ import annotations
 
 import asyncio
@@ -68,14 +62,6 @@ class HeartbeatEvent:
 
 
 class HeartbeatService:
-    """周期性 Agent 唤醒服务
-
-    工作流程:
-    1. 每隔 interval_seconds 检查是否在活跃时段
-    2. 读取 HEARTBEAT.md 获取任务列表
-    3. 调用 agent_handler 执行任务
-    4. 可选: 将结果中继到指定渠道
-    """
 
     def __init__(
         self,

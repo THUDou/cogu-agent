@@ -1,9 +1,3 @@
-"""GRPO — 无训练 Group Relative Policy Optimization
-
-灵感来源: Youtu-Agent Training-Free GRPO
-基于源码: utu/practice/training_free_grpo.py (rollout→experience extraction)
-         + utu/practice/rollout_manager.py (batch processing)
-"""
 from __future__ import annotations
 
 import math

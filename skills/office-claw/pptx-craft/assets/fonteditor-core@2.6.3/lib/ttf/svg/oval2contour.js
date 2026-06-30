@@ -9,20 +9,7 @@ var _pathAdjust = _interopRequireDefault(require("../../graphics/pathAdjust"));
 var _circle = _interopRequireDefault(require("../../graphics/path/circle"));
 var _lang = require("../../common/lang");
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-/**
- * @file 椭圆转换成轮廓
- * @author mengke01(kekee000@gmail.com)
- */
 
-/**
- * 椭圆转换成轮廓
- *
- * @param {number} cx 椭圆中心点x
- * @param {number} cy 椭圆中心点y
- * @param {number} rx 椭圆x轴半径
- * @param {number} ry 椭圆y周半径
- * @return {Array} 轮廓数组
- */
 function oval2contour(cx, cy, rx, ry) {
   if (undefined === ry) {
     ry = rx;

@@ -3,7 +3,6 @@ import sys
 import pytest
 from pptx import Presentation
 
-# Allow importing from parent directory in test environment without package installation
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'scripts'))
 from split_pptx import split_pptx
 

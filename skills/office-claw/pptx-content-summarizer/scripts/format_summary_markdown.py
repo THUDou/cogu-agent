@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-"""Format final summary Markdown using configurable spacing rules."""
 
 from __future__ import annotations
 
@@ -67,45 +65,36 @@ def blank_lines_after_heading(level: int, config: Dict[str, Any]) -> int:
 
 
 def remove_blanks_in_detail_section(text: str) -> str:
-    """在'详细展开'章节内，删除内容段落之间的空行，但保留 h3 子标题前的空行。"""
     lines = text.split("\n")
     output: List[str] = []
     in_detail_section = False
     in_h3_subsection = False
 
     for i, line in enumerate(lines):
-        # 检查是否进入/离开"详细展开"章节
         if line.strip() == "## 详细展开":
             in_detail_section = True
             in_h3_subsection = False
             output.append(line)
             continue
 
-        # 检查是否离开"详细展开"（遇到下一个 ## 标题）
         if in_detail_section and line.startswith("##") and not line.startswith("###"):
             in_detail_section = False
             in_h3_subsection = False
 
-        # 在"详细展开"内，检查 h3 标题
         if in_detail_section and line.startswith("### "):
             in_h3_subsection = True
             output.append(line)
             continue
 
-        # 在 h3 子标题下的内容：删除空行
         if in_detail_section and in_h3_subsection:
             if line == "":
-                # 跳过空行，除非下一行是 h3 标题
                 next_idx = i + 1
                 while next_idx < len(lines) and lines[next_idx] == "":
                     next_idx += 1
                 if next_idx < len(lines) and lines[next_idx].startswith("### "):
-                    # 下一行是 h3，保留空行
                     output.append(line)
-                # 否则跳过此空行
                 continue
             elif line.startswith("### "):
-                # 遇到下一个 h3，保留它
                 output.append(line)
                 continue
 
@@ -124,7 +113,6 @@ def normalize_heading_spacing(text: str, config: Dict[str, Any]) -> str:
         level = heading_level(line)
 
         if level:
-            # 查找前面最后一个非空行
             last_non_blank_idx = len(output) - 1
             while last_non_blank_idx >= 0 and output[last_non_blank_idx] == "":
                 last_non_blank_idx -= 1
@@ -138,7 +126,6 @@ def normalize_heading_spacing(text: str, config: Dict[str, Any]) -> str:
 
             strip_trailing_blanks(output)
 
-            # 只有当前面不是标题，或前面是 h1（h1 后有特殊空行处理），才添加标题前的空行
             title_level = int_config_value(config.get("title", {}).get("level", 1), 1)
             should_add_blank = (
                 output

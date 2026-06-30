@@ -1,9 +1,3 @@
-#!/usr/bin/env python3
-"""Run trigger evaluation for a skill description.
-
-Tests whether a skill's description causes Claude to trigger (read the skill)
-for a set of queries. Outputs results as JSON.
-"""
 
 import argparse
 import json
@@ -20,11 +14,6 @@ from scripts.utils import parse_skill_md
 
 
 def find_project_root() -> Path:
-    """Find the project root by walking up from cwd looking for .claude/.
-
-    Mimics how Claude Code discovers its project root, so the command file
-    we create ends up where claude -p will look for it.
-    """
     current = Path.cwd()
     for parent in [current, *current.parents]:
         if (parent / ".claude").is_dir():
@@ -40,14 +29,6 @@ def run_single_query(
     project_root: str,
     model: str | None = None,
 ) -> bool:
-    """Run a single query and return whether the skill was triggered.
-
-    Creates a command file in .claude/commands/ so it appears in Claude's
-    available_skills list, then runs `claude -p` with the raw query.
-    Uses --include-partial-messages to detect triggering early from
-    stream events (content_block_start) rather than waiting for the
-    full assistant message, which only arrives after tool execution.
-    """
     unique_id = uuid.uuid4().hex[:8]
     clean_name = f"{skill_name}-skill-{unique_id}"
     project_commands_dir = Path(project_root) / ".claude" / "commands"
@@ -55,7 +36,6 @@ def run_single_query(
 
     try:
         project_commands_dir.mkdir(parents=True, exist_ok=True)
-        # Use YAML block scalar to avoid breaking on quotes in description
         indented_desc = "\n  ".join(skill_description.split("\n"))
         command_content = (
             f"---\n"
@@ -77,9 +57,6 @@ def run_single_query(
         if model:
             cmd.extend(["--model", model])
 
-        # Remove CLAUDECODE env var to allow nesting claude -p inside a
-        # Claude Code session. The guard is for interactive terminal conflicts;
-        # programmatic subprocess usage is safe.
         env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
 
         process = subprocess.Popen(
@@ -93,7 +70,6 @@ def run_single_query(
         triggered = False
         start_time = time.time()
         buffer = ""
-        # Track state for stream event detection
         pending_tool_name = None
         accumulated_json = ""
 
@@ -125,7 +101,6 @@ def run_single_query(
                     except json.JSONDecodeError:
                         continue
 
-                    # Early detection via stream events
                     if event.get("type") == "stream_event":
                         se = event.get("event", {})
                         se_type = se.get("type", "")
@@ -153,7 +128,6 @@ def run_single_query(
                             if se_type == "message_stop":
                                 return False
 
-                    # Fallback: full assistant message
                     elif event.get("type") == "assistant":
                         message = event.get("message", {})
                         for content_item in message.get("content", []):
@@ -170,7 +144,6 @@ def run_single_query(
                     elif event.get("type") == "result":
                         return triggered
         finally:
-            # Clean up process on any exit path (return, exception, timeout)
             if process.poll() is None:
                 process.kill()
                 process.wait()
@@ -192,7 +165,6 @@ def run_eval(
     trigger_threshold: float = 0.5,
     model: str | None = None,
 ) -> dict:
-    """Run the full eval set and return results."""
     results = []
 
     with ProcessPoolExecutor(max_workers=num_workers) as executor:

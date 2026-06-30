@@ -1,23 +1,8 @@
-#!/usr/bin/env python3
-"""
-VCD Waveform Analysis Script
-Check if signal matches expected values at specific times.
-
-Usage:
-    python3 check_vcd.py <vcd_file> <signal_path> <time_value_pairs...>
-    
-Example:
-    python3 check_vcd.py counter.vcd "counter_tb.dut.count" 0:0 10:1 20:2 100:10
-"""
 
 import sys
 from vcdvcd import VCDVCD
 
 def check_vcd(vcd_file, signal_path, expected_values):
-    """
-    Check if signal matches expected values at specific times.
-    expected_values: list of (time, value) tuples
-    """
     vcd = VCDVCD(vcd_file)
     signal = vcd[signal_path]
     
@@ -31,16 +16,13 @@ def check_vcd(vcd_file, signal_path, expected_values):
     return True
 
 def get_transitions(vcd_file, signal_path):
-    """Get all transitions for a signal."""
     vcd = VCDVCD(vcd_file)
     signal = vcd[signal_path]
     return signal.tv  # List of (time, value) tuples
 
 def verify_counter(vcd_file):
-    """Verify counter increments correctly."""
     vcd = VCDVCD(vcd_file)
     
-    # Find the counter signal
     count_signal = None
     for path in vcd.signals:
         if "count" in path.lower():
@@ -51,7 +33,6 @@ def verify_counter(vcd_file):
         print("ERROR: Counter signal not found")
         return False
     
-    # Check monotonic increment
     prev_val = -1
     for time, val in count_signal.tv:
         val_int = int(val, 2) if val.startswith('b') else int(val)
@@ -71,12 +52,10 @@ if __name__ == "__main__":
     
     vcd_file = sys.argv[1]
     
-    # If only vcd file provided, run counter verification
     if len(sys.argv) == 2:
         success = verify_counter(vcd_file)
         sys.exit(0 if success else 1)
     
-    # Otherwise check specific signal with expected values
     signal_path = sys.argv[2]
     expected_values = []
     for pair in sys.argv[3:]:

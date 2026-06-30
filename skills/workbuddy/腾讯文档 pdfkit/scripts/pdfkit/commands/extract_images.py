@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""提取 PDF 中的内嵌图片。"""
 
 import os
 
@@ -51,13 +48,11 @@ def handler(params):
             width = img_info[2]
             height = img_info[3]
 
-            # 跳过太小的图片
             if width < min_size and height < min_size:
                 continue
 
             try:
                 pix = fitz.Pixmap(doc, xref)
-                # CMYK / CMYK+Alpha → RGB
                 if pix.n - pix.alpha > 3:
                     pix = fitz.Pixmap(fitz.csRGB, pix)
 

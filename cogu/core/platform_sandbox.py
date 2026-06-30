@@ -1,8 +1,3 @@
-"""Platform Sandbox — OS级沙箱
-
-基于源码: OpenAI Codex sandboxing/ (Seatbelt/Landlock/Windows)
-COGU 实现: 轻量级平台感知沙箱
-"""
 from __future__ import annotations
 
 import os
@@ -36,7 +31,6 @@ class SandboxConfig:
 
 
 class PlatformSandbox:
-    """平台感知沙箱 — 根据 OS 自动选择隔离策略"""
 
     def __init__(self, config: SandboxConfig | None = None):
         self.config = config or SandboxConfig()

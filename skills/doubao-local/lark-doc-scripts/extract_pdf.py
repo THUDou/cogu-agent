@@ -1,16 +1,4 @@
-# /// script
-# requires-python = ">=3.10"
-# dependencies = ["pdfplumber"]
-# ///
 
-"""
-从 PDF 简历中提取文本内容，支持多栏检测和表格提取。
-
-用法：
-    uv run scripts/extract_pdf.py resume.pdf
-    uv run scripts/extract_pdf.py resume.pdf --output extracted.txt
-    uv run scripts/extract_pdf.py resume.pdf --format structured
-"""
 
 import argparse
 import json
@@ -20,7 +8,6 @@ from pathlib import Path
 
 
 def _detect_columns(page) -> int:
-    """根据字符 x 坐标分布检测页面是否为多栏排版。"""
     chars = page.chars
     if not chars:
         return 1
@@ -45,7 +32,6 @@ def _detect_columns(page) -> int:
 
 
 def _extract_two_column(page) -> str:
-    """分别提取左右两栏的文本。"""
     mid = page.width / 2
     gap = page.width * 0.03
 
@@ -68,7 +54,6 @@ def _extract_two_column(page) -> str:
 
 
 def _guess_element_type(line: str) -> str:
-    """对提取的文本行做简单的结构类型推测。"""
     stripped = line.strip()
     if not stripped:
         return "empty"
@@ -97,7 +82,6 @@ def _guess_element_type(line: str) -> str:
 
 
 def extract_pdf_elements(pdf_path: Path) -> list[dict]:
-    """提取 PDF 为结构化元素列表。"""
     try:
         import pdfplumber
     except ImportError:
@@ -150,7 +134,6 @@ def extract_pdf_elements(pdf_path: Path) -> list[dict]:
 
 
 def elements_to_text(elements: list[dict]) -> str:
-    """将结构化元素转为 Markdown 风格可读文本。"""
     lines = []
     current_page = 0
 

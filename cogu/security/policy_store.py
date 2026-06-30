@@ -1,8 +1,3 @@
-"""Policy Store — 策略持久化
-
-基于源码: OpenAI Codex ExecPolicy + Claude Code Permission Rules
-COGU 实现: YAML策略文件 + 运行时覆盖
-"""
 from __future__ import annotations
 
 import json
@@ -15,7 +10,6 @@ from cogu.tools.exec_policy import ExecPolicy, PolicyRule, PolicyDecision
 
 
 class PolicyStore:
-    """策略持久化 — YAML/JSON 文件 + 运行时覆盖"""
 
     def __init__(self, storage_path: str | Path = ".cogu/policies"):
         self._path = Path(storage_path)

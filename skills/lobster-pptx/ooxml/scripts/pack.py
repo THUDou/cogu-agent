@@ -1,10 +1,3 @@
-#!/usr/bin/env python3
-"""
-Tool to pack a directory into a .docx, .pptx, or .xlsx file with XML formatting undone.
-
-Example usage:
-    python pack.py <input_directory> <office_file> [--force]
-"""
 
 import argparse
 import shutil
@@ -28,10 +21,8 @@ def main():
             args.input_directory, args.output_file, validate=not args.force
         )
 
-        # Show warning if validation was skipped
         if args.force:
             print("Warning: Skipped validation, file may be corrupt", file=sys.stderr)
-        # Exit with error if validation failed
         elif not success:
             print("Contents would produce a corrupt file.", file=sys.stderr)
             print("Please validate XML before repacking.", file=sys.stderr)
@@ -43,16 +34,6 @@ def main():
 
 
 def pack_document(input_dir, output_file, validate=False):
-    """Pack a directory into an Office file (.docx/.pptx/.xlsx).
-
-    Args:
-        input_dir: Path to unpacked Office document directory
-        output_file: Path to output Office file
-        validate: If True, validates with soffice (default: False)
-
-    Returns:
-        bool: True if successful, False if validation failed
-    """
     input_dir = Path(input_dir)
     output_file = Path(output_file)
 
@@ -61,24 +42,20 @@ def pack_document(input_dir, output_file, validate=False):
     if output_file.suffix.lower() not in {".docx", ".pptx", ".xlsx"}:
         raise ValueError(f"{output_file} must be a .docx, .pptx, or .xlsx file")
 
-    # Work in temporary directory to avoid modifying original
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_content_dir = Path(temp_dir) / "content"
         shutil.copytree(input_dir, temp_content_dir)
 
-        # Process XML files to remove pretty-printing whitespace
         for pattern in ["*.xml", "*.rels"]:
             for xml_file in temp_content_dir.rglob(pattern):
                 condense_xml(xml_file)
 
-        # Create final Office file as zip archive
         output_file.parent.mkdir(parents=True, exist_ok=True)
         with zipfile.ZipFile(output_file, "w", zipfile.ZIP_DEFLATED) as zf:
             for f in temp_content_dir.rglob("*"):
                 if f.is_file():
                     zf.write(f, f.relative_to(temp_content_dir))
 
-        # Validate if requested
         if validate:
             if not validate_document(output_file):
                 output_file.unlink()  # Delete the corrupt file
@@ -88,8 +65,6 @@ def pack_document(input_dir, output_file, validate=False):
 
 
 def validate_document(doc_path):
-    """Validate document by converting to HTML with soffice."""
-    # Determine the correct filter based on file extension
     match doc_path.suffix.lower():
         case ".docx":
             filter_name = "html:HTML"
@@ -131,17 +106,13 @@ def validate_document(doc_path):
 
 
 def condense_xml(xml_file):
-    """Strip unnecessary whitespace and remove comments."""
     with open(xml_file, "r", encoding="utf-8") as f:
         dom = defusedxml.minidom.parse(f)
 
-    # Process each element to remove whitespace and comments
     for element in dom.getElementsByTagName("*"):
-        # Skip w:t elements and their processing
         if element.tagName.endswith(":t"):
             continue
 
-        # Remove whitespace-only text nodes and comment nodes
         for child in list(element.childNodes):
             if (
                 child.nodeType == child.TEXT_NODE
@@ -150,7 +121,6 @@ def condense_xml(xml_file):
             ) or child.nodeType == child.COMMENT_NODE:
                 element.removeChild(child)
 
-    # Write back the condensed XML
     with open(xml_file, "wb") as f:
         f.write(dom.toxml(encoding="UTF-8"))
 

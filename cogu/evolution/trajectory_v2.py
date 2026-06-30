@@ -1,8 +1,3 @@
-"""Trajectory V2 — 多 Agent 轨迹 + 因果链接
-
-基于源码: OpenAI Codex rollout/ + EvoMaster trajectory
-COGU 实现: 多 Agent 轨迹记录 + 因果关系追踪
-"""
 from __future__ import annotations
 
 import time

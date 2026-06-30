@@ -1,4 +1,3 @@
-"""Shared helpers for TTS backends."""
 
 from __future__ import annotations
 

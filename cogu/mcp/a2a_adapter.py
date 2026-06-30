@@ -1,8 +1,3 @@
-"""A2A Protocol — Agent-to-Agent 通信协议适配器
-
-灵感来源: openJiuwen agent-protocol/A2A + copaw agents/acp
-COGU 实现: Python 原生 A2A 协议，支持 Agent Card 发现 + 任务通信 + SSE 流式
-"""
 from __future__ import annotations
 
 import asyncio
@@ -189,7 +184,6 @@ class A2AResponse:
 
 
 class A2AExecutor:
-    """A2A 任务执行器 — 子类实现具体逻辑"""
 
     async def execute(self, task: A2ATask) -> A2AResponse:
         raise NotImplementedError
@@ -204,7 +198,6 @@ class A2AExecutor:
 
 
 class A2AClient:
-    """A2A 客户端 — 调用远程 Agent"""
 
     def __init__(self, agent_url: str, card: A2AAgentCard | None = None):
         self.agent_url = agent_url
@@ -277,7 +270,6 @@ class A2AClient:
 
 
 class A2AServer:
-    """A2A 服务端 — 暴露本 Agent 为 A2A 兼容服务"""
 
     def __init__(self, card: A2AAgentCard, executor: A2AExecutor):
         self.card = card

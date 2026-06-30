@@ -1,20 +1,3 @@
-#!/usr/bin/env python3
-"""
-Canvas Design - Font Downloader (Multi-source with China CDN support)
-
-Downloads all required fonts on-demand with multi-source fallback:
-  1. Google Fonts CSS API via China mirror (fonts.googleapis.cn -> fonts.gstatic.cn)
-  2. Google Fonts CSS API via international (fonts.googleapis.com -> fonts.gstatic.com)
-  3. GitHub google/fonts repo direct download
-
-All 29 font families are covered. Variable fonts are used where available
-(one file covers all weights); static fonts where no variable version exists.
-
-Usage:
-  python download-fonts.py              # Download all fonts
-  python download-fonts.py --list       # List available fonts
-  python download-fonts.py Lora.ttf     # Download specific font(s)
-"""
 
 import os
 import sys
@@ -26,21 +9,10 @@ from pathlib import Path
 FONT_DIR = Path(__file__).parent
 GITHUB_BASE = "https://github.com/google/fonts/raw/main/ofl"
 
-# Chrome User-Agent triggers TTF response from Google Fonts CSS API
 CHROME_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
-# ============================================================
-# Google Fonts CSS API query parameters for each font family
-# Format: (css_family_spec, local_filename)
-#   css_family_spec: used in ?family= parameter
-#   For variable fonts: specify weight range e.g. "Lora:wght@100..900"
-#   For static fonts: specify exact weight e.g. "DM+Mono"
-# ============================================================
 
-# Fonts that can be fetched via Google Fonts CSS API (27 of 29 families)
 GFONTS_CSS = {
-    # local_filename: (css_family_query, description)
-    # --- Variable fonts (one file, all weights) ---
     "BigShouldersDisplay.ttf": ("Big+Shoulders+Display:wght@100..900", "display, wide"),
     "BricolageGrotesque.ttf": ("Bricolage+Grotesque:opsz,wght@12..96,200..800", "sans-serif"),
     "CrimsonPro.ttf": ("Crimson+Pro:wght@200..900", "serif, elegant"),
@@ -61,7 +33,6 @@ GFONTS_CSS = {
     "Tektur.ttf": ("Tektur:wdth,wght@75..100,400..900", "sans-serif, tech"),
     "WorkSans.ttf": ("Work+Sans:wght@100..900", "sans-serif, versatile"),
     "WorkSans-Italic.ttf": ("Work+Sans:ital,wght@1,100..900", "sans-serif italic"),
-    # --- Static fonts (single weight, no variable) ---
     "ArsenalSC-Regular.ttf": ("Arsenal+SC", "serif, multilingual"),
     "Boldonse-Regular.ttf": ("Boldonse", "display, bold"),
     "DMMono-Regular.ttf": ("DM+Mono", "monospace"),
@@ -72,7 +43,6 @@ GFONTS_CSS = {
     "PoiretOne-Regular.ttf": ("Poiret+One", "display, Art Deco"),
     "Silkscreen-Regular.ttf": ("Silkscreen", "pixel, retro"),
     "YoungSerif-Regular.ttf": ("Young+Serif", "serif, retro"),
-    # --- Static fonts from IBM (multiple variants, not on CSS with variable) ---
     "IBMPlexMono-Regular.ttf": ("IBM+Plex+Mono", "monospace, IBM"),
     "IBMPlexMono-Bold.ttf": ("IBM+Plex+Mono:wght@700", "monospace bold"),
     "IBMPlexSerif-Regular.ttf": ("IBM+Plex+Serif", "serif, IBM"),
@@ -83,7 +53,6 @@ GFONTS_CSS = {
     "InstrumentSerif-Italic.ttf": ("Instrument+Serif:ital@1", "serif italic"),
 }
 
-# GitHub direct download URLs (fallback)
 GITHUB_URLS = {
     "ArsenalSC-Regular.ttf": f"{GITHUB_BASE}/arsenalsc/ArsenalSC-Regular.ttf",
     "BigShouldersDisplay.ttf": f"{GITHUB_BASE}/bigshouldersdisplay/BigShouldersDisplay%5Bwght%5D.ttf",
@@ -127,7 +96,6 @@ GITHUB_URLS = {
 
 
 def _fetch(url, ua=CHROME_UA, timeout=20):
-    """Fetch URL content. Returns bytes or None."""
     try:
         req = urllib.request.Request(url, headers={"User-Agent": ua})
         with urllib.request.urlopen(req, timeout=timeout) as r:
@@ -137,13 +105,6 @@ def _fetch(url, ua=CHROME_UA, timeout=20):
 
 
 def download_via_css_api(family_query, api_host, gstatic_host):
-    """
-    Download font via Google Fonts CSS API.
-    1. Request CSS from api_host
-    2. Parse out .ttf URL from gstatic_host
-    3. Download the TTF file
-    Returns bytes or None.
-    """
     css_url = f"https://{api_host}/css2?family={family_query}"
     css_data = _fetch(css_url)
     if not css_data:
@@ -151,17 +112,14 @@ def download_via_css_api(family_query, api_host, gstatic_host):
 
     css_text = css_data.decode("utf-8", errors="replace")
 
-    # Extract .ttf URLs from CSS @font-face rules
     ttf_urls = re.findall(r'url\((https://[^)]+\.ttf)\)', css_text)
     if not ttf_urls:
-        # Some responses use gstatic URL without .ttf extension
         all_urls = re.findall(r'url\((https://[^)]+)\)', css_text)
         ttf_urls = [u for u in all_urls if gstatic_host in u]
 
     if not ttf_urls:
         return None
 
-    # Download the first TTF URL
     font_data = _fetch(ttf_urls[0])
     if font_data and len(font_data) > 1000:
         return font_data
@@ -169,10 +127,6 @@ def download_via_css_api(family_query, api_host, gstatic_host):
 
 
 def download_font(filename):
-    """
-    Download a single font with multi-source fallback.
-    Returns: "ok", "cached", or "failed"
-    """
     target = FONT_DIR / filename
     if target.exists() and target.stat().st_size > 1000:
         return "cached"
@@ -180,21 +134,18 @@ def download_font(filename):
     css_query = GFONTS_CSS.get(filename)
     github_url = GITHUB_URLS.get(filename)
 
-    # Source 1: Google Fonts CSS API via China mirror
     if css_query:
         data = download_via_css_api(css_query[0], "fonts.googleapis.cn", "fonts.gstatic.cn")
         if data:
             target.write_bytes(data)
             return "ok"
 
-    # Source 2: Google Fonts CSS API via international
     if css_query:
         data = download_via_css_api(css_query[0], "fonts.googleapis.com", "fonts.gstatic.com")
         if data:
             target.write_bytes(data)
             return "ok"
 
-    # Source 3: GitHub direct download
     if github_url:
         data = _fetch(github_url, timeout=30)
         if data and len(data) > 1000:

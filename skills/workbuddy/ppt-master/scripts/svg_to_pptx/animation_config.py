@@ -1,4 +1,3 @@
-"""Animation sidecar loading, SVG target scanning, and validation."""
 
 from __future__ import annotations
 
@@ -31,7 +30,6 @@ _CHROME_ID_TOKENS = frozenset({
 
 @dataclass(frozen=True)
 class GroupTarget:
-    """Top-level SVG group available for PowerPoint animation anchoring."""
 
     slide: str
     group_id: str
@@ -44,7 +42,6 @@ def _tag_name(elem: ET.Element) -> str:
 
 
 def is_chrome_id(elem_id: str | None) -> bool:
-    """Return whether a group id represents static slide chrome."""
     if not elem_id:
         return False
     lower = elem_id.lower()
@@ -56,7 +53,6 @@ def is_chrome_id(elem_id: str | None) -> bool:
 
 
 def scan_svg_targets(svg_path: Path) -> tuple[list[GroupTarget], list[str]]:
-    """Scan one SVG for top-level visible group ids and anonymous groups."""
     root = ET.parse(str(svg_path)).getroot()
     targets: list[GroupTarget] = []
     anonymous_groups: list[str] = []
@@ -86,7 +82,6 @@ def scan_svg_targets(svg_path: Path) -> tuple[list[GroupTarget], list[str]]:
 
 
 def scan_project_targets(project_path: Path) -> tuple[dict[str, list[GroupTarget]], list[str]]:
-    """Scan ``svg_output/*.svg`` for animation targets."""
     svg_dir = project_path / 'svg_output'
     targets_by_slide: dict[str, list[GroupTarget]] = {}
     anonymous_groups: list[str] = []
@@ -106,7 +101,6 @@ def default_config_path(project_path: Path) -> Path:
 
 
 def load_animation_config(project_path: Path, config_path: str | None = None) -> dict[str, Any] | None:
-    """Load optional animation config; return ``None`` when absent."""
     if config_path:
         path = Path(config_path)
     else:
@@ -138,7 +132,6 @@ def validate_animation_config(
     config: dict[str, Any] | None = None,
     config_path: str | None = None,
 ) -> list[str]:
-    """Validate sidecar references against current ``svg_output``."""
     if config is None:
         config = load_animation_config(project_path, config_path)
     if not config:
@@ -202,7 +195,6 @@ def _validate_scope_effects(scope: dict[str, Any], label: str, warnings: list[st
 
 
 def build_scaffold(project_path: Path) -> dict[str, Any]:
-    """Build an editable animation override scaffold from current SVGs."""
     targets_by_slide, _anonymous = scan_project_targets(project_path)
     slides: dict[str, Any] = {}
     for slide_name, targets in targets_by_slide.items():
@@ -222,7 +214,6 @@ def write_scaffold(
     *,
     force: bool = False,
 ) -> Path:
-    """Write ``animations.json`` scaffold and return its path."""
     if output_path:
         path = Path(output_path)
     else:

@@ -1,25 +1,3 @@
-#!/usr/bin/env python3
-"""
-Image Size Analysis Tool
-========================
-Reports objective parameters (width, height, aspect ratio, category) for all
-images in a folder. Intentionally does NOT prescribe a layout — the Strategist
-decides narrative intent (hero / atmosphere / side-by-side / accent) per
-references/strategist.md §h; this tool only supplies the numbers.
-
-When a canvas is specified, also reports the reference image/text area sizes
-that would apply *if* an image is placed side-by-side with body text. Those
-numbers are conditional on the Strategist picking the side-by-side intent.
-
-Usage:
-    python scripts/analyze_images.py <images_folder_path>
-    python scripts/analyze_images.py projects/xxx/images
-    python scripts/analyze_images.py projects/xxx/images --canvas ppt43
-
-Output:
-    - Analysis report displayed in console
-    - Generates image_analysis.csv in the parent directory of the images folder
-"""
 
 import argparse
 import json
@@ -54,10 +32,8 @@ IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tiff", "
 REPORT_WIDTH = 100
 CATEGORY_WIDTH = 50
 
-# Title area height and gap between image/text areas (px)
 TITLE_HEIGHT = 60
 LAYOUT_GAP = 20
-# Minimum text area dimensions (px)
 MIN_TEXT_HEIGHT = 150
 MIN_TEXT_WIDTH = 280
 
@@ -65,7 +41,6 @@ ImageAnalysis = dict[str, object]
 
 
 def _load_image_manifest(images_dir: str) -> dict[str, dict]:
-    """Load optional DOCX image metadata keyed by generated filename."""
     manifest_path = Path(images_dir) / "image_manifest.json"
     if not manifest_path.is_file():
         return {}
@@ -88,7 +63,6 @@ def _load_image_manifest(images_dir: str) -> dict[str, dict]:
 
 
 def _manifest_ratio(meta: dict | None) -> float | None:
-    """Return a positive display ratio from manifest metadata."""
     if not meta:
         return None
     value = meta.get("display_ratio")
@@ -99,7 +73,6 @@ def _manifest_ratio(meta: dict | None) -> float | None:
 
 
 def _manifest_display_size(meta: dict, ratio: float) -> tuple[int, int]:
-    """Return a display-sized stand-in for vector media dimensions."""
     width_in = meta.get("display_width_in")
     height_in = meta.get("display_height_in")
     if isinstance(width_in, (int, float)) and isinstance(height_in, (int, float)):
@@ -120,7 +93,6 @@ def _manifest_display_size(meta: dict, ratio: float) -> tuple[int, int]:
 
 
 def _manifest_usage_count(meta: dict | None) -> int:
-    """Return how many source occurrences point to one asset."""
     if not meta:
         return 1
     usage_count = meta.get("usage_count")
@@ -133,7 +105,6 @@ def _manifest_usage_count(meta: dict | None) -> int:
 
 
 def _manifest_ratio_variants(meta: dict | None) -> str:
-    """Return a compact list of display ratio variants from manifest metadata."""
     if not meta:
         return ""
     variants = meta.get("display_ratio_variants")
@@ -148,7 +119,6 @@ def _manifest_ratio_variants(meta: dict | None) -> str:
 
 
 def _apply_manifest_metadata(result: ImageAnalysis, meta: dict | None) -> None:
-    """Copy optional manifest fields into an image analysis row."""
     result["usage_count"] = _manifest_usage_count(meta)
     result["display_ratio_variants"] = _manifest_ratio_variants(meta)
     if not meta:
@@ -170,7 +140,6 @@ def _result_from_manifest(
     filepath: str,
     meta: dict,
 ) -> ImageAnalysis | None:
-    """Build an analysis row for vector media Pillow cannot decode."""
     ratio = _manifest_ratio(meta)
     if ratio is None:
         return None
@@ -190,12 +159,6 @@ def _result_from_manifest(
 
 
 def classify_ratio(aspect_ratio: float) -> str:
-    """Classify image aspect ratio into layout category.
-
-    Thresholds aligned with image-layout-spec.md:
-      >2.0 ultra-wide, 1.5-2.0 wide, 1.2-1.5 standard landscape,
-      0.8-1.2 square, <0.8 portrait.
-    """
     if aspect_ratio > 2.0:
         return "Ultra-wide"
     elif aspect_ratio > 1.5:
@@ -214,11 +177,6 @@ def compute_layout_dimensions(
     content_h: int,
     gap: int = LAYOUT_GAP,
 ) -> dict:
-    """Compute image and text area dimensions following image-layout-spec.md.
-
-    Returns dict with layout_type, image_w, image_h, text_w, text_h.
-    """
-    # Effective content height (below title)
     H = content_h
     W = content_w
 
@@ -262,43 +220,28 @@ def compute_layout_dimensions(
             'text_h': H,
         }
 
-    # Decision tree per image-layout-spec.md
     if ratio > 1.5:
-        # Ultra-wide or wide → try top-bottom first
         result = _try_top_bottom()
         if result:
             return result
-        # Fallback to left-right (wide-constrained)
         return _try_left_right_width_constrained()
     else:
-        # Standard landscape, square, portrait → try left-right (height-first)
         result = _try_left_right_height_first()
         if result:
             return result
-        # Fallback to left-right (width-constrained)
         return _try_left_right_width_constrained()
 
 
 def analyze_images(images_dir: str) -> list[ImageAnalysis]:
-    """Analyze all image files in a directory.
-
-    Args:
-        images_dir: Directory that contains image files.
-
-    Returns:
-        A list of image analysis records sorted by filename.
-    """
 
     results: list[ImageAnalysis] = []
     manifest = _load_image_manifest(images_dir)
     seen_filenames: set[str] = set()
 
-    # Iterate through all files in the directory
     for filename in sorted(os.listdir(images_dir)):
         filepath = os.path.join(images_dir, filename)
         meta = manifest.get(filename)
 
-        # Check if it is an image file
         if os.path.isfile(filepath) and Path(filename).suffix.lower() in IMAGE_EXTENSIONS:
             try:
                 with Image.open(filepath) as img:
@@ -345,7 +288,6 @@ def enrich_with_layout(
     results: list[ImageAnalysis],
     canvas_key: str,
 ) -> None:
-    """Add computed layout dimensions to each result in-place."""
     fmt = CANVAS_FORMATS.get(canvas_key, {})
     margins = LAYOUT_MARGINS.get(canvas_key)
 
@@ -362,7 +304,6 @@ def enrich_with_layout(
 
 
 def print_results(results: list[ImageAnalysis]) -> None:
-    """Print the analysis report to stdout."""
 
     print("\n" + "=" * REPORT_WIDTH)
     print("Image Size Analysis Report")
@@ -392,7 +333,6 @@ def print_results(results: list[ImageAnalysis]) -> None:
     print("-" * REPORT_WIDTH)
     print(f"Total: {len(results)} images\n")
 
-    # Group statistics by aspect ratio (aligned with image-layout-spec.md thresholds)
     print("\nGroup by Aspect Ratio:")
     print("-" * CATEGORY_WIDTH)
 
@@ -440,7 +380,6 @@ def print_results(results: list[ImageAnalysis]) -> None:
 
 
 def generate_markdown(results: list[ImageAnalysis], canvas_key: str) -> None:
-    """Print a Markdown-ready image inventory section."""
     print("\n" + "=" * REPORT_WIDTH)
     print("Markdown Snippet for Strategist (Copy & Paste)")
     print("=" * REPORT_WIDTH)
@@ -483,12 +422,8 @@ def generate_markdown(results: list[ImageAnalysis], canvas_key: str) -> None:
 
 
 def save_csv(results: list[ImageAnalysis], csv_path: str) -> None:
-    """Save analysis results to a CSV file."""
     has_layout = 'layout_type' in results[0] if results else False
 
-    # NOTE: ImageArea_SxS / TextArea_SxS apply only if Strategist picks the
-    # side-by-side intent for this image (see strategist.md §h). The tool
-    # does not prescribe a layout.
     with open(csv_path, 'w', encoding='utf-8') as f:
         if has_layout:
             f.write("No,Filename,Width,Height,AspectRatio,PixelAspectRatio,RatioSource,UsageCount,DisplayRatioVariants,AssetKind,SvgRenderable,PptxNativeSupported,SizeKB,Category,ImageArea_SxS,TextArea_SxS\n")
@@ -502,7 +437,6 @@ def save_csv(results: list[ImageAnalysis], csv_path: str) -> None:
 
 
 def main() -> None:
-    """Run the CLI entry point."""
     parser = argparse.ArgumentParser(
         description="Analyze image sizes and compute PPT layout dimensions"
     )
@@ -544,7 +478,6 @@ def main() -> None:
         print_results(results)
         generate_markdown(results, canvas_key)
 
-        # Save to CSV file (saved in the parent directory of the images folder)
         parent_dir = os.path.dirname(images_dir)
         csv_path = os.path.join(parent_dir, "image_analysis.csv")
         save_csv(results, csv_path)

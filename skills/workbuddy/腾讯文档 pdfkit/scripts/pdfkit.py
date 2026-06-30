@@ -1,17 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-pdfkit — 纯 Python PDF 工具箱统一入口。
-
-用法：
-    python3 pdfkit.py help                     # 列出所有命令
-    python3 pdfkit.py <command> help            # 查看命令详细帮助
-    python3 pdfkit.py <command> --arg value     # 执行命令
-
-示例：
-    python3 pdfkit.py compress --input doc.pdf --output out.pdf --quality ebook
-    python3 pdfkit.py ir_export --input doc.pdf --output structure.json
-"""
 
 import importlib
 import importlib.util
@@ -19,21 +5,15 @@ import os
 import pkgutil
 import sys
 
-# 确保 pdfkit.py 所在目录在 Python 路径中
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if _SCRIPT_DIR not in sys.path:
     sys.path.insert(0, _SCRIPT_DIR)
 
-# 激活 venv（如果存在，与 pdfkit.py 同目录下的 venv/）
-# Windows: venv/Lib/site-packages
-# macOS/Linux: venv/lib/pythonX.Y/site-packages
 _VENV_DIR = os.path.join(_SCRIPT_DIR, "venv")
 if os.path.isdir(_VENV_DIR):
-    # Windows 结构: venv/Lib/site-packages
     _sp_win = os.path.join(_VENV_DIR, "Lib", "site-packages")
     if os.path.isdir(_sp_win) and _sp_win not in sys.path:
         sys.path.insert(0, _sp_win)
-    # macOS/Linux 结构: venv/lib/pythonX.Y/site-packages
     _venv_lib = os.path.join(_VENV_DIR, "lib")
     if os.path.isdir(_venv_lib):
         for _d in os.listdir(_venv_lib):
@@ -43,20 +23,10 @@ if os.path.isdir(_VENV_DIR):
 
 
 def _get_extension_dir():
-    """返回扩展脚本目录路径：与 skill basedir 同级的 pdfkit-extension/scripts/
-    
-    例如 skill basedir 为 /path/to/pdfkit-py/，则扩展目录为 /path/to/pdfkit-extension/scripts/
-    _SCRIPT_DIR = pdfkit-py/scripts/  →  ../.. = pdfkit-py 的父目录
-    """
     return os.path.normpath(os.path.join(_SCRIPT_DIR, "..", "..", "pdfkit-extension", "scripts"))
 
 
 def _discover_extensions():
-    """扫描 ../pdfkit-extension/scripts/ 目录，收集扩展命令。
-
-    扩展脚本与内置命令遵循相同的接口约定（COMMAND, DESCRIPTION, PARAMS, handler）。
-    扩展命令会带上 'extension' 标记以便区分来源。
-    """
     ext_dir = _get_extension_dir()
     extensions = {}
 
@@ -94,7 +64,6 @@ def _discover_extensions():
 
 
 def _discover_commands():
-    """扫描 pdfkit/commands/ 目录，收集所有命令模块。"""
     commands_dir = os.path.join(_SCRIPT_DIR, "pdfkit", "commands")
     commands = {}
 
@@ -118,7 +87,6 @@ def _discover_commands():
 
 
 def _print_help(commands, extensions=None):
-    """打印所有可用命令列表。"""
     category_labels = {
         "read": "Reading & Analysis",
         "edit": "Editing & Modification",
@@ -150,7 +118,6 @@ def _print_help(commands, extensions=None):
             print(f"    {name:<28} {desc}")
         print()
 
-    # 显示扩展命令
     if extensions:
         print(f"  [Extensions ({ext_count})]")
         for name, info in sorted(extensions.items()):
@@ -169,18 +136,15 @@ def _print_help(commands, extensions=None):
 
 
 def _print_command_help(mod, cmd_name):
-    """打印单个命令的详细帮助信息。"""
     from pdfkit.base import _build_parser
     params = getattr(mod, "PARAMS", [])
     desc = getattr(mod, "DESCRIPTION", "")
     parser = _build_parser(params, description=desc)
-    # 修改 prog 显示
     parser.prog = f"python3 pdfkit.py {cmd_name}"
     parser.print_help()
 
 
 def _print_extensions_help(extensions):
-    """打印扩展命令的帮助信息。"""
     ext_dir = _get_extension_dir()
     print(f"pdfkit extensions — User-defined PDF scripts\n")
     print(f"  Extension directory: {ext_dir}\n")
@@ -221,17 +185,14 @@ def main():
 
     cmd_name = sys.argv[1]
 
-    # extension 子命令：列出所有扩展
     if cmd_name == "extension":
         if len(sys.argv) >= 3 and sys.argv[2] not in ("help", "--help", "-h"):
-            # pdfkit.py extension <ext_cmd> ... → 转发到扩展命令
             cmd_name = sys.argv[2]
             sys.argv = [sys.argv[0]] + sys.argv[2:]
         else:
             _print_extensions_help(extensions)
             sys.exit(0)
 
-    # 查找命令模块（先内置，再扩展）
     mod = None
     is_extension = False
     try:
@@ -241,7 +202,6 @@ def main():
         if cmd_name in commands:
             mod = commands[cmd_name]["module"]
 
-    # 内置未找到，查找扩展
     if mod is None and cmd_name in extensions:
         mod = extensions[cmd_name]["module"]
         is_extension = True
@@ -256,7 +216,6 @@ def main():
 
     actual_cmd = getattr(mod, "COMMAND", cmd_name)
 
-    # pdfkit.py <command> help
     if len(sys.argv) >= 3 and sys.argv[2] in ("help", "--help", "-h"):
         _print_command_help(mod, actual_cmd)
         sys.exit(0)
@@ -269,7 +228,6 @@ def main():
         print(f"Error: Command '{cmd_name}' has no handler function.", file=sys.stderr)
         sys.exit(1)
 
-    # 剥掉 pdfkit.py 和 command name，让 argparse 看到正确的参数
     sys.argv = [f"pdfkit.py {actual_cmd}"] + sys.argv[2:]
 
     from pdfkit.base import main as base_main

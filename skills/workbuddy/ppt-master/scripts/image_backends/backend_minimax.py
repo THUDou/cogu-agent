@@ -1,12 +1,3 @@
-#!/usr/bin/env python3
-"""
-MiniMax image generation backend.
-
-Configuration keys:
-  MINIMAX_API_KEY   (required)
-  MINIMAX_BASE_URL  (optional)
-  MINIMAX_MODEL     (optional)
-"""
 
 import sys
 
@@ -37,7 +28,6 @@ from image_backends.backend_common import (
 DEFAULT_ENDPOINT = "https://api.minimaxi.com/v1/image_generation"
 DEFAULT_MODEL = "image-01"
 
-# International fallback: set MINIMAX_BASE_URL=https://api.minimax.io if needed
 
 ASPECT_RATIO_SIZE_MAP = {
     "512px": {
@@ -84,13 +74,6 @@ ASPECT_RATIO_SIZE_MAP = {
 
 
 def _resolve_url(base_url: str) -> str:
-    """Resolve the MiniMax image generation endpoint.
-
-    Accepts three forms of MINIMAX_BASE_URL:
-      - Full endpoint:  https://api.minimax.io/v1/image_generation  → used as-is
-      - Versioned base: https://api.minimax.io/v1                   → appends /image_generation
-      - Root base:      https://api.minimax.io                      → appends /v1/image_generation
-    """
     base = base_url.rstrip("/")
     if base.endswith("/image_generation"):
         return base
@@ -100,7 +83,6 @@ def _resolve_url(base_url: str) -> str:
 
 
 def _resolve_dimensions(aspect_ratio: str, image_size: str) -> tuple[int, int]:
-    """Resolve width and height from the unified aspect_ratio/image_size pair."""
     normalized = normalize_image_size(image_size)
     dimensions = (ASPECT_RATIO_SIZE_MAP.get(normalized) or {}).get(aspect_ratio)
     if not dimensions:
@@ -113,7 +95,6 @@ def _resolve_dimensions(aspect_ratio: str, image_size: str) -> tuple[int, int]:
 
 
 def _extract_image_bytes(payload: dict) -> bytes | None:
-    """Extract image bytes from a MiniMax response payload."""
     data = payload.get("data") or {}
     image_base64 = data.get("image_base64") or []
     if image_base64:
@@ -125,7 +106,6 @@ def _generate_image(api_key: str, prompt: str,
                     aspect_ratio: str = "1:1", image_size: str = "1K",
                     output_dir: str = None, filename: str = None,
                     model: str = DEFAULT_MODEL, base_url: str = DEFAULT_ENDPOINT) -> str:
-    """Generate one image with the MiniMax backend."""
     width, height = _resolve_dimensions(aspect_ratio, image_size)
     url = _resolve_url(base_url)
 
@@ -175,7 +155,6 @@ def generate(prompt: str,
              aspect_ratio: str = "1:1", image_size: str = "1K",
              output_dir: str = None, filename: str = None,
              model: str = None, max_retries: int = MAX_RETRIES) -> str:
-    """Generate an image with retries using the MiniMax backend."""
     api_key = require_api_key(
         "MINIMAX_API_KEY",
         message="No API key found. Set MINIMAX_API_KEY in the current environment or a .env file.",

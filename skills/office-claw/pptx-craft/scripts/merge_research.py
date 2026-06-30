@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-"""Merge per-page research files into one research.md report."""
 
 from __future__ import annotations
 

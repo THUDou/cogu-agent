@@ -1,9 +1,3 @@
-/**
- * @file kerx
- * @author mengke01(kekee000@gmail.com)
- *
- * @reference: https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6kerx.html
- */
 
 import table from './table';
 

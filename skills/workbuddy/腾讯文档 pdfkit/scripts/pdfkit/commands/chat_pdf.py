@@ -1,12 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""PDF 问答（Chat with PDF）脚本。
-
-提取 PDF 文本内容，按页分块，返回结构化的上下文信息，
-供 AI 进行自然语言问答。
-
-依赖：PyMuPDF (fitz)
-"""
 
 import os
 
@@ -22,16 +13,6 @@ PARAMS = [
 
 
 def handler(params):
-    """从 PDF 中提取与问题相关的上下文。
-
-    Args:
-        params: {
-            "input": PDF 文件路径,
-            "question": 用户问题,
-            "pages": 指定页码列表（从 0 开始），None 表示全部页,
-            "max_context_chars": 最大上下文字符数
-        }
-    """
     import fitz
 
     input_path = params["input"]
@@ -45,7 +26,6 @@ def handler(params):
     if pages is None:
         pages = list(range(total_pages))
 
-    # 提取每页文本
     page_texts = []
     for p_idx in pages:
         if p_idx < 0 or p_idx >= total_pages:
@@ -59,7 +39,6 @@ def handler(params):
                 "char_count": len(text)
             })
 
-    # 如果有问题关键词，按相关性排序
     if question:
         keywords = question.lower().split()
         for pt in page_texts:
@@ -69,15 +48,12 @@ def handler(params):
                 score += text_lower.count(kw)
             pt["relevance_score"] = score
 
-        # 按相关性排序
         page_texts.sort(key=lambda x: x.get("relevance_score", 0), reverse=True)
 
-    # 截取上下文
     context_parts = []
     total_chars = 0
     for pt in page_texts:
         if total_chars + pt["char_count"] > max_context_chars:
-            # 截取部分文本
             remaining = max_context_chars - total_chars
             if remaining > 100:
                 context_parts.append({
@@ -93,7 +69,6 @@ def handler(params):
         })
         total_chars += pt["char_count"]
 
-    # 按页码重新排序
     context_parts.sort(key=lambda x: x["page"])
 
     doc.close()

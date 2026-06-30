@@ -1,8 +1,3 @@
-/**
- * @file Unicode Platform-specific Encoding Identifiers
- * @author mengke01(kekee000@gmail.com)
- */
-// mac encoding id
 export const mac = {
     'Default': 0, // default use
     'Version1.1': 1,
@@ -13,7 +8,6 @@ export const mac = {
     'FullUnicodecoverage': 6
 };
 
-// windows encoding id
 export const win = {
     Symbol: 0,
     UCS2: 1, // default use
@@ -23,4 +17,3 @@ export const win = {
     Johab: 5,
     UCS4: 6
 };
-

@@ -1,13 +1,3 @@
-#!/usr/bin/env python3
-"""
-对单元格范围一次性应用样式（字体/底色/边框/对齐/数值格式/合并/条件格式）。
-
-用法示例：
-  python scripts/format_range.py file.xlsx Sheet1 A1 --end C1 --bold --bg-color FFFF00
-  python scripts/format_range.py file.xlsx Sheet1 B2:D10 --number-format "0.0%" --align center --wrap
-  python scripts/format_range.py file.xlsx Sheet1 A1:E20 --cond-format \
-      '{"type":"color_scale","params":{"start_type":"min","start_color":"FFAA0000","end_type":"max","end_color":"FF00AA00"}}'
-"""
 import argparse
 import json
 
@@ -54,27 +44,21 @@ def main():
     p.add_argument("sheet")
     p.add_argument("start", help="起始单元格，可写成 'A1' 或 'A1:C5'")
     p.add_argument("--end", help="结束单元格（start 用 'A1:C5' 时无需）")
-    # 字体
     p.add_argument("--bold", action="store_true")
     p.add_argument("--italic", action="store_true")
     p.add_argument("--underline", action="store_true")
     p.add_argument("--font-size", type=int)
     p.add_argument("--font-color")
     p.add_argument("--font-name")
-    # 填充与边框
     p.add_argument("--bg-color")
     p.add_argument("--border-style", choices=["thin", "medium", "thick", "dashed", "dotted", "double"])
     p.add_argument("--border-color")
-    # 数值与对齐
     p.add_argument("--number-format")
     p.add_argument("--align", choices=["left", "center", "right", "justify"])
     p.add_argument("--vertical", choices=["top", "center", "bottom"], default="center")
     p.add_argument("--wrap", action="store_true")
-    # 合并
     p.add_argument("--merge", action="store_true")
-    # 保护
     p.add_argument("--protection", help='JSON 串，如 \'{"locked":true,"hidden":false}\'')
-    # 条件格式
     p.add_argument("--cond-format", help="条件格式 JSON 串")
     args = p.parse_args()
 

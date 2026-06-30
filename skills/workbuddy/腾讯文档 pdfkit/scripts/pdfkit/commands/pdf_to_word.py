@@ -1,14 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""PDF 转 Word（图片增强版）。
-
-转换流程：
-1. 预提取：用 PyMuPDF 提取 PDF 中所有图片及位置信息
-2. 转换：调用 pdf2docx（优先）或 LibreOffice 执行转换
-3. 补全：检测 Word 中缺失的图片，按页码位置补插回去
-
-依赖：PyMuPDF（核心）、python-docx（图片补全）、pdf2docx（可选）、LibreOffice（可选）
-"""
 
 import os
 import tempfile
@@ -30,16 +19,8 @@ PARAMS = [
 ]
 
 
-# ---------------------------------------------------------------------------
-# 图片预提取：从 PDF 中提取所有图片及位置信息
-# ---------------------------------------------------------------------------
 
 def _extract_pdf_images(input_path, page_range=None, min_size=50):
-    """用 PyMuPDF 提取 PDF 中的图片及其位置信息。
-
-    Returns:
-        list[dict]: 每个元素包含 page, xref, bbox, width, height, image_bytes, ext
-    """
     import fitz
 
     doc = fitz.open(input_path)
@@ -59,7 +40,6 @@ def _extract_pdf_images(input_path, page_range=None, min_size=50):
         page_width = page.rect.width
         page_height = page.rect.height
 
-        # 获取图片及其在页面上的位置
         img_list = page.get_images(full=True)
 
         for img_info in img_list:
@@ -70,11 +50,9 @@ def _extract_pdf_images(input_path, page_range=None, min_size=50):
             img_width = img_info[2]
             img_height = img_info[3]
 
-            # 跳过太小的图片（图标、装饰等）
             if img_width < min_size and img_height < min_size:
                 continue
 
-            # 获取图片在页面上的位置（bbox）
             bbox = None
             try:
                 img_rects = page.get_image_rects(xref)
@@ -90,7 +68,6 @@ def _extract_pdf_images(input_path, page_range=None, min_size=50):
             except Exception:
                 pass
 
-            # 提取图片数据
             try:
                 pix = fitz.Pixmap(doc, xref)
                 if pix.n - pix.alpha > 3:  # CMYK / CMYK+Alpha → RGB
@@ -119,12 +96,8 @@ def _extract_pdf_images(input_path, page_range=None, min_size=50):
     return images
 
 
-# ---------------------------------------------------------------------------
-# 图片补全：检测 Word 中缺失的图片并补插
-# ---------------------------------------------------------------------------
 
 def _count_docx_images(docx_path):
-    """统计 Word 文档中的图片数量。"""
     try:
         from docx import Document
         doc = Document(docx_path)
@@ -138,24 +111,12 @@ def _count_docx_images(docx_path):
 
 
 def _insert_missing_images(docx_path, pdf_images, output_path):
-    """将缺失的图片按页码顺序插入 Word 文档。
-
-    策略：
-    - 统计 Word 中已有图片数量
-    - 如果 PDF 图片数 > Word 图片数，说明有图片丢失
-    - 按页码分组，在对应页的段落位置附近插入缺失图片
-    - 使用图片的相对位置（rel_y）来确定插入点
-
-    Returns:
-        dict: {inserted: int, total_pdf: int, total_docx: int}
-    """
     from docx import Document
     from docx.shared import Inches, Pt
     import io
 
     doc = Document(docx_path)
 
-    # 统计 Word 中已有的图片 xref（通过图片尺寸做粗略匹配）
     existing_images = set()
     for rel in doc.part.rels.values():
         if "image" in rel.reltype:
@@ -167,12 +128,9 @@ def _insert_missing_images(docx_path, pdf_images, output_path):
 
     docx_image_count = len(existing_images)
 
-    # 判断哪些 PDF 图片在 Word 中缺失
     missing_images = []
     for img in pdf_images:
         img_size = len(img["image_bytes"])
-        # 粗略匹配：如果 Word 中没有相近大小的图片，认为缺失
-        # 由于格式转换，图片大小可能不完全一致，使用 ±20% 容差
         found = False
         for existing_size in existing_images:
             ratio = img_size / existing_size if existing_size > 0 else 0
@@ -190,27 +148,23 @@ def _insert_missing_images(docx_path, pdf_images, output_path):
             "message": "Word 中图片完整，无需补全",
         }
 
-    # 按页码分组缺失图片
     from collections import defaultdict
     page_images = defaultdict(list)
     for img in missing_images:
         page_images[img["page"]].append(img)
 
-    # 估算每页在 Word 中对应的段落范围
     total_paragraphs = len(doc.paragraphs)
     total_pdf_pages = max(img["page"] for img in pdf_images) + 1 if pdf_images else 1
     paragraphs_per_page = max(1, total_paragraphs // total_pdf_pages)
 
     inserted_count = 0
 
-    # 按页码从后往前插入（避免索引偏移）
     for page_idx in sorted(page_images.keys(), reverse=True):
         imgs = sorted(page_images[page_idx],
                        key=lambda x: x["bbox"]["rel_y"] if x.get("bbox") else 0.5,
                        reverse=True)
 
         for img in imgs:
-            # 计算插入位置：基于页码和图片在页面中的相对位置
             rel_y = img["bbox"]["rel_y"] if img.get("bbox") else 0.5
             base_para_idx = int(page_idx * paragraphs_per_page)
             insert_idx = min(
@@ -218,21 +172,16 @@ def _insert_missing_images(docx_path, pdf_images, output_path):
                 total_paragraphs
             )
 
-            # 计算图片在 Word 中的显示宽度（英寸）
-            # Word 页面宽度约 6.5 英寸（A4 减去边距）
             if img.get("bbox") and img.get("page_width"):
                 img_width_ratio = (img["bbox"]["x1"] - img["bbox"]["x0"]) / img["page_width"]
                 display_width = min(6.0, max(1.0, img_width_ratio * 6.5))
             else:
-                # 默认按图片原始宽度，最大不超过 6 英寸
                 display_width = min(6.0, img["width"] / 96.0)  # 96 DPI
                 display_width = max(1.0, display_width)
 
             try:
-                # 在目标位置插入新段落并添加图片
                 if insert_idx < len(doc.paragraphs):
                     target_para = doc.paragraphs[insert_idx]
-                    # 在目标段落前插入新段落
                     new_para = target_para.insert_paragraph_before("")
                 else:
                     new_para = doc.add_paragraph("")
@@ -243,7 +192,6 @@ def _insert_missing_images(docx_path, pdf_images, output_path):
             except Exception:
                 continue
 
-    # 保存
     doc.save(output_path)
 
     return {
@@ -254,12 +202,8 @@ def _insert_missing_images(docx_path, pdf_images, output_path):
     }
 
 
-# ---------------------------------------------------------------------------
-# 核心转换逻辑
-# ---------------------------------------------------------------------------
 
 def _convert_pdf2docx(input_path, output_path, pages):
-    """使用 pdf2docx 转换。"""
     from pdf2docx import Converter
 
     cv = Converter(input_path)
@@ -275,7 +219,6 @@ def _convert_pdf2docx(input_path, output_path, pages):
 
 
 def _convert_libreoffice(input_path, output_path):
-    """使用 LibreOffice 转换。"""
     import shutil
     import subprocess
 
@@ -308,18 +251,8 @@ def _convert_libreoffice(input_path, output_path):
     return page_count
 
 
-# ---------------------------------------------------------------------------
-# handler
-# ---------------------------------------------------------------------------
 
 def handler(params):
-    """将 PDF 转换为 Word 文档，支持图片增强。
-
-    流程：
-    1. [可选] 预提取 PDF 中的图片及位置信息
-    2. 调用 pdf2docx 或 LibreOffice 执行转换
-    3. [可选] 检测 Word 中缺失的图片并补插
-    """
     input_path = params["input"]
     output_path = params["output"]
     pages = params.get("pages", None)
@@ -329,12 +262,10 @@ def handler(params):
     if not os.path.exists(input_path):
         raise FileNotFoundError(f"文件不存在: {input_path}")
 
-    # 确保输出目录存在
     output_dir = os.path.dirname(output_path)
     if output_dir and not os.path.exists(output_dir):
         os.makedirs(output_dir, exist_ok=True)
 
-    # ---- Step 1: 预提取 PDF 图片 ----
     pdf_images = []
     if enhance:
         try:
@@ -342,7 +273,6 @@ def handler(params):
         except Exception:
             pdf_images = []
 
-    # ---- Step 2: 执行转换 ----
     engine_used = "none"
     page_count = 0
 
@@ -371,7 +301,6 @@ def handler(params):
     if engine_used == "none":
         raise RuntimeError("无可用的 PDF 转 Word 引擎。请安装 pdf2docx 或 LibreOffice。")
 
-    # ---- Step 3: 图片补全 ----
     image_enhance_result = None
     if enhance and pdf_images and os.path.exists(output_path):
         try:
@@ -379,7 +308,6 @@ def handler(params):
             pdf_img_count = len(pdf_images)
 
             if docx_img_count >= 0 and pdf_img_count > docx_img_count:
-                # Word 中图片少于 PDF，执行补全
                 image_enhance_result = _insert_missing_images(
                     output_path, pdf_images, output_path
                 )

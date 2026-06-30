@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-"""Validate per-slide page card JSON files before final summarization."""
 
 from __future__ import annotations
 

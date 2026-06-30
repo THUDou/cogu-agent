@@ -1,8 +1,3 @@
-#!/usr/bin/env python3
-"""
-PPTX 结构提取脚本
-从 PowerPoint 文件中提取主题、颜色、字体、布局等结构化数据
-"""
 
 import sys
 import os
@@ -19,7 +14,6 @@ EMU_PER_PT = 12700
 NS       = 'http://schemas.openxmlformats.org/drawingml/2006/main'
 NS_P_MAIN = 'http://schemas.openxmlformats.org/presentationml/2006/main'
 
-# MSO_THEME_COLOR enum name → theme XML key（用于 schemeClr 解析）
 _TC_KEY_MAP = {
     'BACKGROUND_1': 'lt1', 'LIGHT_1': 'lt1',
     'BACKGROUND_2': 'lt2', 'LIGHT_2': 'lt2',
@@ -51,7 +45,6 @@ def emu_to_percent(emu: int, total_emu: int) -> float:
 
 
 def safe_rgb(color_obj, theme_colors: Optional[Dict[str, str]] = None) -> Optional[str]:
-    """安全获取颜色 RGB，支持通过 theme_colors 解析 schemeClr"""
     try:
         return f"#{str(color_obj.rgb).upper()}"
     except Exception:
@@ -68,7 +61,6 @@ def safe_rgb(color_obj, theme_colors: Optional[Dict[str, str]] = None) -> Option
     return None
 
 
-# ─── Theme XML 解析（zipfile 直读，无需 python-pptx）──────────────────────────
 
 
 def parse_color(color_elem) -> Optional[str]:
@@ -148,11 +140,9 @@ def extract_slide_size(pres_xml: str) -> Dict[str, Any]:
     return {}
 
 
-# ─── 形状级属性提取（python-pptx + 直读 XML）─────────────────────────────────
 
 
 def extract_border(shape) -> Dict[str, Any]:
-    """提取形状边框：粗细(pt)、颜色、线型"""
     out = {}
     try:
         line = shape.line
@@ -169,7 +159,6 @@ def extract_border(shape) -> Dict[str, Any]:
 
 
 def extract_shadow(shape) -> Dict[str, Any]:
-    """从 XML 提取阴影参数：模糊半径、偏移距离、方向、颜色、透明度"""
     out = {}
     try:
         outer = shape._element.find(f'.//{{{NS}}}outerShdw')
@@ -197,7 +186,6 @@ def extract_shadow(shape) -> Dict[str, Any]:
 
 
 def extract_corner(shape) -> Optional[str]:
-    """提取圆角类型及比例（roundRect 返回百分比，其他几何体返回名称）"""
     try:
         geom = shape._element.find(f'.//{{{NS}}}prstGeom')
         if geom is None:
@@ -218,7 +206,6 @@ def extract_corner(shape) -> Optional[str]:
 
 
 def extract_gradient(shape) -> Optional[Dict[str, Any]]:
-    """提取渐变填充：stops（颜色+位置）和角度"""
     try:
         grad = shape._element.find(f'.//{{{NS}}}gradFill')
         if grad is None:
@@ -248,7 +235,6 @@ def extract_gradient(shape) -> Optional[Dict[str, Any]]:
 
 
 def _collect_gradient_stop_colors(elem) -> List[str]:
-    """从任意 XML 元素中递归收集 gradFill 的 srgbClr 颜色列表"""
     colors = []
     for grad in elem.iter(f'{{{NS}}}gradFill'):
         gs_lst = grad.find(f'{{{NS}}}gsLst')
@@ -263,9 +249,7 @@ def _collect_gradient_stop_colors(elem) -> List[str]:
     return colors
 
 
-# ─── 幻灯片级别扫描（python-pptx）────────────────────────────────────────────
 
-# placeholder idx -> 语义标签
 _PH_LABEL = {
     0: 'title', 1: 'body', 2: 'subtitle',
     3: 'center_title', 10: 'date', 11: 'footer', 12: 'slide_number',
@@ -280,7 +264,6 @@ def _shape_role(shape) -> str:
 
 
 def resolve_attr(getters: list) -> Any:
-    """依次执行 getters，返回第一个非 None 值；任何异常自动跳过"""
     for getter in getters:
         try:
             val = getter()
@@ -292,7 +275,6 @@ def resolve_attr(getters: list) -> Any:
 
 
 def _find_matching_ph(shape, container) -> Optional[Any]:
-    """在 layout 或 master 中找与 shape 同 idx 的占位符"""
     if not shape.is_placeholder:
         return None
     idx = shape.placeholder_format.idx
@@ -306,7 +288,6 @@ def _find_matching_ph(shape, container) -> Optional[Any]:
 
 
 def _para_defrpr_sz(para) -> Optional[float]:
-    """从段落 pPr/defRPr 读字号（centi-pt → pt）"""
     pPr = para._p.find(f'{{{NS}}}pPr')
     if pPr is None:
         return None
@@ -318,7 +299,6 @@ def _para_defrpr_sz(para) -> Optional[float]:
 
 
 def _ph_defrpr_size_pt(ph) -> Optional[float]:
-    """从占位符第一个段落的 defRPr 读字号"""
     for para in ph.text_frame.paragraphs:
         sz = _para_defrpr_sz(para)
         if sz:
@@ -327,7 +307,6 @@ def _ph_defrpr_size_pt(ph) -> Optional[float]:
 
 
 def _ph_defrpr_font(ph) -> Optional[str]:
-    """从占位符第一个段落的 defRPr latin 读字体名"""
     for para in ph.text_frame.paragraphs:
         pPr = para._p.find(f'{{{NS}}}pPr')
         if pPr is None:
@@ -344,7 +323,6 @@ def _ph_defrpr_font(ph) -> Optional[str]:
 
 
 def _resolve_theme_font(typeface: str, theme_fonts: Dict[str, Any]) -> str:
-    """将 +mj-lt/+mn-lt/+mj-ea/+mn-ea 等主题字体引用解析为实际字体名"""
     mapping = {
         '+mj-lt': theme_fonts.get('major', {}).get('latin', ''),
         '+mn-lt': theme_fonts.get('minor', {}).get('latin', ''),
@@ -355,7 +333,6 @@ def _resolve_theme_font(typeface: str, theme_fonts: Dict[str, Any]) -> str:
 
 
 def _extract_tx_styles_defaults(prs) -> Dict[str, Any]:
-    """从 master txStyles 提取标题/正文的默认字号和字体（作为继承链最终兜底）"""
     result: Dict[str, Any] = {}
     try:
         tx = prs.slide_master._element.find(f'{{{NS_P_MAIN}}}txStyles')
@@ -385,7 +362,6 @@ def _extract_tx_styles_defaults(prs) -> Dict[str, Any]:
 
 
 def _resolve_bg_color(slide, theme_colors: Optional[Dict[str, str]] = None) -> Optional[str]:
-    """按 slide → layout → master 优先级解析背景纯色，找到第一个有效定义即返回"""
     for obj in (slide, slide.slide_layout, slide.slide_layout.slide_master):
         try:
             fill = obj.background.fill
@@ -399,9 +375,6 @@ def _resolve_bg_color(slide, theme_colors: Optional[Dict[str, str]] = None) -> O
 
 
 def extract_actual_colors(prs, theme_colors: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
-    """扫描所有幻灯片，统计实际使用颜色（含非主题色）及用途。
-    按面积加权排序：大形状填充色权重高，文字色单独计数，不与填充混排。
-    """
     stats: Dict[str, Dict] = defaultdict(lambda: {
         'count': 0,
         'fill_count': 0,   # 作为填充/背景出现的次数
@@ -424,39 +397,31 @@ def extract_actual_colors(prs, theme_colors: Optional[Dict[str, str]] = None) ->
             stats[color]['area_weight'] += area_pct
 
     for slide in prs.slides:
-        # 幻灯片背景色（slide → layout → master 优先级），面积权重为 1.0
         c = _resolve_bg_color(slide, theme_colors)
         if c:
             record(c, 'background_fill', 1.0)
 
         for shape in slide.shapes:
             role = _shape_role(shape)
-            # 形状面积占幻灯片比例（限制在 [0, 1]，防止超出边界的形状权重异常）
             try:
                 shape_area_pct = min(1.0, (shape.width * shape.height) / slide_area) if slide_area else 0.0
             except Exception:
                 shape_area_pct = 0.0
 
-            # 填充色（纯色）
             try:
                 c = safe_rgb(shape.fill.fore_color, theme_colors)
                 record(c, f'{role}_fill', shape_area_pct)
             except Exception:
                 pass
-            # 填充色（渐变 stops）：渐变各 stop 共享形状面积权重
-            # pylint: disable=protected-access
             grad_colors = _collect_gradient_stop_colors(shape._element.find(f'.//{{{NS}}}spPr') or shape._element)
-            # pylint: enable=protected-access
             stop_pct = shape_area_pct / len(grad_colors) if grad_colors else 0.0
             for c in grad_colors:
                 record(c, f'{role}_fill_gradient', stop_pct)
-            # 边框色：视觉面积极小，给固定微权重
             try:
                 c = safe_rgb(shape.line.color, theme_colors)
                 record(c, f'{role}_border', 0.005)
             except Exception:
                 pass
-            # 文字色（纯色）：text_count 计次，area_weight 不增加
             if shape.has_text_frame:
                 for para in shape.text_frame.paragraphs:
                     for run in para.runs:
@@ -465,12 +430,10 @@ def extract_actual_colors(prs, theme_colors: Optional[Dict[str, str]] = None) ->
                             record(c, f'{role}_text', 0.0)
                         except Exception:
                             pass
-                # 文字渐变色（gradFill 在 rPr 内）
                 for rPr in shape._element.iter(f'{{{NS}}}rPr'):
                     for c in _collect_gradient_stop_colors(rPr):
                         record(c, f'{role}_text_gradient', 0.0)
 
-    # 排序：优先按 area_weight 降序（视觉面积主导），面积相同时按 fill_count 降序
     sorted_items = sorted(
         stats.items(),
         key=lambda x: (-x[1]['area_weight'], -x[1]['fill_count'], -x[1]['count'])
@@ -488,10 +451,6 @@ def extract_actual_colors(prs, theme_colors: Optional[Dict[str, str]] = None) ->
 
 
 def extract_bg_text_mapping(prs, theme_colors: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
-    """
-    统计每种背景色上实际使用的文字色，输出背景→文字配色映射。
-    背景色按 slide → layout → master 优先级解析，覆盖继承背景场景。
-    """
     bg_to_texts: Dict[str, Counter] = defaultdict(Counter)
     bg_slide_count: Dict[str, int] = defaultdict(int)
 
@@ -526,10 +485,6 @@ def extract_bg_text_mapping(prs, theme_colors: Optional[Dict[str, str]] = None) 
 
 
 def extract_font_sizes(prs, theme_fonts: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-    """
-    按占位符层级统计实际字号和字体名。
-    字号/字体继承链：run → para defRPr → layout ph defRPr → master ph defRPr → txStyles
-    """
     size_buckets: Dict[str, List[float]] = defaultdict(list)
     font_buckets: Dict[str, List[str]]  = defaultdict(list)
 
@@ -551,7 +506,6 @@ def extract_font_sizes(prs, theme_fonts: Optional[Dict[str, Any]] = None) -> Dic
 
             for para in shape.text_frame.paragraphs:
                 for run in para.runs:
-                    # ── 字号 ──
                     para_sz = _para_defrpr_sz(para)
                     size_emu = resolve_attr([
                         lambda: run.font.size,
@@ -568,7 +522,6 @@ def extract_font_sizes(prs, theme_fonts: Optional[Dict[str, Any]] = None) -> Dic
                         if default_pt:
                             size_buckets[role].append(default_pt)
 
-                    # ── 字体名 ──
                     raw = resolve_attr([
                         lambda: run.font.name or None,
                         lambda: _ph_defrpr_font(layout_ph) if layout_ph else None,
@@ -598,10 +551,6 @@ def extract_font_sizes(prs, theme_fonts: Optional[Dict[str, Any]] = None) -> Dic
 
 
 def extract_para_alignment(prs) -> Dict[str, Any]:
-    """
-    按占位符层级统计段落对齐方式。
-    对齐继承链：para.alignment → layout ph 首段 → master ph 首段
-    """
     align_buckets: Dict[str, Counter] = defaultdict(Counter)
 
     def _ph_align(ph) -> Optional[str]:
@@ -642,12 +591,10 @@ def extract_para_alignment(prs) -> Dict[str, Any]:
 
 
 def extract_master_elements(prs, theme_colors: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
-    """提取母版（Slide Master）固定装饰元素：背景、形状列表"""
     master = prs.slide_master
     w, h = prs.slide_width, prs.slide_height
     info: Dict[str, Any] = {'background': {}, 'fixed_shapes': [], 'placeholders': []}
 
-    # 母版背景
     try:
         c = safe_rgb(master.background.fill.fore_color, theme_colors)
         if c:
@@ -691,7 +638,6 @@ def extract_master_elements(prs, theme_colors: Optional[Dict[str, str]] = None) 
 
 
 def extract_component_styles(prs) -> Dict[str, Any]:
-    """扫描非占位符形状，统计边框/阴影/圆角/渐变的典型值"""
     borders, shadows, corners, gradients = [], [], [], []
 
     for slide in prs.slides:
@@ -744,14 +690,9 @@ def extract_component_styles(prs) -> Dict[str, Any]:
     return result
 
 
-# ─── 版式提取 ────────────────────────────────────────────────────────────────
 
 
 def extract_layouts(prs, theme_fonts: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
-    """
-    提取所有版式的占位符信息，含字号/字体/对齐。
-    占位符位置若 layout 层未定义则向 master 回退；字号/字体/对齐同样走继承链。
-    """
     layouts = []
     try:
         w, h = prs.slide_width, prs.slide_height
@@ -770,7 +711,6 @@ def extract_layouts(prs, theme_fonts: Optional[Dict[str, Any]] = None) -> List[D
                 tx_sz_key = 'title_size_pt' if 'title' in role else 'body_size_pt'
                 tx_fn_key = 'title_font'    if 'title' in role else 'body_font'
 
-                # 位置：layout 优先，layout 值为 0 且 master 有定义时回退
                 def _pos(attr, fallback_obj):
                     v = getattr(shape, attr, None)
                     if v:
@@ -795,7 +735,6 @@ def extract_layouts(prs, theme_fonts: Optional[Dict[str, Any]] = None) -> List[D
                     'height_percent': emu_to_percent(height, h),
                 }
 
-                # 字号
                 sz = resolve_attr([
                     lambda: _ph_defrpr_size_pt(shape) if shape.has_text_frame else None,
                     lambda: _ph_defrpr_size_pt(master_ph) if master_ph else None,
@@ -804,7 +743,6 @@ def extract_layouts(prs, theme_fonts: Optional[Dict[str, Any]] = None) -> List[D
                 if sz:
                     ph['font_size_pt'] = sz
 
-                # 字体名
                 raw = resolve_attr([
                     lambda: _ph_defrpr_font(shape) if shape.has_text_frame else None,
                     lambda: _ph_defrpr_font(master_ph) if master_ph else None,
@@ -815,7 +753,6 @@ def extract_layouts(prs, theme_fonts: Optional[Dict[str, Any]] = None) -> List[D
                     if resolved and not resolved.startswith('+'):
                         ph['font_name'] = resolved
 
-                # 对齐
                 align = resolve_attr([
                     lambda: (str(shape.text_frame.paragraphs[0].alignment)
                              if shape.has_text_frame and shape.text_frame.paragraphs
@@ -955,7 +892,6 @@ def _content_subtype(features: Dict[str, Any]) -> str:
 
 
 def classify_slide_roles(prs) -> List[Dict[str, Any]]:
-    """基于 PPTX 源文件结构识别封面、目录、章节、内容和结束页。"""
     slide_w, slide_h = prs.slide_width, prs.slide_height
     roles: List[Dict[str, Any]] = []
     total = len(prs.slides)
@@ -1108,7 +1044,6 @@ def _semantic_guess(subtype: str, features: Dict[str, Any]) -> Dict[str, str]:
 
 
 def extract_content_layout_styles(prs, slide_roles: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """抽取内容页版式样式并按结构指纹去重。"""
     slide_w, slide_h = prs.slide_width, prs.slide_height
     role_by_page = {r['page']: r for r in slide_roles}
     styles_by_sig: Dict[str, Dict[str, Any]] = {}
@@ -1154,7 +1089,6 @@ def extract_content_layout_styles(prs, slide_roles: List[Dict[str, Any]]) -> Lis
     return list(styles_by_sig.values())
 
 
-# ─── 主入口 ──────────────────────────────────────────────────────────────────
 
 
 def extract_structure(pptx_path: str, output_dir: Optional[str] = None) -> Dict[str, Any]:

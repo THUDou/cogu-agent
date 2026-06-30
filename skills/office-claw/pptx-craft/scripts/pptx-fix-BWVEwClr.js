@@ -667,7 +667,6 @@ async function detectOverflow(renderer, html, opts = {}) {
           if (overflow <= 0) {
             continue;
           }
-          // 叶子节点（无子元素）的溢出纯属字体排印度量噪音，跳过
           if (el.children.length === 0) {
             continue;
           }
@@ -2078,7 +2077,6 @@ async function executeTypographyExpansion(renderer, typeName) {
           const classList = Array.from(el.classList);
 
           if (config.name === "line-height") {
-            // 处理标准 tier 类
             for (const cls of classList) {
               const idx = config.tierList.indexOf(cls);
               if (idx >= 0 && idx < config.tierList.length - 1) {
@@ -2088,7 +2086,6 @@ async function executeTypographyExpansion(renderer, typeName) {
               }
             }
 
-            // 处理固定值类
             for (const cls of classList) {
               const idx = config.fixedTierList.indexOf(cls);
               if (idx >= 0 && idx < config.fixedTierList.length - 1) {
@@ -2098,7 +2095,6 @@ async function executeTypographyExpansion(renderer, typeName) {
               }
             }
 
-            // 处理 leading-[...] 任意值
             const leadArbitraryRe = new RegExp(config.arbitraryPatterns[0]);
             for (const cls of Array.from(el.classList)) {
               const m = cls.match(leadArbitraryRe);
@@ -2291,7 +2287,6 @@ async function executeSpacingExpansion(renderer, step) {
 var _a;
 const decodeMap = /* @__PURE__ */ new Map([
   [0, 65533],
-  // C1 Unicode control character reference replacements
   [128, 8364],
   [130, 8218],
   [131, 402],
@@ -2321,7 +2316,6 @@ const decodeMap = /* @__PURE__ */ new Map([
   [159, 376]
 ]);
 const fromCodePoint = (
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition, n/no-unsupported-features/es-builtins
   (_a = String.fromCodePoint) !== null && _a !== void 0 ? _a : ((codePoint) => {
     let output = "";
     if (codePoint > 65535) {
@@ -2342,19 +2336,12 @@ function replaceCodePoint(codePoint) {
 }
 function decodeBase64(input) {
   const binary = (
-    // eslint-disable-next-line n/no-unsupported-features/node-builtins
     typeof atob === "function" ? (
-      // Browser (and Node >=16)
-      // eslint-disable-next-line n/no-unsupported-features/node-builtins
       atob(input)
     ) : (
-      // Older Node versions (<16)
-      // eslint-disable-next-line n/no-unsupported-features/node-builtins
       typeof Buffer.from === "function" ? (
-        // eslint-disable-next-line n/no-unsupported-features/node-builtins
         Buffer.from(input, "base64").toString("binary")
       ) : (
-        // eslint-disable-next-line unicorn/no-new-buffer, n/no-deprecated-api
         new Buffer(input, "base64").toString("binary")
       )
     )
@@ -2432,7 +2419,6 @@ class EntityDecoder {
     this.decodeMode = DecodingMode.Strict;
     this.runConsumed = 0;
   }
-  /** Resets the instance to make it reusable. */
   startEntity(decodeMode) {
     this.decodeMode = decodeMode;
     this.state = EntityDecoderState.EntityStart;
@@ -2442,17 +2428,6 @@ class EntityDecoder {
     this.consumed = 1;
     this.runConsumed = 0;
   }
-  /**
-   * Write an entity to the decoder. This can be called multiple times with partial entities.
-   * If the entity is incomplete, the decoder will return -1.
-   *
-   * Mirrors the implementation of `getDecoder`, but with the ability to stop decoding if the
-   * entity is incomplete, and resume when the next string is written.
-   *
-   * @param input The string containing the entity (or a continuation of the entity).
-   * @param offset The offset at which the entity begins. Should be 0 if this is not the first call.
-   * @returns The number of characters that were consumed, or -1 if the entity is incomplete.
-   */
   write(input, offset) {
     switch (this.state) {
       case EntityDecoderState.EntityStart: {
@@ -2478,15 +2453,6 @@ class EntityDecoder {
       }
     }
   }
-  /**
-   * Switches between the numeric decimal and hexadecimal states.
-   *
-   * Equivalent to the `Numeric character reference state` in the HTML spec.
-   *
-   * @param input The string containing the entity (or a continuation of the entity).
-   * @param offset The current offset.
-   * @returns The number of characters that were consumed, or -1 if the entity is incomplete.
-   */
   stateNumericStart(input, offset) {
     if (offset >= input.length) {
       return -1;
@@ -2499,15 +2465,6 @@ class EntityDecoder {
     this.state = EntityDecoderState.NumericDecimal;
     return this.stateNumericDecimal(input, offset);
   }
-  /**
-   * Parses a hexadecimal numeric entity.
-   *
-   * Equivalent to the `Hexademical character reference state` in the HTML spec.
-   *
-   * @param input The string containing the entity (or a continuation of the entity).
-   * @param offset The current offset.
-   * @returns The number of characters that were consumed, or -1 if the entity is incomplete.
-   */
   stateNumericHex(input, offset) {
     while (offset < input.length) {
       const char = input.charCodeAt(offset);
@@ -2522,15 +2479,6 @@ class EntityDecoder {
     }
     return -1;
   }
-  /**
-   * Parses a decimal numeric entity.
-   *
-   * Equivalent to the `Decimal character reference state` in the HTML spec.
-   *
-   * @param input The string containing the entity (or a continuation of the entity).
-   * @param offset The current offset.
-   * @returns The number of characters that were consumed, or -1 if the entity is incomplete.
-   */
   stateNumericDecimal(input, offset) {
     while (offset < input.length) {
       const char = input.charCodeAt(offset);
@@ -2544,19 +2492,6 @@ class EntityDecoder {
     }
     return -1;
   }
-  /**
-   * Validate and emit a numeric entity.
-   *
-   * Implements the logic from the `Hexademical character reference start
-   * state` and `Numeric character reference end state` in the HTML spec.
-   *
-   * @param lastCp The last code point of the entity. Used to see if the
-   *               entity was terminated with a semicolon.
-   * @param expectedLength The minimum number of characters that should be
-   *                       consumed. Used to validate that at least one digit
-   *                       was consumed.
-   * @returns The number of characters that were consumed.
-   */
   emitNumericEntity(lastCp, expectedLength) {
     var _a2;
     if (this.consumed <= expectedLength) {
@@ -2577,15 +2512,6 @@ class EntityDecoder {
     }
     return this.consumed;
   }
-  /**
-   * Parses a named entity.
-   *
-   * Equivalent to the `Named character reference state` in the HTML spec.
-   *
-   * @param input The string containing the entity (or a continuation of the entity).
-   * @param offset The current offset.
-   * @returns The number of characters that were consumed, or -1 if the entity is incomplete.
-   */
   stateNamedEntity(input, offset) {
     const { decodeTree } = this;
     let current = decodeTree[this.treeIndex];
@@ -2652,11 +2578,6 @@ class EntityDecoder {
     }
     return -1;
   }
-  /**
-   * Emit a named entity that was not terminated with a semicolon.
-   *
-   * @returns The number of characters consumed.
-   */
   emitNotTerminatedNamedEntity() {
     var _a2;
     const { result, decodeTree } = this;
@@ -2665,15 +2586,6 @@ class EntityDecoder {
     (_a2 = this.errors) === null || _a2 === void 0 ? void 0 : _a2.missingSemicolonAfterCharacterReference();
     return this.consumed;
   }
-  /**
-   * Emit a named entity.
-   *
-   * @param result The index of the entity in the decode tree.
-   * @param valueLength The number of bytes in the entity.
-   * @param consumed The number of characters consumed.
-   *
-   * @returns The number of characters consumed.
-   */
   emitNamedEntityData(result, valueLength, consumed) {
     const { decodeTree } = this;
     this.emitCodePoint(valueLength === 1 ? decodeTree[result] & ~(BinTrieFlags.VALUE_LENGTH | BinTrieFlags.FLAG13) : decodeTree[result + 1], consumed);
@@ -2682,20 +2594,12 @@ class EntityDecoder {
     }
     return consumed;
   }
-  /**
-   * Signal to the parser that the end of the input was reached.
-   *
-   * Remaining data will be emitted and relevant errors will be produced.
-   *
-   * @returns The number of characters consumed.
-   */
   end() {
     var _a2;
     switch (this.state) {
       case EntityDecoderState.NamedEntity: {
         return this.result !== 0 && (this.decodeMode !== DecodingMode.Attribute || this.result === this.treeIndex) ? this.emitNotTerminatedNamedEntity() : 0;
       }
-      // Otherwise, emit a numeric entity if we have one.
       case EntityDecoderState.NumericDecimal: {
         return this.emitNumericEntity(0, 2);
       }
@@ -2817,17 +2721,11 @@ var QuoteType;
 })(QuoteType || (QuoteType = {}));
 const Sequences = {
   Cdata: new Uint8Array([67, 68, 65, 84, 65, 91]),
-  // CDATA[
   CdataEnd: new Uint8Array([93, 93, 62]),
-  // ]]>
   CommentEnd: new Uint8Array([45, 45, 62]),
-  // `-->`
   ScriptEnd: new Uint8Array([60, 47, 115, 99, 114, 105, 112, 116]),
-  // `<\/script`
   StyleEnd: new Uint8Array([60, 47, 115, 116, 121, 108, 101]),
-  // `</style`
   TitleEnd: new Uint8Array([60, 47, 116, 105, 116, 108, 101]),
-  // `</title`
   TextareaEnd: new Uint8Array([
     60,
     47,
@@ -2840,9 +2738,7 @@ const Sequences = {
     101,
     97
   ]),
-  // `</textarea`
   XmpEnd: new Uint8Array([60, 47, 120, 109, 112])
-  // `</xmp`
 };
 class Tokenizer {
   constructor({ xmlMode = false, decodeEntities = true }, cbs) {
@@ -2904,10 +2800,8 @@ class Tokenizer {
   stateSpecialStartSequence(c) {
     const isEnd = this.sequenceIndex === this.currentSequence.length;
     const isMatch = isEnd ? (
-      // If we are at the end of the sequence, make sure the tag name has ended
       isEndOfTagSection(c)
     ) : (
-      // Otherwise, do a case-insensitive comparison
       (c | 32) === this.currentSequence[this.sequenceIndex]
     );
     if (!isMatch) {
@@ -2920,7 +2814,6 @@ class Tokenizer {
     this.state = State.InTagName;
     this.stateInTagName(c);
   }
-  /** Look for an end tag. For <title> tags, also decode entities. */
   stateInSpecialTag(c) {
     if (this.sequenceIndex === this.currentSequence.length) {
       if (c === CharCodes.Gt || isWhitespace(c)) {
@@ -2966,12 +2859,6 @@ class Tokenizer {
       this.stateInDeclaration(c);
     }
   }
-  /**
-   * When we wait for one specific character, we can speed things up
-   * by skipping through the buffer until we find it.
-   *
-   * @returns Whether the character was found.
-   */
   fastForwardTo(c) {
     while (++this.index < this.buffer.length + this.offset) {
       if (this.buffer.charCodeAt(this.index - this.offset) === c) {
@@ -2981,14 +2868,6 @@ class Tokenizer {
     this.index = this.buffer.length + this.offset - 1;
     return false;
   }
-  /**
-   * Comments and CDATA end with `-->` and `]]>`.
-   *
-   * Their common qualities are:
-   * - Their end sequences have a distinct character they start with.
-   * - That character is then repeated, so we have to check multiple repeats.
-   * - All characters but the start character of the sequence can be skipped.
-   */
   stateInCommentLike(c) {
     if (c === this.currentSequence[this.sequenceIndex]) {
       if (++this.sequenceIndex === this.currentSequence.length) {
@@ -3009,12 +2888,6 @@ class Tokenizer {
       this.sequenceIndex = 0;
     }
   }
-  /**
-   * HTML only allows ASCII alpha characters (a-z and A-Z) at the beginning of a tag name.
-   *
-   * XML allows a lot more characters here (@see https://www.w3.org/TR/REC-xml/#NT-NameStartChar).
-   * We allow anything that wouldn't end the tag.
-   */
   isTagStartChar(c) {
     return this.xmlMode ? !isEndOfTagSection(c) : isASCIIAlpha(c);
   }
@@ -3265,9 +3138,6 @@ class Tokenizer {
       this.index = this.offset + this.buffer.length - 1;
     }
   }
-  /**
-   * Remove data that has already been consumed from the buffer.
-   */
   cleanup() {
     if (this.running && this.sectionStart !== this.index) {
       if (this.state === State.Text || this.state === State.InSpecialTag && this.sequenceIndex === 0) {
@@ -3282,11 +3152,6 @@ class Tokenizer {
   shouldContinue() {
     return this.index < this.buffer.length + this.offset && this.running;
   }
-  /**
-   * Iterates through the buffer, calling the function corresponding to the current state.
-   *
-   * States that are more likely to be hit are higher up, as a performance improvement.
-   */
   parse() {
     while (this.shouldContinue()) {
       const c = this.buffer.charCodeAt(this.index - this.offset);
@@ -3408,7 +3273,6 @@ class Tokenizer {
     this.handleTrailingData();
     this.cbs.onend();
   }
-  /** Handle any trailing data. */
   handleTrailingData() {
     const endIndex = this.buffer.length + this.offset;
     if (this.sectionStart >= endIndex) {
@@ -3564,8 +3428,6 @@ class Parser {
     this.foreignContext = [!this.htmlMode];
     (_f = (_e = this.cbs).onparserinit) === null || _f === void 0 ? void 0 : _f.call(_e, this);
   }
-  // Tokenizer event handlers
-  /** @internal */
   ontext(start, endIndex) {
     var _a2, _b;
     const data = this.getSlice(start, endIndex);
@@ -3573,21 +3435,15 @@ class Parser {
     (_b = (_a2 = this.cbs).ontext) === null || _b === void 0 ? void 0 : _b.call(_a2, data);
     this.startIndex = endIndex;
   }
-  /** @internal */
   ontextentity(cp, endIndex) {
     var _a2, _b;
     this.endIndex = endIndex - 1;
     (_b = (_a2 = this.cbs).ontext) === null || _b === void 0 ? void 0 : _b.call(_a2, fromCodePoint(cp));
     this.startIndex = endIndex;
   }
-  /**
-   * Checks if the current tag is a void element. Override this if you want
-   * to specify your own additional void elements.
-   */
   isVoidElement(name) {
     return this.htmlMode && voidElements.has(name);
   }
-  /** @internal */
   onopentagname(start, endIndex) {
     this.endIndex = endIndex;
     let name = this.getSlice(start, endIndex);
@@ -3633,13 +3489,11 @@ class Parser {
     }
     this.tagname = "";
   }
-  /** @internal */
   onopentagend(endIndex) {
     this.endIndex = endIndex;
     this.endOpenTag(false);
     this.startIndex = endIndex + 1;
   }
-  /** @internal */
   onclosetag(start, endIndex) {
     var _a2, _b, _c, _d, _e, _f, _g, _h;
     this.endIndex = endIndex;
@@ -3668,7 +3522,6 @@ class Parser {
     }
     this.startIndex = endIndex + 1;
   }
-  /** @internal */
   onselfclosingtag(endIndex) {
     this.endIndex = endIndex;
     if (this.recognizeSelfClosing || this.foreignContext[0]) {
@@ -3687,21 +3540,17 @@ class Parser {
       this.stack.shift();
     }
   }
-  /** @internal */
   onattribname(start, endIndex) {
     this.startIndex = start;
     const name = this.getSlice(start, endIndex);
     this.attribname = this.lowerCaseAttributeNames ? name.toLowerCase() : name;
   }
-  /** @internal */
   onattribdata(start, endIndex) {
     this.attribvalue += this.getSlice(start, endIndex);
   }
-  /** @internal */
   onattribentity(cp) {
     this.attribvalue += fromCodePoint(cp);
   }
-  /** @internal */
   onattribend(quote, endIndex) {
     var _a2, _b;
     this.endIndex = endIndex;
@@ -3719,7 +3568,6 @@ class Parser {
     }
     return name;
   }
-  /** @internal */
   ondeclaration(start, endIndex) {
     this.endIndex = endIndex;
     const value = this.getSlice(start, endIndex);
@@ -3729,7 +3577,6 @@ class Parser {
     }
     this.startIndex = endIndex + 1;
   }
-  /** @internal */
   onprocessinginstruction(start, endIndex) {
     this.endIndex = endIndex;
     const value = this.getSlice(start, endIndex);
@@ -3739,7 +3586,6 @@ class Parser {
     }
     this.startIndex = endIndex + 1;
   }
-  /** @internal */
   oncomment(start, endIndex, offset) {
     var _a2, _b, _c, _d;
     this.endIndex = endIndex;
@@ -3747,7 +3593,6 @@ class Parser {
     (_d = (_c = this.cbs).oncommentend) === null || _d === void 0 ? void 0 : _d.call(_c);
     this.startIndex = endIndex + 1;
   }
-  /** @internal */
   oncdata(start, endIndex, offset) {
     var _a2, _b, _c, _d, _e, _f, _g, _h, _j, _k;
     this.endIndex = endIndex;
@@ -3762,7 +3607,6 @@ class Parser {
     }
     this.startIndex = endIndex + 1;
   }
-  /** @internal */
   onend() {
     var _a2, _b;
     if (this.cbs.onclosetag) {
@@ -3773,9 +3617,6 @@ class Parser {
     }
     (_b = (_a2 = this.cbs).onend) === null || _b === void 0 ? void 0 : _b.call(_a2);
   }
-  /**
-   * Resets the parser to a blank state, ready to parse a new HTML document
-   */
   reset() {
     var _a2, _b, _c, _d;
     (_b = (_a2 = this.cbs).onreset) === null || _b === void 0 ? void 0 : _b.call(_a2);
@@ -3794,12 +3635,6 @@ class Parser {
     this.writeIndex = 0;
     this.ended = false;
   }
-  /**
-   * Resets the parser, then parses a complete document and
-   * pushes it to the handler.
-   *
-   * @param data Document to parse.
-   */
   parseComplete(data) {
     this.reset();
     this.end(data);
@@ -3820,11 +3655,6 @@ class Parser {
     this.writeIndex--;
     this.buffers.shift();
   }
-  /**
-   * Parses a chunk of data and calls the corresponding callbacks.
-   *
-   * @param chunk Chunk to parse.
-   */
   write(chunk) {
     var _a2, _b;
     if (this.ended) {
@@ -3837,11 +3667,6 @@ class Parser {
       this.writeIndex++;
     }
   }
-  /**
-   * Parses the end of the buffer and clears the stack, calls onend.
-   *
-   * @param chunk Optional final chunk to parse.
-   */
   end(chunk) {
     var _a2, _b;
     if (this.ended) {
@@ -3853,15 +3678,9 @@ class Parser {
     this.ended = true;
     this.tokenizer.end();
   }
-  /**
-   * Pauses parsing. The parser won't emit events until `resume` is called.
-   */
   pause() {
     this.tokenizer.pause();
   }
-  /**
-   * Resumes parsing after `pause` was called.
-   */
   resume() {
     this.tokenizer.resume();
     while (this.tokenizer.running && this.writeIndex < this.buffers.length) {
@@ -3870,21 +3689,9 @@ class Parser {
     if (this.ended)
       this.tokenizer.end();
   }
-  /**
-   * Alias of `write`, for backwards compatibility.
-   *
-   * @param chunk Chunk to parse.
-   * @deprecated
-   */
   parseChunk(chunk) {
     this.write(chunk);
   }
-  /**
-   * Alias of `end`, for backwards compatibility.
-   *
-   * @param chunk Optional final chunk to parse.
-   * @deprecated
-   */
   done(chunk) {
     this.end(chunk);
   }
@@ -4322,11 +4129,6 @@ class PlaywrightRenderer {
     this.page = null;
     this.options = options ?? {};
   }
-  /**
-   * 创建 PlaywrightRenderer 实例
-   *
-   * 自动安装 Chromium（如未安装），启动浏览器并创建页面。
-   */
   static async create(options) {
     const instance = new PlaywrightRenderer(options);
     await instance.init();
@@ -4407,7 +4209,6 @@ class PlaywrightRenderer {
     }
     return this.page.content();
   }
-  /** 关闭浏览器，释放资源 */
   async close() {
     if (this.page) {
       await this.page.close().catch((err) => {

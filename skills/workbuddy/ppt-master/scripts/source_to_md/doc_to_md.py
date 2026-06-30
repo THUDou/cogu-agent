@@ -1,20 +1,3 @@
-#!/usr/bin/env python3
-"""
-Document to Markdown Converter (hybrid Python + Pandoc fallback)
-
-Primary formats (pure Python, no external tools required):
-    .docx   → mammoth
-    .html   → markdownify + BeautifulSoup
-    .epub   → ebooklib + markdownify
-    .ipynb  → nbconvert
-
-Fallback formats (require pandoc installed):
-    .doc .odt .rtf .tex .latex .rst .org .typ
-
-All paths produce the same output convention:
-    <input>.md                     Markdown file
-    <input>_files/<asset>          Extracted media (relative references in MD)
-"""
 
 import argparse
 import base64
@@ -31,14 +14,9 @@ from pathlib import Path
 from urllib.parse import unquote, urlparse
 from xml.etree import ElementTree as ET
 
-# ─────────────────────────────────────────────────────────────
-# Format registry
-# ─────────────────────────────────────────────────────────────
 
-# Formats handled by pure-Python paths
 NATIVE_FORMATS = {".docx", ".html", ".htm", ".epub", ".ipynb"}
 
-# Formats handled by pandoc fallback: suffix → (pandoc input format, description)
 PANDOC_FORMATS = {
     ".doc":   ("doc",    "Microsoft Word 97-2003"),
     ".odt":   ("odt",    "OpenDocument Text"),
@@ -50,7 +28,6 @@ PANDOC_FORMATS = {
     ".typ":   ("typst",  "Typst"),
 }
 
-# Formats pandoc should extract embedded media from
 PANDOC_MEDIA_FORMATS = {".odt"}
 OFFICE_VECTOR_EXTENSIONS = {".emf", ".wmf"}
 
@@ -67,9 +44,6 @@ DOCX_NS = {
 EMU_PER_INCH = 914400
 
 
-# ─────────────────────────────────────────────────────────────
-# Shared helpers
-# ─────────────────────────────────────────────────────────────
 
 def _format_size(size: int) -> str:
     for unit in ("B", "KB", "MB"):
@@ -80,7 +54,6 @@ def _format_size(size: int) -> str:
 
 
 def _ensure_media_dir(out_file: Path) -> tuple[Path, str]:
-    """Return (absolute media dir, relative dir name) and create the dir."""
     rel_media_dir = f"{out_file.stem}_files"
     media_dir = out_file.parent / rel_media_dir
     media_dir.mkdir(parents=True, exist_ok=True)
@@ -98,7 +71,6 @@ _HTML_IMG_PATTERNS = (
 
 
 def _html_img_to_md(markdown_content: str) -> str:
-    """Convert any leftover <img> HTML tags to ![alt](src) syntax."""
     def _repl(match: re.Match[str]) -> str:
         src = match.group("src")
         alt = match.group("alt") or Path(src).stem
@@ -119,7 +91,6 @@ def _report_result(out_file: Path, media_dir: Path | None) -> None:
 
 
 def _normalize_ext(ext: str | None) -> str:
-    """Return a normalized image extension, including the leading dot."""
     if not ext:
         return ".bin"
     ext = ext.lower()
@@ -131,7 +102,6 @@ def _normalize_ext(ext: str | None) -> str:
 
 
 def _image_size(path: Path) -> tuple[int | None, int | None]:
-    """Return bitmap dimensions when Pillow can read the file."""
     try:
         from PIL import Image
     except ImportError:
@@ -144,17 +114,14 @@ def _image_size(path: Path) -> tuple[int | None, int | None]:
 
 
 def _is_office_vector(ext: str) -> bool:
-    """Return whether an extension is an Office vector preview format."""
     return ext.lower() in OFFICE_VECTOR_EXTENSIONS
 
 
 def _local_name(elem: ET.Element) -> str:
-    """Return an XML element local name without its namespace."""
     return elem.tag.rsplit("}", 1)[-1]
 
 
 def _relationship_target_path(target: str) -> str:
-    """Normalize a Word relationship target to a DOCX zip path."""
     target = unquote(target)
     if target.startswith("/"):
         normalized = posixpath.normpath(target.lstrip("/"))
@@ -164,14 +131,12 @@ def _relationship_target_path(target: str) -> str:
 
 
 def _zip_sha256_for_target(media_hashes: dict[str, str], target: str) -> str | None:
-    """Return the SHA-256 digest for an embedded DOCX part target."""
     if not target:
         return None
     return media_hashes.get(_relationship_target_path(target))
 
 
 def _length_to_emu(value: str) -> int | None:
-    """Parse a VML CSS length into EMU."""
     match = re.match(r"^\s*([\d.]+)\s*([a-zA-Z]*)\s*$", value)
     if not match:
         return None
@@ -191,7 +156,6 @@ def _length_to_emu(value: str) -> int | None:
 
 
 def _vml_display_size_emu(shape: ET.Element | None) -> tuple[int, int]:
-    """Read VML shape width/height from its style attribute."""
     if shape is None:
         return 0, 0
     style = shape.attrib.get("style", "")
@@ -215,7 +179,6 @@ def _occurrence_entry(
     source_sha256: str | None,
     source_kind: str,
 ) -> dict[str, object]:
-    """Build one image metadata occurrence row."""
     display_ratio = (
         width_emu / height_emu
         if width_emu > 0 and height_emu > 0
@@ -237,7 +200,6 @@ def _occurrence_entry(
 
 
 def _docx_image_occurrences(input_file: Path) -> list[dict[str, object]]:
-    """Read DOCX drawing order and Word display dimensions."""
     try:
         with zipfile.ZipFile(input_file) as docx:
             rels_root = ET.fromstring(docx.read("word/_rels/document.xml.rels"))
@@ -330,7 +292,6 @@ def _match_occurrence(
     index: int,
     image_bytes: bytes,
 ) -> dict[str, object] | None:
-    """Match a Mammoth image callback to DOCX metadata."""
     image_hash = hashlib.sha256(image_bytes).hexdigest()
     for occurrence_index, occurrence in enumerate(occurrences):
         if occurrence_index in used_indexes:
@@ -377,9 +338,6 @@ def _manifest_entry(
     return entry
 
 
-# ─────────────────────────────────────────────────────────────
-# DOCX → Markdown (mammoth)
-# ─────────────────────────────────────────────────────────────
 
 def _convert_docx(input_file: Path, out_file: Path) -> str:
     try:
@@ -460,12 +418,8 @@ def _convert_docx(input_file: Path, out_file: Path) -> str:
     return markdown
 
 
-# ─────────────────────────────────────────────────────────────
-# HTML → Markdown (markdownify + BeautifulSoup)
-# ─────────────────────────────────────────────────────────────
 
 def _save_data_uri(data_uri: str, media_dir: Path, index: int) -> str | None:
-    """Decode data:image/...;base64,... into a file; return filename or None."""
     match = re.match(r"data:(?P<mime>[^;]+);base64,(?P<data>.+)", data_uri)
     if not match:
         return None
@@ -482,7 +436,6 @@ def _save_data_uri(data_uri: str, media_dir: Path, index: int) -> str | None:
 
 
 def _copy_local_image(src: str, base_dir: Path, media_dir: Path, index: int) -> str | None:
-    """Copy a local image (relative or file://) into media_dir."""
     parsed = urlparse(src)
     if parsed.scheme in ("http", "https"):
         return None
@@ -499,7 +452,6 @@ def _copy_local_image(src: str, base_dir: Path, media_dir: Path, index: int) -> 
 
 
 def _download_remote_image(url: str, media_dir: Path, index: int) -> str | None:
-    """Best-effort download of a remote image. Silent on failure."""
     try:
         import requests
     except ImportError:
@@ -521,7 +473,6 @@ def _download_remote_image(url: str, media_dir: Path, index: int) -> str | None:
 
 
 def _process_html_images(html: str, base_dir: Path, media_dir: Path, rel_media_dir: str) -> str:
-    """Extract & rewrite all <img> srcs in an HTML string."""
     try:
         from bs4 import BeautifulSoup
     except ImportError:
@@ -562,7 +513,6 @@ def _convert_html(input_file: Path, out_file: Path) -> str:
     media_dir, rel_media_dir = _ensure_media_dir(out_file)
     raw_html = input_file.read_text(encoding="utf-8", errors="replace")
 
-    # Strip non-content elements (head/style/script) so metadata doesn't leak into MD
     soup = BeautifulSoup(raw_html, "html.parser")
     for tag in soup(["head", "style", "script", "noscript"]):
         tag.decompose()
@@ -570,7 +520,6 @@ def _convert_html(input_file: Path, out_file: Path) -> str:
     html = _process_html_images(html, input_file.parent, media_dir, rel_media_dir)
 
     markdown = markdownify(html, heading_style="ATX", bullets="-")
-    # Collapse 3+ blank lines to 2 for tidier output
     markdown = re.sub(r"\n{3,}", "\n\n", markdown).strip() + "\n"
     out_file.write_text(markdown, encoding="utf-8")
 
@@ -582,9 +531,6 @@ def _convert_html(input_file: Path, out_file: Path) -> str:
     return markdown
 
 
-# ─────────────────────────────────────────────────────────────
-# EPUB → Markdown (ebooklib + markdownify)
-# ─────────────────────────────────────────────────────────────
 
 def _convert_epub(input_file: Path, out_file: Path) -> str:
     try:
@@ -600,7 +546,6 @@ def _convert_epub(input_file: Path, out_file: Path) -> str:
     media_dir, rel_media_dir = _ensure_media_dir(out_file)
     book = epub.read_epub(str(input_file))
 
-    # Extract images, remembering original path → new filename mapping
     img_map: dict[str, str] = {}
     index = 0
     for item in book.get_items_of_type(ebooklib.ITEM_IMAGE):
@@ -608,11 +553,9 @@ def _convert_epub(input_file: Path, out_file: Path) -> str:
         ext = Path(item.file_name).suffix or ".bin"
         filename = f"image_{index:03d}{ext}"
         (media_dir / filename).write_bytes(item.get_content())
-        # Map both full and basename for robust lookup
         img_map[item.file_name] = filename
         img_map[Path(item.file_name).name] = filename
 
-    # Iterate document items in spine order
     html_parts: list[str] = []
     spine_ids = [sid for sid, _ in book.spine]
     id_to_item = {it.get_id(): it for it in book.get_items_of_type(ebooklib.ITEM_DOCUMENT)}
@@ -625,7 +568,6 @@ def _convert_epub(input_file: Path, out_file: Path) -> str:
             src = img.get("src", "")
             if not src:
                 continue
-            # Try exact match, then basename, then normalized path
             candidates = [src, Path(src).name, unquote(src), Path(unquote(src)).name]
             resolved = next((img_map[c] for c in candidates if c in img_map), None)
             if resolved:
@@ -646,9 +588,6 @@ def _convert_epub(input_file: Path, out_file: Path) -> str:
     return markdown
 
 
-# ─────────────────────────────────────────────────────────────
-# IPYNB → Markdown (nbconvert)
-# ─────────────────────────────────────────────────────────────
 
 def _convert_ipynb(input_file: Path, out_file: Path) -> str:
     try:
@@ -659,9 +598,6 @@ def _convert_ipynb(input_file: Path, out_file: Path) -> str:
         print("[ERROR] nbconvert not installed. Run: pip install nbconvert")
         return ""
 
-    # Pre-process cell-level markdown attachments: nbconvert leaves
-    # `attachment:<name>` references intact but doesn't write the files.
-    # Extract them into our outputs dict so FilesWriter picks them up.
     nb = nbformat.read(str(input_file), as_version=4)
     extra_outputs: dict[str, bytes] = {}
     rel_media_dir = f"{out_file.stem}_files"
@@ -685,7 +621,6 @@ def _convert_ipynb(input_file: Path, out_file: Path) -> str:
                     extra_outputs[out_path] = base64.b64decode(b64)
                 except Exception:
                     continue
-                # Rewrite source references: attachment:<name> → <rel_path>
                 src = cell.source if isinstance(cell.source, str) else "".join(cell.source)
                 src = src.replace(f"attachment:{att_name}", out_path)
                 cell.source = src
@@ -693,7 +628,6 @@ def _convert_ipynb(input_file: Path, out_file: Path) -> str:
     exporter = MarkdownExporter()
     body, resources = exporter.from_notebook_node(nb)
 
-    # Merge attachment outputs with whatever nbconvert collected
     resources.setdefault("outputs", {}).update(extra_outputs)
     resources["output_extension"] = ".md"
 
@@ -706,9 +640,6 @@ def _convert_ipynb(input_file: Path, out_file: Path) -> str:
     return markdown
 
 
-# ─────────────────────────────────────────────────────────────
-# Pandoc fallback
-# ─────────────────────────────────────────────────────────────
 
 def _check_pandoc() -> bool:
     return shutil.which("pandoc") is not None
@@ -749,7 +680,6 @@ def _convert_with_pandoc(input_file: Path, out_file: Path, suffix: str) -> str:
 
     markdown = out_file.read_text(encoding="utf-8")
 
-    # Flatten nested media/ subdir that pandoc creates
     nested_media = media_dir / "media"
     if nested_media.exists():
         for f in nested_media.iterdir():
@@ -761,7 +691,6 @@ def _convert_with_pandoc(input_file: Path, out_file: Path, suffix: str) -> str:
             pass
         markdown = markdown.replace(f"{rel_media_dir}/media/", f"{rel_media_dir}/")
 
-    # Normalize absolute paths to relative
     for abs_str in (str(media_dir.resolve()).replace("\\", "/"),
                     str(media_dir.resolve())):
         if abs_str in markdown:
@@ -774,9 +703,6 @@ def _convert_with_pandoc(input_file: Path, out_file: Path, suffix: str) -> str:
     return markdown
 
 
-# ─────────────────────────────────────────────────────────────
-# Dispatcher
-# ─────────────────────────────────────────────────────────────
 
 _FORMAT_DESC = {
     ".docx":  "Microsoft Word (mammoth)",
@@ -838,15 +764,3 @@ Native formats (no pandoc required):
 
 Pandoc fallback formats (require system pandoc):
   .doc  .odt  .rtf  .tex/.latex  .rst  .org  .typ
-        """,
-    )
-    parser.add_argument("input", help="Input document file")
-    parser.add_argument("-o", "--output", help="Output Markdown file path")
-    args = parser.parse_args()
-
-    result = convert_to_markdown(args.input, args.output)
-    sys.exit(0 if result else 1)
-
-
-if __name__ == "__main__":
-    main()

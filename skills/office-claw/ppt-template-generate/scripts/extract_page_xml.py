@@ -1,12 +1,3 @@
-#!/usr/bin/env python3
-"""
-extract_page_xml.py
-Reads PPTX XML (no python-pptx needed) and outputs a JSON with slide
-element geometry. Used by extract-page-skeletons.js.
-
-Usage:
-  python extract_page_xml.py <pptx_path> <output_json_path>
-"""
 import sys
 import os
 import json

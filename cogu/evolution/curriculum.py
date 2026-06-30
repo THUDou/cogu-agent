@@ -1,9 +1,3 @@
-"""Curriculum — 渐进难度课程调度 + 难度曲线
-
-灵感来源: Agent0 Curriculum + EvoMaster EvolutionManager analyze→apply 模式
-基于源码: EvoMaster evolution/manager.py (baseline→analyze→rerun)
-         + Youtu-Agent practice/rollout_manager.py (batch processing)
-"""
 from __future__ import annotations
 
 import time

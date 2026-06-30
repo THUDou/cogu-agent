@@ -1,13 +1,3 @@
-"""评估器系统 — 四种评估器类型
-
-参考: Coze Loop backend/modules/evaluation/domain/service/
-      EvaluatorType_Prompt: LLM打分 (模板渲染 -> LLM调用 -> 解析JSON结果)
-      EvaluatorType_Code: Python/JS代码执行 (安全检查 + FaaS沙箱)
-      EvaluatorType_CustomRPC: 外部RPC服务评估
-      EvaluatorType_Agent: Agent方式评估
-
-内置模板: relevance, conciseness, correctness, hallucination, helpfulness 等
-"""
 from __future__ import annotations
 
 import json

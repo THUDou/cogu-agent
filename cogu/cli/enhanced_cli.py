@@ -1,8 +1,3 @@
-"""Enhanced CLI — 增强 CLI
-
-基于源码: Claude Code CLI + ECC CLI
-COGU 实现: 20+ 子命令 + 彩色输出 + 进度条
-"""
 from __future__ import annotations
 
 import argparse

@@ -1,22 +1,3 @@
-#!/usr/bin/env python3
-"""Internal helper: extract lightweight template assets and style metadata from a PPTX file.
-
-This helper is intentionally limited in scope:
-- extract reusable media assets
-- summarize slide size, theme colors, and fonts
-- infer common background assets through slide/layout/master inheritance
-- produce a compact manifest for downstream template reconstruction
-
-It does NOT try to convert arbitrary PPTX shapes into SVG templates.
-
-Output contract (single source of truth):
-    <workspace>/manifest.json   — all factual metadata (theme, assets, slides, layouts, masters)
-    <workspace>/summary.md      — short human-readable digest derived from manifest.json
-    <workspace>/assets/         — extracted reusable image assets
-
-This module is a pure library. The CLI entry point lives in
-``pptx_template_import.py`` at the scripts root.
-"""
 
 from __future__ import annotations
 
@@ -149,7 +130,6 @@ def parse_relationships(zf: zipfile.ZipFile, part_path: str) -> dict[str, dict[s
 
 
 def emu_to_pixels(value: int) -> int:
-    # PowerPoint uses 96 dpi; enough for summary output.
     return int(round(value / EMU_PER_INCH * 96))
 
 
@@ -379,12 +359,6 @@ def choose_common_assets(asset_usage: Counter[str]) -> list[str]:
 
 
 def write_summary(output_path: Path, manifest: dict[str, Any]) -> None:
-    """Render a short human digest derived from manifest.json.
-
-    This intentionally stays terse: every fact already lives in manifest.json.
-    The digest exists only so a reviewer can scan the workspace at a glance
-    without parsing JSON.
-    """
     source_name = manifest["source"]["name"]
     slide_size = manifest["slideSize"]
     theme = manifest["theme"]

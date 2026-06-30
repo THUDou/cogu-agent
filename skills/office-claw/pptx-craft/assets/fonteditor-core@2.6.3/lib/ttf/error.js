@@ -12,19 +12,6 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
  * @author mengke01(kekee000@gmail.com)
  */
 var _default = exports.default = {
-  /**
-   * 抛出一个异常
-   *
-   * @param  {Object} e 异常号或者异常对象
-   * @param  {...Array} fargs args 参数
-   *
-   * 例如：
-   * e = 1001
-   * e = {
-   *     number: 1001,
-   *     data: 错误数据
-   * }
-   */
   raise: function raise(e) {
     var number;
     var data;

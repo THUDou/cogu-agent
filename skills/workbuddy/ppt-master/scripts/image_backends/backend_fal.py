@@ -1,12 +1,3 @@
-#!/usr/bin/env python3
-"""
-fal.ai image generation backend.
-
-Configuration keys:
-  FAL_KEY / FAL_API_KEY   (required)
-  FAL_BASE_URL            (optional)
-  FAL_MODEL               (optional)
-"""
 
 import sys
 
@@ -37,7 +28,6 @@ DEFAULT_MODEL = "fal-ai/imagen3/fast"
 
 
 def _resolve_url(base_url: str, model: str) -> str:
-    """Resolve the full fal endpoint URL for a model."""
     base = base_url.rstrip("/")
     if base.endswith(model):
         return base
@@ -48,7 +38,6 @@ def _generate_image(api_key: str, prompt: str,
                     aspect_ratio: str = "1:1", image_size: str = "1K",
                     output_dir: str = None, filename: str = None,
                     model: str = DEFAULT_MODEL, base_url: str = DEFAULT_ENDPOINT) -> str:
-    """Generate one image with the fal.ai backend."""
     del image_size
 
     if aspect_ratio not in VALID_ASPECT_RATIOS:
@@ -96,7 +85,6 @@ def generate(prompt: str,
              aspect_ratio: str = "1:1", image_size: str = "1K",
              output_dir: str = None, filename: str = None,
              model: str = None, max_retries: int = MAX_RETRIES) -> str:
-    """Generate an image with retries using the fal.ai backend."""
     api_key = require_api_key(
         "FAL_KEY",
         "FAL_API_KEY",

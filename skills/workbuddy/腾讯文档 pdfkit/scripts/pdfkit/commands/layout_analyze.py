@@ -1,9 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-PDF 布局分析脚本。
-基于规则引擎分析 PDF 页面的布局结构，识别标题、段落、表格、图片区域。
-"""
 
 COMMAND = "layout_analyze"
 DESCRIPTION = "分析 PDF 页面的布局结构，识别标题、段落、表格、图片区域"
@@ -16,15 +10,6 @@ PARAMS = [
 
 
 def handler(params):
-    """分析 PDF 页面的布局结构。
-
-    Args:
-        params: {
-            "input": PDF 路径,
-            "pages": 页码列表（可选，默认全部）,
-            "detail": 详细程度（basic/full，默认 basic）
-        }
-    """
     import fitz
 
     input_path = params["input"]
@@ -44,7 +29,6 @@ def handler(params):
         page_width = page.rect.width
         page_height = page.rect.height
 
-        # 提取所有文本块
         text_dict = page.get_text("dict", flags=fitz.TEXT_PRESERVE_WHITESPACE)
         blocks_info = []
 
@@ -91,23 +75,18 @@ def handler(params):
                     "image_index": block.get("number", -1),
                 })
 
-        # 计算平均字号（用于区分标题和正文）
         avg_font_size = sum(all_font_sizes) / len(all_font_sizes) if all_font_sizes else 12
         title_threshold = avg_font_size * 1.2
 
-        # 分类文本块
         for tb in text_blocks:
             block_type = "paragraph"
 
-            # 标题检测：字号大于阈值，且行数较少
             if tb["font_size"] > title_threshold and tb["line_count"] <= 3:
                 block_type = "title"
-            # 页眉页脚检测：位于页面顶部或底部
             elif tb["bbox"][1] < page_height * 0.08:
                 block_type = "header"
             elif tb["bbox"][3] > page_height * 0.92:
                 block_type = "footer"
-            # 短文本可能是标注
             elif len(tb["text"]) < 20 and tb["line_count"] == 1:
                 block_type = "caption"
 
@@ -124,19 +103,15 @@ def handler(params):
 
             blocks_info.append(block_info)
 
-        # 检测表格区域（通过路径对象的网格模式）
         drawings = page.get_drawings()
         if drawings:
-            # 简单的表格检测：查找矩形密集区域
             rects = [d["rect"] for d in drawings if d.get("rect")]
             if len(rects) > 4:
-                # 聚类矩形，找到表格区域
                 min_x = min(r[0] for r in rects)
                 min_y = min(r[1] for r in rects)
                 max_x = max(r[2] for r in rects)
                 max_y = max(r[3] for r in rects)
 
-                # 如果矩形区域足够大，认为是表格
                 area = (max_x - min_x) * (max_y - min_y)
                 page_area = page_width * page_height
                 if area > page_area * 0.05:  # 占页面面积 5% 以上
@@ -146,7 +121,6 @@ def handler(params):
                         "rect_count": len(rects),
                     })
 
-        # 按 Y 坐标排序
         blocks_info.sort(key=lambda b: (b["bbox"][1], b["bbox"][0]))
 
         page_result = {

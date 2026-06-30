@@ -1,10 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""PDF IR 结构差异对比。
-
-对比两个 PDF 文档（或两个 IR JSON）的结构差异，
-输出页面级和块级的变更摘要。
-"""
 
 import json
 import os
@@ -22,7 +15,6 @@ PARAMS = [
 
 
 def _extract_page_texts(path):
-    """从 PDF 或 IR JSON 提取每页文本。"""
     if path.endswith(".json"):
         with open(path, "r", encoding="utf-8") as f:
             ir = json.load(f)
@@ -49,7 +41,6 @@ def _extract_page_texts(path):
 
 
 def _extract_page_images(path):
-    """从 PDF 提取每页图片数量。"""
     if path.endswith(".json"):
         with open(path, "r", encoding="utf-8") as f:
             ir = json.load(f)
@@ -64,7 +55,6 @@ def _extract_page_images(path):
 
 
 def handler(params):
-    """对比两个 PDF/IR 的结构差异。"""
     left_path = params["left"]
     right_path = params["right"]
     output_path = params.get("output")
@@ -120,7 +110,6 @@ def handler(params):
                 "char_diff": len(r_text) - len(l_text),
             }
 
-            # 简单行级 diff
             l_lines = l_text.splitlines()
             r_lines = r_text.splitlines()
             added_lines = []
@@ -144,7 +133,6 @@ def handler(params):
         else:
             diff["summary"]["unchanged_pages"] += 1
 
-    # 图片差异
     if not text_only:
         left_imgs = _extract_page_images(left_path)
         right_imgs = _extract_page_images(right_path)
@@ -161,7 +149,6 @@ def handler(params):
         if img_diffs:
             diff["image_diffs"] = img_diffs
 
-    # 输出
     if output_path:
         output_dir = os.path.dirname(output_path)
         if output_dir and not os.path.exists(output_dir):

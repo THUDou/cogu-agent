@@ -1,7 +1,3 @@
-"""Tool Discovery — 运行时工具搜索
-
-基于源码: OpenAI Codex tool_search + Claude Code tool discovery
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -19,7 +15,6 @@ class ToolSearchResult:
 
 
 class ToolDiscovery:
-    """运行时工具搜索 — 语义匹配 + 能力查询"""
 
     def __init__(self, registry: ToolRegistry):
         self._registry = registry

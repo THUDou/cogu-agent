@@ -1,20 +1,8 @@
-/**
- * @file 路径组变化函数
- * @author mengke01(kekee000@gmail.com)
- */
 
 import {computePath} from './computeBoundingBox';
 import pathAdjust from './pathAdjust';
 import pathRotate from './pathRotate';
 
-/**
- * 翻转路径
- *
- * @param {Array} paths 路径数组
- * @param {number} xScale x翻转
- * @param {number} yScale y翻转
- * @return {Array} 变换后的路径
- */
 function mirrorPaths(paths, xScale, yScale) {
     const {x, y, width, height} = computePath(...paths);
 
@@ -42,13 +30,6 @@ function mirrorPaths(paths, xScale, yScale) {
 
 export default {
 
-    /**
-     * 旋转路径
-     *
-     * @param {Array} paths 路径数组
-     * @param {number} angle 弧度
-     * @return {Array} 变换后的路径
-     */
     rotate(paths, angle) {
         if (!angle) {
             return paths;
@@ -66,14 +47,6 @@ export default {
         return paths;
     },
 
-    /**
-     * 路径组变换
-     *
-     * @param {Array} paths 路径数组
-     * @param {number} x x 方向缩放
-     * @param {number} y y 方向缩放
-     * @return {Array} 变换后的路径
-     */
     move(paths, x, y) {
         const bound = computePath(...paths);
         paths.forEach(path => {

@@ -108,7 +108,6 @@ async function waitForFontsReady(page, { selector = ".ppt-slide" } = {}) {
           await document.fonts.ready;
         }
       } catch (e) {
-        // Ignore font loading errors and continue with best effort.
       }
 
       var elements = Array.from(document.querySelectorAll(${sel}));
@@ -530,7 +529,6 @@ async function convertPages(input, outputPath, options) {
                   return !invisibleTags.has(el.tagName.toLowerCase());
                 });
                 if (visibleChildren.length === 1) {
-                  // body 下只有一个可见元素，直接添加 ppt-slide 类
                   var el = visibleChildren[0];
                   if (!el.classList.contains('ppt-slide')) {
                     el.classList.add('ppt-slide');
@@ -538,7 +536,6 @@ async function convertPages(input, outputPath, options) {
                   convertCanvasToImage(el);
                   slideHtmls = [el.outerHTML];
                 } else {
-                  // body 有多个可见元素或无可见元素，包裹整个 body 内容
                   convertCanvasToImage(document.body);
                   slideHtmls = ['<div class="ppt-slide">' + document.body.innerHTML + '</div>'];
                 }

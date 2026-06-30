@@ -1,7 +1,3 @@
-#!/usr/bin/env python3
-"""
-Shared helpers for image generation backends.
-"""
 
 import sys
 
@@ -30,7 +26,6 @@ RETRY_BACKOFF = 2
 
 def resolve_output_path(prompt: str, output_dir: str = None,
                         filename: str = None, ext: str = ".png") -> str:
-    """Compute the final output file path based on parameters."""
     if filename:
         file_name = os.path.splitext(filename)[0]
     else:
@@ -68,7 +63,6 @@ EXT_TO_PIL_FORMAT = {
 
 
 def detect_image_extension(image_bytes: bytes, content_type: str = None) -> str | None:
-    """Best-effort detection of the real image format."""
     if content_type:
         clean_type = content_type.split(";", 1)[0].strip().lower()
         if clean_type in CONTENT_TYPE_TO_EXT:
@@ -90,7 +84,6 @@ def detect_image_extension(image_bytes: bytes, content_type: str = None) -> str 
 
 
 def _normalize_extension(ext: str) -> str:
-    """Normalize equivalent image extensions to a canonical form."""
     ext = ext.lower()
     if ext == ".jpeg":
         return ".jpg"
@@ -100,12 +93,6 @@ def _normalize_extension(ext: str) -> str:
 
 
 def save_image_bytes(image_bytes: bytes, path: str, content_type: str = None) -> str:
-    """
-    Save image bytes to disk while keeping the file extension and the real bytes aligned.
-
-    If the target extension differs from the actual bytes, transcode through Pillow when
-    available. Otherwise fail loudly instead of writing a misleading file.
-    """
     target_ext = _normalize_extension(os.path.splitext(path)[1])
     actual_ext = _normalize_extension(detect_image_extension(image_bytes, content_type) or "")
 
@@ -144,7 +131,6 @@ def save_image_bytes(image_bytes: bytes, path: str, content_type: str = None) ->
 
 
 def report_resolution(path: str) -> None:
-    """Try to report image resolution using PIL."""
     if HAS_PIL:
         try:
             img = PILImage.open(path)
@@ -154,7 +140,6 @@ def report_resolution(path: str) -> None:
 
 
 def normalize_image_size(image_size: str) -> str:
-    """Normalize image size input to standard format."""
     s = image_size.strip()
     upper = s.upper()
     if upper in ("1K", "2K", "4K"):
@@ -165,7 +150,6 @@ def normalize_image_size(image_size: str) -> str:
 
 
 def is_rate_limit_error(exc: Exception) -> bool:
-    """Check whether the exception appears to be rate limiting."""
     err_str = str(exc).lower()
     return (
         "429" in err_str
@@ -176,14 +160,12 @@ def is_rate_limit_error(exc: Exception) -> bool:
 
 
 def retry_delay(attempt: int, rate_limited: bool) -> int:
-    """Return the retry delay for a given attempt."""
     if rate_limited:
         return RETRY_BASE_DELAY * (RETRY_BACKOFF ** attempt)
     return 5
 
 
 def download_image(url: str, path: str, headers: dict = None, timeout: int = 180) -> str:
-    """Download an image URL and save it to disk."""
     response = requests.get(url, headers=headers or {}, timeout=timeout)
     response.raise_for_status()
     return save_image_bytes(
@@ -194,7 +176,6 @@ def download_image(url: str, path: str, headers: dict = None, timeout: int = 180
 
 
 def require_api_key(*candidates: str, message: str) -> str:
-    """Return the first non-empty env var from candidates or raise."""
     for name in candidates:
         value = os.environ.get(name)
         if value:
@@ -203,7 +184,6 @@ def require_api_key(*candidates: str, message: str) -> str:
 
 
 def http_error(response: requests.Response, label: str) -> RuntimeError:
-    """Convert an HTTP response into a readable RuntimeError."""
     body = response.text.strip()
     if len(body) > 500:
         body = body[:500] + "..."
@@ -220,7 +200,6 @@ def poll_json(
     ready_values: list[str] | None = None,
     failed_values: list[str] | None = None,
 ) -> dict:
-    """Poll a JSON endpoint until it reports a ready or failed status."""
     ready = {value.lower() for value in (ready_values or ["ready", "success", "succeeded"])}
     failed = {value.lower() for value in (failed_values or ["error", "failed", "fail"])}
 

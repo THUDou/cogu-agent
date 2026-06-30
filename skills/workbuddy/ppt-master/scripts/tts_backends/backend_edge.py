@@ -1,4 +1,3 @@
-"""edge-tts backend for narration audio generation."""
 
 from __future__ import annotations
 
@@ -29,7 +28,6 @@ def edge_output_extension() -> str:
 
 
 def normalize_rate(rate: str) -> str:
-    """Normalize a user-provided rate into edge-tts format."""
     value = rate.strip()
     if not value:
         return "+0%"
@@ -83,4 +81,3 @@ async def print_voices(locale: str | None = None) -> None:
         gender = voice.get("Gender", "")
         friendly = voice.get("FriendlyName", "")
         print(f"{voice_locale:<8} {short_name:<34} {gender:<8} {friendly}")
-

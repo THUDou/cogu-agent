@@ -4,10 +4,6 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
-/**
- * @file 圆路径集合，逆时针
- * @author mengke01(kekee000@gmail.com)
- */
 var _default = exports.default = [{
   x: 582,
   y: 0

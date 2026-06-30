@@ -1,9 +1,3 @@
-/**
- * @file prep表
- * @author mengke01(kekee000@gmail.com)
- *
- * @reference: http://www.microsoft.com/typography/otspec140/prep.htm
- */
 
 import table from './table';
 

@@ -1,12 +1,3 @@
-"""节点类型体系 — 30+ 可视化工作流节点
-
-参考: Coze Studio backend/domain/workflow/entity/node_meta.go
-      30+ 节点类型: Entry/Exit/LLM/Plugin/SubWorkflow/CodeRunner/Selector/Loop/Batch/
-      KnowledgeRetriever/KnowledgeIndexer/DatabaseCustomSQL/QuestionAnswer/IntentDetector/
-      HTTPRequester/TextProcessor/VariableAssigner/VariableAggregator/JsonSerialization 等
-
-每个节点类型定义: display_key, category, input/output schema, config schema
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field

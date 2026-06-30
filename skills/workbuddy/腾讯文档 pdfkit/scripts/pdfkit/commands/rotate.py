@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""PDF 页面旋转。"""
 
 import os
 
@@ -17,7 +14,6 @@ PARAMS = [
 
 
 def handler(params):
-    """旋转 PDF 页面。"""
     from pypdf import PdfReader, PdfWriter
 
     input_path = params["input"]
@@ -31,7 +27,6 @@ def handler(params):
     if angle not in [90, 180, 270, -90, -180, -270]:
         raise ValueError(f"不支持的旋转角度: {angle}，支持 90/180/270/-90/-180/-270")
 
-    # 确保输出目录存在
     output_dir = os.path.dirname(output_path)
     if output_dir and not os.path.exists(output_dir):
         os.makedirs(output_dir, exist_ok=True)

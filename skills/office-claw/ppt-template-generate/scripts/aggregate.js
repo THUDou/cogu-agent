@@ -1,8 +1,4 @@
 #!/usr/bin/env node
-/**
- * 聚合脚本
- * 合并工具提取的结构化数据和 VLM 分析结果，生成样式规范文件
- */
 
 const fs = require('fs');
 const path = require('path');
@@ -41,7 +37,6 @@ const USAGE_LABEL = {
   free_shape_fill_gradient: '自由形状渐变填充', free_shape_text_gradient: '自由形状文字渐变',
 };
 
-// ─── VLM 结果兼容解析 ──────────────────────────────────────────────────────
 
 function extractVLMColorSemantics(analyses) {
   if (!analyses || !analyses.length) return {};
@@ -96,8 +91,6 @@ function uniqueValues(values) {
   return [...new Set(values.filter(Boolean))];
 }
 
-// Linear luminance approximation (BT.709 weights, not WCAG gamma-corrected).
-// Threshold 0.85 is calibrated to this formula — do not change threshold without re-testing.
 function luminance(hex) {
   const h = String(hex || '').trim();
   if (!/^#[0-9a-fA-F]{6}$/.test(h)) return 0;
@@ -823,7 +816,6 @@ function generateHardConstraintsSection(options) {
     rules.push('高优先级视觉纠偏规则必须覆盖通用模板建议，尤其是主色、背景、页面角色和核心版式相关规则。');
   }
 
-  // HTML 生成视觉基线约束
   rules.push(
     '每页 HTML 的 `<style>` 块中必须包含以下规则以防止全局 Tailwind CSS 覆盖背景图渲染：' +
     '`.ppt-slide .template-bg-image, .slide .template-bg-image { object-fit: cover !important; width: 100% !important; height: 100% !important; position: absolute; inset: 0; z-index: 0; }`；' +
@@ -860,13 +852,11 @@ function generateHardConstraintsSection(options) {
   return md;
 }
 
-// ─── 实际颜色表 ────────────────────────────────────────────────────────────
 
 function generateActualColorsSection(actualColors, slideCount) {
   if (!actualColors || !Object.keys(actualColors).length) return null;
   const sc = (Number.isFinite(slideCount) && slideCount > 0) ? slideCount : 1;
 
-  // 将颜色分为两组：填充/背景色 vs 纯文字色
   const fillEntries = [], textOnlyEntries = [];
   for (const [hex, info] of Object.entries(actualColors)) {
     if ((info.fill_count || 0) > 0) {
@@ -928,7 +918,6 @@ function generateActualColorsSection(actualColors, slideCount) {
   return md || null;
 }
 
-// ─── 字体与字号 ───────────────────────────────────────────────────────────
 
 const FONT_SIZE_LABEL = {
   title: '标题占位符', center_title: '居中标题', body: '正文占位符',
@@ -964,7 +953,6 @@ function generateFontSection(fonts, fontSizes, executionTypographyScale = null, 
   return `${md}\n${presetMatchSection}`.trim() || '未检测到字体信息';
 }
 
-// ─── 段落对齐 ──────────────────────────────────────────────────────────────
 
 const ALIGN_LABEL = {
   'PP_ALIGN.LEFT (1)': '左对齐', 'PP_ALIGN.CENTER (2)': '居中',
@@ -988,7 +976,6 @@ function generateParaAlignmentSection(paraAlignment) {
   return md;
 }
 
-// ─── 母版固定元素 ─────────────────────────────────────────────────────────
 
 function generateMasterSection(master) {
   if (!master || (!master.fixed_shapes?.length && !master.background?.color)) return null;
@@ -1013,7 +1000,6 @@ function generateMasterSection(master) {
   return md;
 }
 
-// ─── 组件样式 ─────────────────────────────────────────────────────────────
 
 function generateComponentStylesSection(styles) {
   if (!styles || !Object.keys(styles).length) return null;
@@ -1032,7 +1018,6 @@ function generateComponentStylesSection(styles) {
   return rules.map(rule => `- ${rule}`).join('\n');
 }
 
-// ─── 版式 ────────────────────────────────────────────────────────────────
 
 function generateLayoutSection(layouts) {
   if (!layouts || !layouts.length) return '未检测到版式信息';
@@ -1058,7 +1043,6 @@ function generateLayoutSection(layouts) {
   return md;
 }
 
-// ─── 页面类型与内容页样式库 ───────────────────────────────────────────────
 
 function formatPctBox(box) {
   if (!box) return '-';
@@ -1098,7 +1082,6 @@ function generatePageStructureGuidanceSection(hasContentStyles) {
   return md;
 }
 
-// ─── VLM 补充分析 ─────────────────────────────────────────────────────────
 
 function generateVLMSupplementSection(vlmAnalysis) {
   if (!vlmAnalysis?.analyses?.length) return null;
@@ -1158,7 +1141,6 @@ function generateVLMSupplementSection(vlmAnalysis) {
   return md;
 }
 
-// ─── 背景图片 ─────────────────────────────────────────────────────────────
 
 function generateBgImagesSection(bgImages) {
   if (!bgImages || !Object.keys(bgImages).length) return null;
@@ -1175,7 +1157,6 @@ function generateBgImagesSection(bgImages) {
   return md;
 }
 
-// ─── 高置信风格迁移图片资产 ───────────────────────────────────────────────
 
 function generateReusableStyleAssetsSection(reusableStyleAssets) {
   const assets = buildReusableStyleAssets(reusableStyleAssets);
@@ -1236,7 +1217,6 @@ function generateAssetRolesSection(assetRoles) {
   return md;
 }
 
-// ─── 背景-文字配色映射 ────────────────────────────────────────────────────
 
 function generateBgTextMappingSection(bgTextMapping) {
   if (!bgTextMapping || !Object.keys(bgTextMapping).length) return null;
@@ -1249,7 +1229,6 @@ function generateBgTextMappingSection(bgTextMapping) {
   return md;
 }
 
-// ─── 主生成函数 ───────────────────────────────────────────────────────────
 
 function generateStyleSpec(options) {
   const {
@@ -1281,16 +1260,13 @@ function generateStyleSpec(options) {
     ? `${timestamp} (${now.toLocaleString('zh-CN')})`
     : now.toISOString();
 
-  // 整体风格一句话（VLM 提供时使用，否则留空）
   const styleOneLiner = vlmStyle
     ? `\n> **整体风格定位**：${vlmStyle}\n`
     : '';
 
-  // VLM 增强复刻规则
   const vlmLayoutSemanticsSection = generateVLMLayoutSemanticsSection(vlmLayoutSemantics);
   const fixedCompositionSection = generateFixedCompositionSection(fixedComposition);
 
-  // 实际颜色表
   const actualColorsSection = generateActualColorsSection(actual_colors, slide_count);
   const hasActualColors = Boolean(actual_colors && Object.keys(actual_colors).length);
   const actualColorSet = hasActualColors
@@ -1298,23 +1274,17 @@ function generateStyleSpec(options) {
     : null;
   const vlmCorrectionsSection = generateVLMCorrectionsSection(vlmCorrections, actualColorSet);
 
-  // 背景-文字配色映射
   const bgTextMappingSection = generateBgTextMappingSection(bg_text_mapping);
 
-  // 母版信息
   const masterSection = generateMasterSection(master);
 
-  // 背景图片
   const bgImagesSection = generateBgImagesSection(bgImages);
 
-  // 页面类型与内容页样式库
   const contentLayoutStylesSection = generateContentLayoutStylesSection(content_layout_styles);
 
-  // 高置信风格迁移图片资产
   const assetRolesSection = generateAssetRolesSection(assetRoles);
   const reusableStyleAssetsSection = generateReusableStyleAssetsSection(reusableStyleAssets);
 
-  // 组件样式
   const componentSection = generateComponentStylesSection(component_styles);
 
   const overlayPolicy = extractVLMOverlayPolicy(vlmAnalyses);
@@ -1452,7 +1422,6 @@ ${machineReadableArtifactsSection}
   return md;
 }
 
-// ─── 文件聚合入口 ─────────────────────────────────────────────────────────
 
 function aggregate(structurePath, vlmPath, outputPath, options = {}) {
   let structureData = {};
@@ -1494,7 +1463,6 @@ function aggregate(structurePath, vlmPath, outputPath, options = {}) {
   return outputPath;
 }
 
-// ─── CLI ─────────────────────────────────────────────────────────────────
 
 function main() {
   const args = process.argv.slice(2);

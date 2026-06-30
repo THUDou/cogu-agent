@@ -1,9 +1,3 @@
-/**
- * @file gasp 表
- * 对于需要hinting的字号需要这个表，否则会导致错误
- * @author mengke01(kekee000@gmail.com)
- * reference: https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6gasp.html
- */
 
 import table from './table';
 
@@ -28,4 +22,3 @@ export default table.create(
         }
     }
 );
-

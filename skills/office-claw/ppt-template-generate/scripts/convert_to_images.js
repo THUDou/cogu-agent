@@ -1,8 +1,4 @@
 #!/usr/bin/env node
-/**
- * PPT 转图片脚本
- * 使用 Spire.Presentation.Free 将 PowerPoint 文件转换为高分辨率图片
- */
 
 const { execSync, spawn } = require('child_process');
 const fs = require('fs');

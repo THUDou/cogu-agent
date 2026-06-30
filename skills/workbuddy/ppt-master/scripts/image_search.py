@@ -1,40 +1,3 @@
-#!/usr/bin/env python3
-"""Web image search CLI.
-
-Sister tool to ``image_gen.py``: instead of generating an image from a
-prompt, this searches openly-licensed image providers and downloads a
-single best match.
-
-Workflow:
-    1. Build an :class:`ImageSearchRequest` from CLI args.
-    2. Quality-first license search:
-       - Default: ask each provider for ``all`` allowed matches (CC0,
-         Public Domain, Pexels, Pixabay, CC BY, CC BY-SA), pick the
-         highest-scoring downloadable candidate, and record whether it
-         needs attribution.
-       - Strict mode: when ``--strict-no-attribution`` is set, ask only
-         for ``no-attribution-only`` matches and fail if none can be
-         downloaded.
-    3. Download the chosen image into ``--output``.
-    4. Append a record to ``image_sources.json`` (the single source of
-       truth for downstream credit rendering).
-
-Examples:
-    # Default: zero-config, quality-first across allowed licenses
-    python3 scripts/image_search.py "offshore wind farm" \
-        --filename cover_bg.jpg --slide 01_cover \
-        --orientation landscape -o projects/demo/images
-
-    # Strict mode: refuse anything that would require attribution
-    python3 scripts/image_search.py "abstract gradient" \
-        --filename hero.jpg --strict-no-attribution \
-        -o projects/demo/images
-
-    # Pin a specific provider (useful when an API key is set)
-    python3 scripts/image_search.py "executive meeting" \
-        --filename team.jpg --provider pexels \
-        --orientation landscape -o projects/demo/images
-"""
 
 from __future__ import annotations
 
@@ -49,7 +12,6 @@ from typing import Optional
 
 import requests
 
-# Make sibling modules importable when this script is invoked directly.
 _SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
@@ -66,9 +28,6 @@ from image_sources.provider_common import (  # noqa: E402
 )
 
 
-# ---------------------------------------------------------------------------
-# Provider registry
-# ---------------------------------------------------------------------------
 
 PROVIDER_MODULES: dict[str, str] = {
     "openverse": "image_sources.provider_openverse",
@@ -77,8 +36,6 @@ PROVIDER_MODULES: dict[str, str] = {
     "pixabay": "image_sources.provider_pixabay",
 }
 
-# Providers that work without configuration. ``image_search.py`` defaults
-# to these so a fresh clone can search immediately.
 ZERO_CONFIG_PROVIDERS: tuple[str, ...] = ("openverse", "wikimedia")
 KEYED_PROVIDERS: tuple[str, ...] = ("pexels", "pixabay")
 ALL_PROVIDERS: tuple[str, ...] = ZERO_CONFIG_PROVIDERS + KEYED_PROVIDERS
@@ -86,19 +43,12 @@ ALL_PROVIDERS: tuple[str, ...] = ZERO_CONFIG_PROVIDERS + KEYED_PROVIDERS
 ORIENTATION_CHOICES = ("any", "landscape", "portrait", "square")
 
 
-# ---------------------------------------------------------------------------
-# .env loading
-# ---------------------------------------------------------------------------
 
 
 def _load_search_env_file() -> None:
-    """Load image-search keys from the shared PPT Master .env locations."""
     load_prefixed_env_file(("PEXELS_", "PIXABAY_"))
 
 
-# ---------------------------------------------------------------------------
-# Provider dispatch
-# ---------------------------------------------------------------------------
 
 
 def _load_provider(name: str):
@@ -106,8 +56,6 @@ def _load_provider(name: str):
 
 
 def _is_keyed_provider_unconfigured(provider_name: str, exc: Exception) -> bool:
-    """Treat 'API key missing' as a non-fatal skip so the default provider
-    chain can keep going."""
     if provider_name not in KEYED_PROVIDERS:
         return False
     return "API_KEY" in str(exc)
@@ -118,8 +66,6 @@ def _try_provider(
     request: ImageSearchRequest,
     license_tier_filter: str,
 ) -> Optional[list[AssetCandidate]]:
-    """Run one provider; print and swallow recoverable errors, return None
-    so the dispatcher can try the next provider."""
     try:
         module = _load_provider(name)
         return module.search(request, license_tier_filter=license_tier_filter)
@@ -137,20 +83,11 @@ def _try_provider(
         return None
 
 
-# ---------------------------------------------------------------------------
-# Post-download quality validation
-# ---------------------------------------------------------------------------
 
 _MIN_DOWNLOAD_PIXELS = 800 * 600  # reject anything below ~480K px
 
 
 def _validate_downloaded_quality(path: Path) -> bool:
-    """Reject images that are too small after download.
-
-    Upstream metadata can be inaccurate (e.g. Openverse aggregates rawpixel
-    which only exposes a preview). This function checks what was actually
-    written to disk and rejects thumbnails / previews.
-    """
     try:
         from PIL import Image  # type: ignore
     except ImportError:
@@ -177,8 +114,6 @@ def _save_candidates_pool(
     selected_filename: str,
     max_candidates: int = 8,
 ) -> None:
-    """Download top-N candidates into ``candidates/<stem>/`` and write
-    a ``candidates.json`` manifest for manual review."""
     cand_dir = output_dir / "candidates" / stem
     cand_dir.mkdir(parents=True, exist_ok=True)
 
@@ -244,15 +179,6 @@ def search_and_download(
     save_candidates: bool = True,
     max_candidates: int = 8,
 ) -> tuple[Optional[AssetCandidate], Optional[str], Optional[str]]:
-    """Find a candidate AND successfully download it.
-
-    When ``save_candidates`` is True (default), the top-N candidates are
-    also saved to ``candidates/<stem>/`` for manual review.
-
-    Returns ``(candidate, provider_name, stage)`` for the successfully
-    downloaded image, or ``(None, None, None)`` if every combination
-    failed.
-    """
     license_filters: list[str] = (
         ["no-attribution-only"] if strict_no_attribution else ["all"]
     )
@@ -281,7 +207,6 @@ def search_and_download(
 
         sorted_ranked = sorted(ranked, key=lambda item: item[0], reverse=True)
 
-        # --- Save candidate pool (before picking the winner) ---
         if save_candidates and sorted_ranked:
             stem = Path(output_path).stem
             _save_candidates_pool(
@@ -289,11 +214,7 @@ def search_and_download(
                 max_candidates=max_candidates,
             )
 
-        # --- Pick the best downloadable candidate ---
         for _score, provider_name, candidate in sorted_ranked:
-            # If candidates were already saved, the file may already
-            # exist in the candidates dir — but we still need the
-            # primary copy at output_path.
             try:
                 download_image(
                     candidate.download_url,
@@ -314,9 +235,6 @@ def search_and_download(
     return None, None, None
 
 
-# ---------------------------------------------------------------------------
-# Manifest
-# ---------------------------------------------------------------------------
 
 
 def default_manifest_path(output_dir: str) -> Path:
@@ -324,17 +242,6 @@ def default_manifest_path(output_dir: str) -> Path:
 
 
 def _measure_actual_image(path: Path) -> Optional[tuple[int, int]]:
-    """Return ``(width, height)`` of the file actually saved at ``path``.
-
-    Upstream metadata (``candidate.width``/``height``) describes the
-    original image on the provider's server, which may differ from what
-    we are allowed to download — for example, second-tier sources
-    aggregated by Openverse (rawpixel etc.) often only expose a
-    1024px-wide preview. The Executor needs to know what is actually on
-    disk for layout purposes; this function provides that ground truth.
-
-    Returns ``None`` if Pillow is unavailable or the file is unreadable.
-    """
     try:
         from PIL import Image  # type: ignore
     except ImportError:
@@ -354,13 +261,6 @@ def _candidate_to_manifest_item(
     stage: str,
     actual_dimensions: Optional[tuple[int, int]] = None,
 ) -> dict:
-    """Build the manifest entry.
-
-    ``width`` / ``height`` reflect the file actually saved to disk
-    (measured by Pillow after download). The upstream-claimed dimensions
-    are only kept under ``metadata_dimensions`` when they disagree with
-    reality, which is the only case where this distinction matters.
-    """
     if actual_dimensions is not None:
         width, height = actual_dimensions
     else:
@@ -388,8 +288,6 @@ def _candidate_to_manifest_item(
         "status": "sourced",
     }
 
-    # Only carry upstream-claimed dimensions when they differ — this flags
-    # cases where the provider returned a preview rather than the original.
     if (
         actual_dimensions is not None
         and candidate.width
@@ -420,8 +318,6 @@ def _read_existing_manifest(path: Path) -> dict:
 
 
 def write_sources_manifest(path: Path, item: dict) -> Path:
-    """Append ``item`` to the manifest at ``path``, replacing any prior
-    entry that targets the same filename."""
     manifest_path = ensure_json_parent(path)
     payload = _read_existing_manifest(manifest_path)
 
@@ -443,9 +339,6 @@ def write_sources_manifest(path: Path, item: dict) -> Path:
     return manifest_path
 
 
-# ---------------------------------------------------------------------------
-# Promote: replace primary image with a candidate
-# ---------------------------------------------------------------------------
 
 
 def promote_candidate(
@@ -454,13 +347,6 @@ def promote_candidate(
     candidate_filename: str,
     manifest_path: Optional[Path] = None,
 ) -> int:
-    """Replace the primary image with a candidate from the pool.
-
-    Steps:
-        1. Copy ``candidates/<stem>/<candidate_filename>`` → ``<target_filename>``
-        2. Update ``candidates.json`` selected field
-        3. Update ``image_sources.json`` with the candidate's metadata
-    """
     import shutil
 
     stem = Path(target_filename).stem
@@ -492,13 +378,11 @@ def promote_candidate(
     shutil.copy2(str(src_path), str(dst_path))
     print(f"  promoted: {candidate_filename} → {target_filename}", file=sys.stderr)
 
-    # Update candidates.json
     meta["selected"] = candidate_filename
     cand_meta_path.write_text(
         json.dumps(meta, indent=2, ensure_ascii=False) + "\n", encoding="utf-8",
     )
 
-    # Update image_sources.json
     mpath = manifest_path or default_manifest_path(str(output_dir))
     actual_dim = _measure_actual_image(dst_path)
     w = actual_dim[0] if actual_dim else entry.get("width", 0)
@@ -531,9 +415,6 @@ def promote_candidate(
     return 0
 
 
-# ---------------------------------------------------------------------------
-# CLI
-# ---------------------------------------------------------------------------
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -630,8 +511,6 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _default_provider_chain() -> list[str]:
-    """Keyed high-quality providers first; zero-config providers as fallback.
-    This is the search order when ``--provider`` is unset."""
     chain: list[str] = []
     if os.environ.get("PEXELS_API_KEY"):
         chain.append("pexels")
@@ -649,7 +528,6 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     output_dir = Path(args.output)
 
-    # --- Promote mode ---
     if args.promote:
         return promote_candidate(
             output_dir,
@@ -658,7 +536,6 @@ def main(argv: Optional[list[str]] = None) -> int:
             manifest_path=Path(args.manifest) if args.manifest else None,
         )
 
-    # --- Search mode ---
     request = ImageSearchRequest(
         query=args.query,
         purpose=args.purpose,
@@ -700,8 +577,6 @@ def main(argv: Optional[list[str]] = None) -> int:
         file=sys.stderr,
     )
 
-    # Measure what was actually written to disk; upstream metadata can be
-    # off (e.g. Openverse aggregates rawpixel which only exposes previews).
     actual_dimensions = _measure_actual_image(output_path)
     if (
         actual_dimensions is not None

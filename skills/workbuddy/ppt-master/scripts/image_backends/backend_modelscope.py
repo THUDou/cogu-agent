@@ -1,12 +1,3 @@
-#!/usr/bin/env python3
-"""
-ModelScope image generation backend.
-
-Configuration keys:
-  MODELSCOPE_API_KEY    (required)
-  MODELSCOPE_MODEL      (optional)
-  MODELSCOPE_BASE_URL   (optional)
-"""
 
 import os
 import time
@@ -28,7 +19,6 @@ from image_backends.backend_common import (
 DEFAULT_ENDPOINT = "https://api-inference.modelscope.cn"
 DEFAULT_MODEL = "Tongyi-MAI/Z-Image-Turbo"
 
-# Resolution must be 64-aligned.
 ASPECT_RATIO_SIZE_MAP = {
     "512px": {
         "1:1": "1024*1024",
@@ -61,19 +51,12 @@ ASPECT_RATIO_SIZE_MAP = {
 }
 
 def _resolve_url(base_url: str) -> str:
-    """Resolve the ModelScope generation endpoint."""
     base = base_url.rstrip("/")
     if base.endswith("/v1"):
         base = base.removesuffix("/v1")
     return base
 
 def _resolve_size(aspect_ratio: str, image_size: str) -> str:
-    """Resolve the target resolution for a ratio and logical size preset.
-
-    Args:
-        aspect_ratio (str): The aspect ratio string. Supported values: '1:1', '3:4', '4:3', '9:16', '16:9'.
-        image_size (str): The logical size preset. Supported values: '512px', '1K', '2K', '4K'.
-    """
     normalized = normalize_image_size(image_size)
     size = (ASPECT_RATIO_SIZE_MAP.get(normalized) or {}).get(aspect_ratio)
     if not size:
@@ -89,7 +72,6 @@ def _generate_image(api_key: str, prompt: str,
                     aspect_ratio: str = "1:1", image_size: str = "1K",
                     output_dir: str = None, filename: str = None,
                     model: str = DEFAULT_MODEL, base_url: str = DEFAULT_ENDPOINT) -> str:
-    """Generate one image with the ModelScope backend."""
     size = _resolve_size(aspect_ratio, image_size)
     url = _resolve_url(base_url)+'/v1/images/generations'
     common_headers = {
@@ -133,7 +115,6 @@ def generate(prompt: str,
              aspect_ratio: str = "1:1", image_size: str = "1K",
              output_dir: str = None, filename: str = None,
              model: str = None, max_retries: int = MAX_RETRIES) -> str:
-    """Generate an image with retries using the ModelScope backend."""
     api_key = require_api_key(
         "MODELSCOPE_API_KEY",
         message="No API key found. Set MODELSCOPE_API_KEY in the current environment or the project-root .env.",
@@ -165,4 +146,3 @@ def generate(prompt: str,
             time.sleep(delay)
 
     raise RuntimeError(f"Failed after {max_retries + 1} attempts. Last error: {last_error}")
-

@@ -1,10 +1,3 @@
-/**
- * @file Mac glyf命名表
- * @author mengke01(kekee000@gmail.com)
- *
- * see:
- * http://www.microsoft.com/typography/otspec/WGL4.htm
- */
 
 export default {
     0: '.notdef',

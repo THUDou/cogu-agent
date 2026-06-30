@@ -1,9 +1,3 @@
-/**
- * @file OS/2表
- * @author mengke01(kekee000@gmail.com)
- *
- * http://www.microsoft.com/typography/otspec/os2.htm
- */
 
 import table from './table';
 import struct from './struct';
@@ -34,7 +28,6 @@ export default table.create(
 
         ['sFamilyClass', struct.Uint16],
 
-        // Panose
         ['bFamilyType', struct.Uint8],
         ['bSerifStyle', struct.Uint8],
         ['bWeight', struct.Uint8],
@@ -46,13 +39,11 @@ export default table.create(
         ['bMidline', struct.Uint8],
         ['bXHeight', struct.Uint8],
 
-        // unicode range
         ['ulUnicodeRange1', struct.Uint32],
         ['ulUnicodeRange2', struct.Uint32],
         ['ulUnicodeRange3', struct.Uint32],
         ['ulUnicodeRange4', struct.Uint32],
 
-        // char 4
         ['achVendID', struct.String, 4],
 
         ['fsSelection', struct.Uint16],
@@ -65,11 +56,9 @@ export default table.create(
 
         ['usWinAscent', struct.Uint16],
         ['usWinDescent', struct.Uint16],
-        // version 0 above 39
 
         ['ulCodePageRange1', struct.Uint32],
         ['ulCodePageRange2', struct.Uint32],
-        // version 1 above 41
 
         ['sxHeight', struct.Int16],
         ['sCapHeight', struct.Int16],
@@ -77,7 +66,6 @@ export default table.create(
         ['usDefaultChar', struct.Uint16],
         ['usBreakChar', struct.Uint16],
         ['usMaxContext', struct.Uint16]
-        // version 2,3,4 above 46
     ],
     {
 
@@ -85,7 +73,6 @@ export default table.create(
             const format = reader.readUint16(this.offset);
             let struct = this.struct;
 
-            // format2
             if (format === 0) {
                 struct = struct.slice(0, 39);
             }
@@ -96,7 +83,6 @@ export default table.create(
             const OS2Head = table.create('os2head', struct);
             const tbl = new OS2Head(this.offset).read(reader, ttf);
 
-            // 补齐其他version的字段
             const os2Fields = {
                 ulCodePageRange1: 1,
                 ulCodePageRange2: 0,
@@ -112,25 +98,20 @@ export default table.create(
 
         size(ttf) {
 
-            // 更新其他表的统计信息
-            // header
             let xMin = 16384;
             let yMin = 16384;
             let xMax = -16384;
             let yMax = -16384;
 
-            // hhea
             let advanceWidthMax = -1;
             let minLeftSideBearing = 16384;
             let minRightSideBearing = 16384;
             let xMaxExtent = -16384;
 
-            // os2 count
             let xAvgCharWidth = 0;
             let usFirstCharIndex = 0x10FFFF;
             let usLastCharIndex = -1;
 
-            // maxp
             let maxPoints = 0;
             let maxContours = 0;
             let maxCompositePoints = 0;
@@ -141,7 +122,6 @@ export default table.create(
             let glyfNotEmpty = 0; // 非空glyf
             const hinting = ttf.writeOptions ? ttf.writeOptions.hinting : false;
 
-            // 计算instructions和functiondefs
             if (hinting) {
 
                 if (ttf.cvt) {
@@ -161,7 +141,6 @@ export default table.create(
 
             ttf.glyf.forEach((glyf) => {
 
-                // 统计control point信息
                 if (glyf.compound) {
                     let compositeContours = 0;
                     let compositePoints = 0;
@@ -181,7 +160,6 @@ export default table.create(
                     maxCompositePoints = Math.max(maxCompositePoints, compositePoints);
                     maxCompositeContours = Math.max(maxCompositeContours, compositeContours);
                 }
-                // 简单图元
                 else if (glyf.contours && glyf.contours.length) {
                     maxContours = Math.max(maxContours, glyf.contours.length);
 
@@ -196,7 +174,6 @@ export default table.create(
                     maxSizeOfInstructions = Math.max(maxSizeOfInstructions, glyf.instructions.length);
                 }
 
-                // 统计边界信息
                 if (null != glyf.xMin && glyf.xMin < xMin) {
                     xMin = glyf.xMin;
                 }
@@ -240,7 +217,6 @@ export default table.create(
                 }
             });
 
-            // 重新设置version 4
             ttf['OS/2'].version = 0x4;
             ttf['OS/2'].achVendID = (ttf['OS/2'].achVendID + '    ').slice(0, 4);
             ttf['OS/2'].xAvgCharWidth = xAvgCharWidth / (glyfNotEmpty || 1);
@@ -248,14 +224,12 @@ export default table.create(
             ttf['OS/2'].usFirstCharIndex = usFirstCharIndex;
             ttf['OS/2'].usLastCharIndex = usLastCharIndex;
 
-            // rewrite hhea
             ttf.hhea.version = ttf.hhea.version || 0x1;
             ttf.hhea.advanceWidthMax = advanceWidthMax;
             ttf.hhea.minLeftSideBearing = minLeftSideBearing;
             ttf.hhea.minRightSideBearing = minRightSideBearing;
             ttf.hhea.xMaxExtent = xMaxExtent;
 
-            // rewrite head
             ttf.head.version = ttf.head.version || 0x1;
             ttf.head.lowestRecPPEM = ttf.head.lowestRecPPEM || 0x8;
             ttf.head.xMin = xMin;
@@ -263,7 +237,6 @@ export default table.create(
             ttf.head.xMax = xMax;
             ttf.head.yMax = yMax;
 
-            // head rewrite
             if (ttf.support.head) {
                 const {xMin, yMin, xMax, yMax} = ttf.support.head;
                 if (xMin != null) {
@@ -280,7 +253,6 @@ export default table.create(
                 }
 
             }
-            // hhea rewrite
             if (ttf.support.hhea) {
                 const {advanceWidthMax, xMaxExtent, minLeftSideBearing, minRightSideBearing} = ttf.support.hhea;
                 if (advanceWidthMax != null) {
@@ -296,7 +268,6 @@ export default table.create(
                     ttf.hhea.minRightSideBearing = minRightSideBearing;
                 }
             }
-            // 这里根据存储的maxp来设置新的maxp，避免重复计算maxp
             ttf.maxp = ttf.maxp || {};
             ttf.support.maxp = {
                 version: 1.0,

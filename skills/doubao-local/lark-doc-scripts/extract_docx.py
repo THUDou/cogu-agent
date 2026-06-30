@@ -1,16 +1,4 @@
-# /// script
-# requires-python = ">=3.10"
-# dependencies = ["python-docx"]
-# ///
 
-"""
-从 Word 简历中提取文本内容，保留结构和格式信息。
-
-用法：
-    uv run scripts/extract_docx.py resume.docx
-    uv run scripts/extract_docx.py resume.docx --output extracted.txt
-    uv run scripts/extract_docx.py resume.docx --format structured
-"""
 
 import argparse
 import json
@@ -27,7 +15,6 @@ def _tag(ns: str, local: str) -> str:
 
 
 def extract_via_python_docx(docx_path: Path) -> list[dict]:
-    """用 python-docx 提取，保留段落样式和 run 格式。"""
     try:
         from docx import Document
         from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -94,7 +81,6 @@ def extract_via_python_docx(docx_path: Path) -> list[dict]:
 
 
 def extract_via_xml(docx_path: Path) -> list[dict]:
-    """直接解析 document.xml，不依赖 python-docx，能处理更多边界情况。"""
     elements = []
 
     with zipfile.ZipFile(docx_path, "r") as zf:
@@ -214,7 +200,6 @@ def extract_via_xml(docx_path: Path) -> list[dict]:
 
 
 def elements_to_text(elements: list[dict]) -> str:
-    """将结构化元素转为可读文本，用 Markdown 风格标记结构。"""
     lines = []
     for el in elements:
         etype = el["type"]

@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-"""
-PPTX 转 PNG 图片 —— Spire.Presentation.Free
-用法:
-  python convert_to_images_spire.py --check
-  python convert_to_images_spire.py --input=C:\a.pptx --output=C:\slides [--max-slides=10] [--offset=0]
-退出码: 0=成功/可用, 1=失败/不可用
-"""
 import sys
 import os
 import argparse

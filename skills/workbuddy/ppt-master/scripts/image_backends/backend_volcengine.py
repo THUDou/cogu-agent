@@ -1,12 +1,3 @@
-#!/usr/bin/env python3
-"""
-Volcengine Seedream image generation backend.
-
-Configuration keys:
-  VOLCENGINE_API_KEY / ARK_API_KEY   (required)
-  VOLCENGINE_BASE_URL                (optional)
-  VOLCENGINE_MODEL                   (optional)
-"""
 
 import sys
 
@@ -88,7 +79,6 @@ ASPECT_RATIO_SIZE_MAP = {
 
 
 def _resolve_url(base_url: str) -> str:
-    """Resolve the Volcengine generation endpoint."""
     base = base_url.rstrip("/")
     if base.endswith("/images/generations"):
         return base
@@ -96,7 +86,6 @@ def _resolve_url(base_url: str) -> str:
 
 
 def _resolve_size(aspect_ratio: str, image_size: str) -> str:
-    """Resolve the target resolution for a ratio and logical size preset."""
     normalized = normalize_image_size(image_size)
     size = (ASPECT_RATIO_SIZE_MAP.get(normalized) or {}).get(aspect_ratio)
     if not size:
@@ -112,7 +101,6 @@ def _generate_image(api_key: str, prompt: str,
                     aspect_ratio: str = "1:1", image_size: str = "1K",
                     output_dir: str = None, filename: str = None,
                     model: str = DEFAULT_MODEL, base_url: str = DEFAULT_ENDPOINT) -> str:
-    """Generate one image with the Volcengine backend."""
     size = _resolve_size(aspect_ratio, image_size)
     url = _resolve_url(base_url)
     headers = {
@@ -156,7 +144,6 @@ def generate(prompt: str,
              aspect_ratio: str = "1:1", image_size: str = "1K",
              output_dir: str = None, filename: str = None,
              model: str = None, max_retries: int = MAX_RETRIES) -> str:
-    """Generate an image with retries using the Volcengine backend."""
     api_key = require_api_key(
         "VOLCENGINE_API_KEY",
         "ARK_API_KEY",

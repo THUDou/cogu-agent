@@ -1,8 +1,3 @@
-"""Context Compactor — 5种上下文压缩策略
-
-基于源码: Claude Code compact/ (5种压缩策略)
-COGU 实现: summarize/truncate/merge/hierarchical/priority
-"""
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -63,7 +58,6 @@ class MergeCompactor(Compactor):
 
 
 class ContextCompactor:
-    """上下文压缩器 — 5种策略"""
 
     def __init__(self, strategy: CompactionStrategy = CompactionStrategy.TRUNCATE):
         self._strategy = strategy

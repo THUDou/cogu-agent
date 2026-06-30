@@ -1,7 +1,3 @@
-/**
- * @file cff名字设置
- * @author mengke01(kekee000@gmail.com)
- */
 
 
 const cffStandardEncoding = [

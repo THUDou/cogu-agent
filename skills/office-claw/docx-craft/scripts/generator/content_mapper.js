@@ -90,7 +90,6 @@ function mapSubtitle(item) {
 
 function mapBulletList(item, numbering) {
   if (!numbering) {
-    // Fallback: use simple bullet characters with proper numbering config
     return (item.items || []).map(text => {
       return new Paragraph({
         bullet: { level: 0 },
@@ -130,19 +129,16 @@ function mapTable(item, recipe = null) {
   const rows = item.rows || [];
   const colCount = headers.length || (rows[0] ? rows[0].length : 1);
 
-  // ── read table style from recipe.extendedStyles.table ──
   const tableStyle = recipe?.extendedStyles?.table || {};
   const borderCfg = tableStyle.borders || {};
   const headerCfg = tableStyle.headerRow || {};
   const bandedCfg = tableStyle.bandedRows || null;
 
-  // Calculate column widths
   const totalWidth = 9360; // US Letter 1" margins
   const colWidth = Math.floor(totalWidth / colCount);
   const columnWidths = Array(colCount).fill(colWidth);
   columnWidths[colCount - 1] = totalWidth - colWidth * (colCount - 1);
 
-  // Build borders from recipe config
   const borderSize = borderCfg.size !== undefined ? Math.max(1, Math.round(borderCfg.size / 4)) : 1;
   const borderColor = borderCfg.color === 'auto' ? '000000' : (borderCfg.color || 'CCCCCC');
   const borderStyle = _mapBorderStyle(borderCfg.style) || BorderStyle.SINGLE;
@@ -151,7 +147,6 @@ function mapTable(item, recipe = null) {
 
   const tableRows = [];
 
-  // Header row
   if (headers.length > 0) {
     const headerFill = headerCfg.fill || 'F2F2F2';
     const headerColor = headerCfg.color || undefined;
@@ -180,7 +175,6 @@ function mapTable(item, recipe = null) {
     );
   }
 
-  // Data rows
   rows.forEach((row, rowIdx) => {
     const cells = Array.isArray(row) ? row : [row];
     const bandedFill = bandedCfg && rowIdx % 2 === 1 ? bandedCfg.fill : undefined;
@@ -252,12 +246,6 @@ function mapHyperlink(item) {
   });
 }
 
-/**
- * Parse inline formatting markers:
- * **bold** → TextRun({ bold: true })
- * *italic* → TextRun({ italics: true })
- * `code` → TextRun({ font: "Courier New" })
- */
 function parseInlineFormatting(text) {
   if (!text) return [new TextRun('')];
 
@@ -267,26 +255,21 @@ function parseInlineFormatting(text) {
   let match;
 
   while ((match = pattern.exec(text)) !== null) {
-    // Text before this match
     if (match.index > lastIndex) {
       runs.push(new TextRun({ text: text.slice(lastIndex, match.index) }));
     }
 
     if (match[2]) {
-      // **bold**
       runs.push(new TextRun({ text: match[2], bold: true }));
     } else if (match[3]) {
-      // *italic*
       runs.push(new TextRun({ text: match[3], italics: true }));
     } else if (match[4]) {
-      // `code`
       runs.push(new TextRun({ text: match[4], font: 'Courier New', size: 20 }));
     }
 
     lastIndex = pattern.lastIndex;
   }
 
-  // Remaining text
   if (lastIndex < text.length) {
     runs.push(new TextRun({ text: text.slice(lastIndex) }));
   }

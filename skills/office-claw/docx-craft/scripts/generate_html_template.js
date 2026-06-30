@@ -1,14 +1,5 @@
 #!/usr/bin/env node
 
-/**
- * generate_html_template.js — 一次性开发脚本
- *
- * 用 mammoth 将 .docx 模板转为 HTML 结构，并注入 CSS 样式信息。
- * 输出结果供手工精调，替换占位符。
- *
- * 用法:
- *   node scripts/generate_html_template.js <input.docx> <output.html> [--style-inline]
- */
 
 const mammoth = require('mammoth');
 const fs = require('fs');
@@ -29,23 +20,15 @@ async function main() {
     process.exit(1);
   }
 
-  // 1. 使用 mammoth 转换 DOCX → HTML (保留原始结构)
   const result = await mammoth.convertToHtml({ path: inputPath });
   
-  // 2. 生成完整 HTML 文档（含 CSS）
   const html = `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="generator" content="docx-craft / mammoth">
 <style>
-/*
- * 样式模板 — 请根据源 .docx 模板的实际样式精调
- * mammoth 导出的 HTML 不带格式信息，
- * 以下样式需根据模板手工填入准确值。
- */
 
-/* === 页面基础 === */
 body {
   font-family: 'Arial', sans-serif;
   font-size: 12pt;
@@ -54,7 +37,6 @@ body {
   color: #000;
 }
 
-/* === 标题 === */
 .title-main {
   font-size: 24pt;
   font-weight: bold;
@@ -62,7 +44,6 @@ body {
   margin-bottom: 6pt;
 }
 
-/* === 表格 === */
 table {
   border-collapse: collapse;
   width: 100%;
@@ -82,12 +63,10 @@ table th {
   font-weight: bold;
 }
 
-/* === 段落 === */
 p {
   margin: 6pt 0;
 }
 
-/* === 列表 === */
 ol {
   margin: 6pt 0;
   padding-left: 24pt;
@@ -99,7 +78,6 @@ ${result.value}
 </body>
 </html>`;
 
-  // 3. 写入 HTML 文件
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   fs.writeFileSync(outputPath, html, 'utf-8');
 

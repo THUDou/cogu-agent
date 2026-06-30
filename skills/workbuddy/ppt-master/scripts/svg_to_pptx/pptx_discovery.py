@@ -1,4 +1,3 @@
-"""Find SVG and notes files in a project directory."""
 
 from __future__ import annotations
 
@@ -10,18 +9,6 @@ def find_svg_files(
     project_path: Path,
     source: str = 'output',
 ) -> tuple[list[Path], str]:
-    """Find SVG files in the project.
-
-    Args:
-        project_path: Project directory path.
-        source: SVG source directory alias or name.
-            - 'output': svg_output (original version)
-            - 'final': svg_final (post-processed, recommended)
-            - or any subdirectory name
-
-    Returns:
-        (list_of_svg_files, actual_directory_name) tuple.
-    """
     dir_map = {
         'output': 'svg_output',
         'final': 'svg_final',
@@ -49,19 +36,6 @@ def find_notes_files(
     project_path: Path,
     svg_files: list[Path] | None = None,
 ) -> dict[str, str]:
-    """Find notes files and map them to SVG files.
-
-    Supports two matching modes (mixed matching supported):
-    1. Match by filename (priority): notes/01_cover.md -> 01_cover.svg
-    2. Match by index (backward compatible): notes/slide01.md -> 1st SVG
-
-    Args:
-        project_path: Project directory path.
-        svg_files: SVG file list (for filename matching).
-
-    Returns:
-        Dict mapping SVG filename stem to notes content.
-    """
     notes_dir = project_path / 'notes'
     notes: dict[str, str] = {}
 
@@ -84,7 +58,6 @@ def find_notes_files(
 
             stem = notes_file.stem
 
-            # Try index-based matching (backward compat with slide01.md format)
             match = re.search(r'slide[_]?(\d+)', stem)
             if match:
                 index = int(match.group(1))
@@ -92,7 +65,6 @@ def find_notes_files(
                 if mapped_stem:
                     notes[mapped_stem] = content
 
-            # Filename-based matching (overrides index-based)
             if stem in svg_stems_mapping:
                 notes[stem] = content
         except Exception:

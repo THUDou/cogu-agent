@@ -1,12 +1,4 @@
 #!/usr/bin/env node
-/**
- * extract-page-skeletons.js
- *
- * 1. Calls extract_page_xml.py to produce temp/page-xml.json
- * 2. Converts element geometry JSON → per-slide HTML skeletons
- * 3. Writes temp/page-skeletons/page-NNN.html
- * 4. Writes temp/page-skeletons/page-skeletons.json
- */
 'use strict';
 
 const fs   = require('fs');
@@ -19,24 +11,16 @@ function pxFromEmu(emu) {
   return Math.round(Number(emu) * EMU_PX);
 }
 
-/**
- * Infer a slot name from element metadata.
- * Returns a base slot name (no counter suffix); caller adds suffix when needed.
- */
 function inferSlotFromElement(el) {
   if (!el || el.type !== 'text') return null;
   const ph = String(el.placeholder || '').toLowerCase().trim();
   if (ph === 'title' || ph === 'ctr title') return 'title';
   if (ph === 'subtitle') return 'subtitle';
   if (ph === 'body')     return 'body_1';
-  // Heuristic: font size >= 20pt → title; otherwise body
   const fs = el.font_size_pt || 0;
   return fs >= 20 ? 'title' : 'body_1';
 }
 
-/**
- * Compute a visual signature for a slide's element array.
- */
 function computeVisualSignature(elements) {
   let shapeCount = 0, picCount = 0, tableCount = 0, chartCount = 0;
   let connCount = 0, groupCount = 0;
@@ -77,9 +61,6 @@ function computeVisualSignature(elements) {
   };
 }
 
-/**
- * Infer a human-readable semantic type from the visual signature.
- */
 function inferSemanticType(sig) {
   if (sig.has_dashboard_chart)              return 'data_dashboard';
   if (sig.table_count >= 1)                 return 'table_layout';
@@ -91,10 +72,6 @@ function inferSemanticType(sig) {
   return 'content';
 }
 
-/**
- * Decide whether the source PPT is a "template collection" PPT
- * (few slides, visually diverse → keep one template per page).
- */
 function isTemplateCollectionPptx(slideCount, signatures) {
   if (slideCount === 0) return false;
   if (slideCount > 12) return false;
@@ -105,7 +82,6 @@ function isTemplateCollectionPptx(slideCount, signatures) {
   return unique / slideCount >= 0.65;
 }
 
-// ─── Element → HTML ──────────────────────────────────────────────────────────
 
 function _hex(val) {
   return typeof val === 'string' && /^#[0-9a-fA-F]{6}$/.test(val) ? val : null;
@@ -115,11 +91,6 @@ function _htmlEsc(str) {
   return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-/**
- * Convert a single element to an HTML string.
- * slotCounters: { [baseKey]: count } — mutated in place.
- * Returns { html, slot } where slot may be null.
- */
 function renderElement(el, slideW, slideH, slotCounters) {
   if (!el) return null;
   const x = pxFromEmu(el.x), y = pxFromEmu(el.y);
@@ -225,10 +196,6 @@ function renderElement(el, slideW, slideH, slotCounters) {
   return null;
 }
 
-/**
- * Build the full HTML for one slide.
- * Returns { html, slots }.
- */
 function buildSlideHtml(slideData, templateId, slideW, slideH, spec) {
   const elements = slideData.elements || [];
   const slotCounters = {};
@@ -285,7 +252,6 @@ ${bodyParts.join('\n')}
   return { html, slots };
 }
 
-// ─── Visual-signature key for deduplication ───────────────────────────────
 
 function _sigKey(sig) {
   return JSON.stringify({
@@ -298,7 +264,6 @@ function _sigKey(sig) {
   });
 }
 
-// ─── Main orchestrator ────────────────────────────────────────────────────
 
 function extractPageSkeletons(pptxPath, outputDir) {
   const { findPythonCmd } = require('./convert_to_images.js');
@@ -306,7 +271,6 @@ function extractPageSkeletons(pptxPath, outputDir) {
   const skeletonsDir = path.join(outputDir, 'temp', 'page-skeletons');
   fs.mkdirSync(skeletonsDir, { recursive: true });
 
-  // Step 1: Python extraction
   const xmlDataPath = path.join(outputDir, 'temp', 'page-xml.json');
   const scriptPath  = path.join(__dirname, 'extract_page_xml.py');
   const pythonCmd   = findPythonCmd();
@@ -331,14 +295,12 @@ function extractPageSkeletons(pptxPath, outputDir) {
   const slideH  = xmlData.slide_size?.height_emu || 5143500;
   const slides  = xmlData.slides || [];
 
-  // Load template-spec for color tokens (optional)
   let spec = null;
   try {
     const sp = path.join(outputDir, 'template-spec.json');
     if (fs.existsSync(sp)) spec = JSON.parse(fs.readFileSync(sp, 'utf-8'));
   } catch {}
 
-  // Step 2: Build HTML per slide + collect signatures
   const signatures = [];
   const allEntries = [];
 
@@ -370,7 +332,6 @@ function extractPageSkeletons(pptxPath, outputDir) {
     });
   }
 
-  // Step 3: Deduplication (skip for template-collection PPTs)
   const isCollection = isTemplateCollectionPptx(slides.length, signatures);
   let finalTemplates;
 
@@ -388,7 +349,6 @@ function extractPageSkeletons(pptxPath, outputDir) {
     finalTemplates = allEntries.map(t => ({ ...t, aliases: [] }));
   }
 
-  // Step 4: Write page-skeletons.json
   const skeletonsJson = {
     schema_version:        'page-skeletons-v1',
     source:                'pptx_xml',
@@ -402,7 +362,6 @@ function extractPageSkeletons(pptxPath, outputDir) {
   return { ok: true, slidesProcessed: slides.length, skeletonsJsonPath: jsonPath, isCollection };
 }
 
-// ─── Exports ─────────────────────────────────────────────────────────────
 
 module.exports = {
   extractPageSkeletons,

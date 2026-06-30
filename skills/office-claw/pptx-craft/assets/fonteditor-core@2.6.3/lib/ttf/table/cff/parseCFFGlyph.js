@@ -4,19 +4,7 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = parseCFFCharstring;
-/**
- * @file 解析cff字形
- * @author mengke01(kekee000@gmail.com)
- */
 
-/**
- * 解析cff字形，返回直线和三次bezier曲线点数组
- *
- * @param  {Array} code  操作码
- * @param  {Object} font  相关联的font对象
- * @param  {number} index glyf索引
- * @return {Object}       glyf对象
- */
 function parseCFFCharstring(code, font, index) {
   var c1x;
   var c1y;
@@ -63,8 +51,6 @@ function parseCFFCharstring(code, font, index) {
     open = true;
   }
   function parseStems() {
-    // The number of stem operators on the stack is always even.
-    // If the value is uneven, that means a width is specified.
     var hasWidthArg = stack.length % 2 !== 0;
     if (hasWidthArg && !haveWidth) {
       width = stack.shift() + font.nominalWidthX;
@@ -92,15 +78,12 @@ function parseCFFCharstring(code, font, index) {
       i += 1;
       switch (v) {
         case 1:
-          // hstem
           parseStems();
           break;
         case 3:
-          // vstem
           parseStems();
           break;
         case 4:
-          // vmoveto
           if (stack.length > 1 && !haveWidth) {
             width = stack.shift() + font.nominalWidthX;
             haveWidth = true;
@@ -109,7 +92,6 @@ function parseCFFCharstring(code, font, index) {
           newContour(x, y);
           break;
         case 5:
-          // rlineto
           while (stack.length > 0) {
             x += stack.shift();
             y += stack.shift();
@@ -117,7 +99,6 @@ function parseCFFCharstring(code, font, index) {
           }
           break;
         case 6:
-          // hlineto
           while (stack.length > 0) {
             x += stack.shift();
             lineTo(x, y);
@@ -129,7 +110,6 @@ function parseCFFCharstring(code, font, index) {
           }
           break;
         case 7:
-          // vlineto
           while (stack.length > 0) {
             y += stack.shift();
             lineTo(x, y);
@@ -141,7 +121,6 @@ function parseCFFCharstring(code, font, index) {
           }
           break;
         case 8:
-          // rrcurveto
           while (stack.length > 0) {
             c1x = x + stack.shift();
             c1y = y + stack.shift();
@@ -153,7 +132,6 @@ function parseCFFCharstring(code, font, index) {
           }
           break;
         case 10:
-          // callsubr
           codeIndex = stack.pop() + font.subrsBias;
           subrCode = font.subrs[codeIndex];
           if (subrCode) {
@@ -161,16 +139,12 @@ function parseCFFCharstring(code, font, index) {
           }
           break;
         case 11:
-          // return
           return;
         case 12:
-          // flex operators
           v = code[i];
           i += 1;
           switch (v) {
             case 35:
-              // flex
-              // |- dx1 dy1 dx2 dy2 dx3 dy3 dx4 dy4 dx5 dy5 dx6 dy6 fd flex (12 35) |-
               c1x = x + stack.shift(); // dx1
               c1y = y + stack.shift(); // dy1
               c2x = c1x + stack.shift(); // dx2
@@ -188,8 +162,6 @@ function parseCFFCharstring(code, font, index) {
               curveTo(c3x, c3y, c4x, c4y, x, y);
               break;
             case 34:
-              // hflex
-              // |- dx1 dx2 dy2 dx3 dx4 dx5 dx6 hflex (12 34) |-
               c1x = x + stack.shift(); // dx1
               c1y = y; // dy1
               c2x = c1x + stack.shift(); // dx2
@@ -205,8 +177,6 @@ function parseCFFCharstring(code, font, index) {
               curveTo(c3x, c3y, c4x, c4y, x, y);
               break;
             case 36:
-              // hflex1
-              // |- dx1 dy1 dx2 dy2 dx3 dx4 dx5 dy5 dx6 hflex1 (12 36) |-
               c1x = x + stack.shift(); // dx1
               c1y = y + stack.shift(); // dy1
               c2x = c1x + stack.shift(); // dx2
@@ -222,8 +192,6 @@ function parseCFFCharstring(code, font, index) {
               curveTo(c3x, c3y, c4x, c4y, x, y);
               break;
             case 37:
-              // flex1
-              // |- dx1 dy1 dx2 dy2 dx3 dy3 dx4 dy4 dx5 dy5 d6 flex1 (12 37) |-
               c1x = x + stack.shift(); // dx1
               c1y = y + stack.shift(); // dy1
               c2x = c1x + stack.shift(); // dx2
@@ -248,7 +216,6 @@ function parseCFFCharstring(code, font, index) {
           }
           break;
         case 14:
-          // endchar
           if (stack.length === 1 && !haveWidth) {
             width = stack.shift() + font.nominalWidthX;
             haveWidth = true;
@@ -313,17 +280,14 @@ function parseCFFCharstring(code, font, index) {
           }
           break;
         case 18:
-          // hstemhm
           parseStems();
           break;
         case 19: // hintmask
         case 20:
-          // cntrmask
           parseStems();
           i += nStems + 7 >> 3;
           break;
         case 21:
-          // rmoveto
           if (stack.length > 2 && !haveWidth) {
             width = stack.shift() + font.nominalWidthX;
             haveWidth = true;
@@ -333,7 +297,6 @@ function parseCFFCharstring(code, font, index) {
           newContour(x, y);
           break;
         case 22:
-          // hmoveto
           if (stack.length > 1 && !haveWidth) {
             width = stack.shift() + font.nominalWidthX;
             haveWidth = true;
@@ -342,11 +305,9 @@ function parseCFFCharstring(code, font, index) {
           newContour(x, y);
           break;
         case 23:
-          // vstemhm
           parseStems();
           break;
         case 24:
-          // rcurveline
           while (stack.length > 2) {
             c1x = x + stack.shift();
             c1y = y + stack.shift();
@@ -361,7 +322,6 @@ function parseCFFCharstring(code, font, index) {
           lineTo(x, y);
           break;
         case 25:
-          // rlinecurve
           while (stack.length > 6) {
             x += stack.shift();
             y += stack.shift();
@@ -376,7 +336,6 @@ function parseCFFCharstring(code, font, index) {
           curveTo(c1x, c1y, c2x, c2y, x, y);
           break;
         case 26:
-          // vvcurveto
           if (stack.length % 2) {
             x += stack.shift();
           }
@@ -391,7 +350,6 @@ function parseCFFCharstring(code, font, index) {
           }
           break;
         case 27:
-          // hhcurveto
           if (stack.length % 2) {
             y += stack.shift();
           }
@@ -406,14 +364,12 @@ function parseCFFCharstring(code, font, index) {
           }
           break;
         case 28:
-          // shortint
           b1 = code[i];
           b2 = code[i + 1];
           stack.push((b1 << 24 | b2 << 16) >> 16);
           i += 2;
           break;
         case 29:
-          // callgsubr
           codeIndex = stack.pop() + font.gsubrsBias;
           subrCode = font.gsubrs[codeIndex];
           if (subrCode) {
@@ -421,7 +377,6 @@ function parseCFFCharstring(code, font, index) {
           }
           break;
         case 30:
-          // vhcurveto
           while (stack.length > 0) {
             c1x = x;
             c1y = y + stack.shift();
@@ -443,7 +398,6 @@ function parseCFFCharstring(code, font, index) {
           }
           break;
         case 31:
-          // hvcurveto
           while (stack.length > 0) {
             c1x = x + stack.shift();
             c1y = y;
@@ -490,7 +444,6 @@ function parseCFFCharstring(code, font, index) {
   }
   parse(code);
   var glyf = {
-    // 移除重复的起点和终点
     contours: contours.map(function (contour) {
       var last = contour.length - 1;
       if (contour[0].x === contour[last].x && contour[0].y === contour[last].y) {

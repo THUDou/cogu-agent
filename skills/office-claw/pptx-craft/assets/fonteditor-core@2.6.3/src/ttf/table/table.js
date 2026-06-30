@@ -1,17 +1,6 @@
-/**
- * @file ttf表基类
- * @author mengke01(kekee000@gmail.com)
- */
 
 import struct from './struct';
 import error from '../error';
-/* eslint-disable no-invalid-this */
-/**
- * 读取表结构
- *
- * @param {Reader} reader reader对象
- * @return {Object} 当前对象
- */
 function read(reader) {
 
     const offset = this.offset;
@@ -65,14 +54,6 @@ function read(reader) {
     return this.valueOf();
 }
 
-/**
- * 写表结构
- *
- * @param {Object} writer writer对象
- * @param {Object} ttf 已解析的ttf对象
- *
- * @return {Writer} 返回writer对象
- */
 function write(writer, ttf) {
     const table = ttf[this.name];
 
@@ -123,12 +104,6 @@ function write(writer, ttf) {
     return writer;
 }
 
-/**
- * 获取ttf表的size大小
- *
- * @param {string} name 表名
- * @return {number} 表大小
- */
 function size() {
 
     let sz = 0;
@@ -175,11 +150,6 @@ function size() {
     return sz;
 }
 
-/**
- * 获取对象的值
- *
- * @return {*} 当前对象的值
- */
 function valueOf() {
     const val = {};
     const me = this;
@@ -196,14 +166,6 @@ export default {
     size,
     valueOf,
 
-    /**
-     * 创建一个表结构
-     *
-     * @param {string} name 表名
-     * @param {Array<[string, number]>} struct 表结构
-     * @param {Object} proto 原型
-     * @return {Function} 表构造函数
-     */
     create(name, struct, proto) {
         class Table {
             constructor(offset) {
@@ -221,4 +183,3 @@ export default {
         return Table;
     }
 };
-

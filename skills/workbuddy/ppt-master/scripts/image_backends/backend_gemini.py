@@ -1,18 +1,3 @@
-#!/usr/bin/env python3
-"""
-Gemini Image Generation Backend
-
-Generates images via the Google GenAI API (Gemini).
-Used by image_gen.py as a backend module.
-
-Configuration keys:
-  GEMINI_API_KEY   (required)
-  GEMINI_BASE_URL  (optional) Custom API endpoint for proxy services
-  GEMINI_MODEL     (optional) Override default model
-
-Dependencies:
-  pip install google-genai Pillow
-"""
 
 import sys
 
@@ -36,9 +21,6 @@ from image_backends.backend_common import (
 )
 
 
-# ╔══════════════════════════════���═══════════════════════════════════╗
-# ║  Constants                                                      ║
-# ╚═══════════��═════════════════════════════��════════════════════════╝
 
 VALID_ASPECT_RATIOS = [
     "1:1", "1:4", "1:8",
@@ -51,23 +33,11 @@ VALID_IMAGE_SIZES = ["512px", "1K", "2K", "4K"]
 DEFAULT_MODEL = "gemini-3.1-flash-image-preview"
 
 
-# ╔══════���═══════════════════════════════════════════════��═══════════╗
-# ║  Image Generation                                               ║
-# ╚══════════════════════════════════════════════════════════════════╝
 
 def _generate_image(api_key: str, prompt: str,
                     aspect_ratio: str = "1:1", image_size: str = "1K",
                     output_dir: str = None, filename: str = None,
                     model: str = DEFAULT_MODEL, base_url: str = None) -> str:
-    """
-    Image generation via Gemini API (streaming).
-
-    Returns:
-        Path of the saved image file
-
-    Raises:
-        RuntimeError: When generation fails
-    """
     if base_url:
         client = genai.Client(api_key=api_key, http_options={'base_url': base_url})
     else:
@@ -155,34 +125,11 @@ def _generate_image(api_key: str, prompt: str,
     raise RuntimeError("No image was generated. The server may have refused the request.")
 
 
-# ╔���═══════════════════════════════════���═════════════════════════════╗
-# ║  Public Entry Point                                             ║
-# ╚═════════════���═══════════════════════════���════════════════════════╝
 
 def generate(prompt: str,
              aspect_ratio: str = "1:1", image_size: str = "1K",
              output_dir: str = None, filename: str = None,
              model: str = None, max_retries: int = MAX_RETRIES) -> str:
-    """
-    Gemini image generation with automatic retry.
-
-    Reads credentials from the current process environment or a `.env` file:
-      GEMINI_API_KEY
-      GEMINI_BASE_URL
-      GEMINI_MODEL (optional override)
-
-    Args:
-        prompt: Prompt text
-        aspect_ratio: Aspect ratio (e.g. "16:9", "1:1")
-        image_size: Image size ("512px", "1K", "2K", "4K", case-insensitive)
-        output_dir: Output directory
-        filename: Output filename (without extension)
-        model: Model name (default: gemini-3.1-flash-image-preview)
-        max_retries: Maximum number of retries
-
-    Returns:
-        Path of the saved image file
-    """
     api_key = os.environ.get("GEMINI_API_KEY")
     base_url = os.environ.get("GEMINI_BASE_URL")
 

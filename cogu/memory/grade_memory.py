@@ -578,4 +578,3 @@ class CompressionPipeline:
         chronological = sorted(result.messages, key=lambda m: m.timestamp)
         result.messages = chronological
         return result
-

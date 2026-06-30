@@ -1,16 +1,3 @@
-"""Shape tree walker.
-
-Reads <p:spTree> from a slide / layout / master and emits a normalized
-ShapeNode tree that downstream converters can dispatch on.
-
-Handles:
-- <p:sp>           -> SHAPE
-- <p:pic>          -> PICTURE
-- <p:cxnSp>        -> CONNECTOR
-- <p:grpSp>        -> GROUP (recurses; resolves a:chOff/a:chExt frame)
-- <p:graphicFrame> -> GRAPHIC (table / chart / SmartArt — emitted as opaque
-                     placeholder for v1 so callers can decide a fallback)
-"""
 
 from __future__ import annotations
 
@@ -20,9 +7,6 @@ from xml.etree import ElementTree as ET
 from .emu_units import NS, Xfrm, parse_xfrm
 
 
-# ---------------------------------------------------------------------------
-# ShapeNode
-# ---------------------------------------------------------------------------
 
 SHAPE = "sp"
 PICTURE = "pic"
@@ -33,7 +17,6 @@ GRAPHIC = "graphicFrame"
 
 @dataclass
 class PlaceholderInfo:
-    """Resolved <p:ph> attributes for a shape if any."""
 
     type: str | None = None  # title / body / ctrTitle / subTitle / ftr / dt / ...
     idx: str | None = None
@@ -43,7 +26,6 @@ class PlaceholderInfo:
 
 @dataclass
 class ShapeNode:
-    """Normalized shape entry produced by the walker."""
 
     kind: str  # one of SHAPE / PICTURE / CONNECTOR / GROUP / GRAPHIC
     xml: ET.Element  # original element
@@ -52,19 +34,11 @@ class ShapeNode:
     spid: str = ""
     hidden: bool = False
     placeholder: PlaceholderInfo | None = None
-    # GROUP only: children, in z-order
     children: list["ShapeNode"] = field(default_factory=list)
 
 
-# ---------------------------------------------------------------------------
-# Walker
-# ---------------------------------------------------------------------------
 
 def _read_nv_sp_pr(parent: ET.Element, nv_tag: str) -> tuple[str, str, bool, PlaceholderInfo | None]:
-    """Extract name/id/hidden/placeholder from an nvXXXPr container.
-
-    nv_tag is one of nvSpPr / nvPicPr / nvCxnSpPr / nvGrpSpPr / nvGraphicFramePr.
-    """
     container = parent.find(f"p:{nv_tag}", NS)
     name = ""
     spid = ""
@@ -95,11 +69,9 @@ def _read_nv_sp_pr(parent: ET.Element, nv_tag: str) -> tuple[str, str, bool, Pla
 
 
 def _resolve_xfrm(shape: ET.Element, kind: str) -> ET.Element | None:
-    """Find the <a:xfrm> element under the right spPr / grpSpPr container."""
     if kind == GROUP:
         sp_pr = shape.find("p:grpSpPr", NS)
     elif kind == GRAPHIC:
-        # graphicFrame uses p:xfrm directly (no a: namespace)
         return shape.find("p:xfrm", NS)
     else:
         sp_pr = shape.find("p:spPr", NS)
@@ -109,20 +81,10 @@ def _resolve_xfrm(shape: ET.Element, kind: str) -> ET.Element | None:
 
 
 def _adjust_for_group(child_xfrm: Xfrm, group_xfrm: Xfrm) -> Xfrm:
-    """Map a child shape's xfrm from group's child coordinate space into the
-    parent (group) coordinate space.
-
-    DrawingML group rule: a child's a:off/a:ext is in the group's chOff/chExt
-    coordinate system. We map to the group's actual off/ext on the slide.
-
-    If the group has no chOff/chExt, fall back to identity translation.
-    """
     if (group_xfrm.ch_w is None or group_xfrm.ch_h is None
             or group_xfrm.ch_w == 0 or group_xfrm.ch_h == 0):
-        # No child frame — children already in slide space; just translate.
         return child_xfrm
 
-    # Linear map: child-frame -> group's (off..off+ext)
     sx = group_xfrm.w / group_xfrm.ch_w if group_xfrm.ch_w else 1.0
     sy = group_xfrm.h / group_xfrm.ch_h if group_xfrm.ch_h else 1.0
     ch_x = group_xfrm.ch_x or 0.0
@@ -143,7 +105,6 @@ def _adjust_for_group(child_xfrm: Xfrm, group_xfrm: Xfrm) -> Xfrm:
     )
 
 
-# Mapping from element tag -> kind / nv tag.
 _KIND_MAP = {
     "sp": (SHAPE, "nvSpPr"),
     "pic": (PICTURE, "nvPicPr"),
@@ -158,8 +119,6 @@ def _walk_container(
     parent_group_xfrm: Xfrm | None,
     placeholder_xfrms: dict[tuple[str | None, str | None], Xfrm] | None = None,
 ) -> list[ShapeNode]:
-    """Walk a p:spTree or p:grpSp subtree. Children kept in document (z) order.
-    """
     nodes: list[ShapeNode] = []
     for child in list(container):
         if not isinstance(child.tag, str):
@@ -173,11 +132,6 @@ def _walk_container(
         name, spid, hidden, ph = _read_nv_sp_pr(child, nv_tag)
         xfrm = parse_xfrm(_resolve_xfrm(child, kind))
 
-        # Placeholders without their own xfrm inherit geometry from a matching
-        # placeholder in the layout, then the master. This is what PowerPoint
-        # itself does when rendering the slide. Without this fallback such
-        # shapes get a 0×0 box and convert_txbody wraps every glyph onto its
-        # own line — visually a vertical strip of single characters.
         if (ph is not None and placeholder_xfrms
                 and (xfrm.w == 0 and xfrm.h == 0)):
             inherited = _lookup_placeholder_xfrm(ph, placeholder_xfrms)
@@ -190,7 +144,6 @@ def _walk_container(
                     ch_w=xfrm.ch_w, ch_h=xfrm.ch_h,
                 )
 
-        # If we're inside a group, remap to slide-absolute coordinates
         if parent_group_xfrm is not None:
             xfrm = _adjust_for_group(xfrm, parent_group_xfrm)
 
@@ -212,10 +165,6 @@ def _lookup_placeholder_xfrm(
     ph: PlaceholderInfo,
     table: dict[tuple[str | None, str | None], Xfrm],
 ) -> Xfrm | None:
-    """Find an inherited xfrm for a placeholder. PowerPoint matches first by
-    (type, idx) exactly, then by type alone, then by idx alone — so a slide
-    body with idx="1" can pull from a layout body that omits idx, and a slide
-    title with no idx can pull from a master title that has idx="0"."""
     for key in (
         (ph.type, ph.idx),
         (ph.type, None),
@@ -230,12 +179,6 @@ def _lookup_placeholder_xfrm(
 def _build_placeholder_xfrm_table(
     *parts: ET.Element | None,
 ) -> dict[tuple[str | None, str | None], Xfrm]:
-    """Index placeholders that *do* have explicit geometry, in priority order.
-
-    Pass parts most-specific to least-specific (layout first, master second);
-    the first writer for a given key wins so layout overrides master, which is
-    what PowerPoint's inheritance chain expects.
-    """
     table: dict[tuple[str | None, str | None], Xfrm] = {}
     for part_xml in parts:
         if part_xml is None:
@@ -270,13 +213,6 @@ def walk_sp_tree(
     layout_xml: ET.Element | None = None,
     master_xml: ET.Element | None = None,
 ) -> list[ShapeNode]:
-    """Top-level entry: return shape nodes for a slide / layout / master XML.
-
-    When ``slide_xml`` is a regular slide, pass its ``layout_xml`` and
-    ``master_xml`` so that placeholders without explicit geometry can inherit
-    from the layout/master. Layout and master walks pass neither — their own
-    placeholders are the source of truth.
-    """
     sp_tree = slide_xml.find("p:cSld/p:spTree", NS)
     if sp_tree is None:
         return []
@@ -288,5 +224,4 @@ def walk_sp_tree(
 
 
 def get_background(slide_xml: ET.Element) -> ET.Element | None:
-    """Return the <p:bg> element if the slide defines its own background."""
     return slide_xml.find("p:cSld/p:bg", NS)

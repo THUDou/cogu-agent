@@ -1,15 +1,3 @@
-#!/usr/bin/env python3
-"""
-文档鉴别材料PDF生成器
-根据软件信息生成符合软著申请要求的用户手册PDF。
-- 至少60页，每页不少于30行
-- 包含软件名称、版本号、权利人信息
-- 中文支持（自动查找系统中文字体）
-
-使用方式：
-  1. 从JSON配置生成：python generate_doc_pdf.py --config software_info.json
-  2. 从已有文档转换：python generate_doc_pdf.py --input existing_doc.txt --name "软件名" --version "V1.0" --author "权利人"
-"""
 
 import argparse
 import json
@@ -36,15 +24,11 @@ except ImportError:
     print("请运行：pip install reportlab")
     sys.exit(1)
 
-# ============================================================
-# 配置
-# ============================================================
 PAGE_WIDTH, PAGE_HEIGHT = A4
 MARGIN = 25 * mm
 MIN_LINES_PER_PAGE = 30
 MIN_PAGES = 60
 
-# 中文字体查找路径
 CHINESE_FONT_PATHS = [
     "/System/Library/Fonts/PingFang.ttc",
     "/System/Library/Fonts/STHeiti Light.ttc",
@@ -70,7 +54,6 @@ CHINESE_BOLD_FONT_PATHS = [
 
 
 def find_font(font_paths, font_name, subfont=0):
-    """查找并注册字体。"""
     for path in font_paths:
         if os.path.exists(path):
             try:
@@ -85,7 +68,6 @@ def find_font(font_paths, font_name, subfont=0):
 
 
 def setup_fonts():
-    """初始化字体。"""
     cn = find_font(CHINESE_FONT_PATHS, "CN", 0)
     cn_bold = find_font(CHINESE_BOLD_FONT_PATHS, "CNBold", 1)
     if not cn_bold:
@@ -99,7 +81,6 @@ def setup_fonts():
 
 
 def create_styles(cn_font, cn_bold_font):
-    """创建文档样式。"""
     styles = {}
 
     styles['title'] = ParagraphStyle(
@@ -152,11 +133,7 @@ def create_styles(cn_font, cn_bold_font):
     return styles
 
 
-# ============================================================
-# 页眉/页脚
-# ============================================================
 class DocTemplate(SimpleDocTemplate):
-    """带页眉页脚的文档模板。"""
 
     def __init__(self, *args, software_name="", version="", copyright_holder="",
                  cn_font="Helvetica", **kwargs):
@@ -167,11 +144,9 @@ class DocTemplate(SimpleDocTemplate):
         super().__init__(*args, **kwargs)
 
     def afterPage(self):
-        """每页结束后绘制页眉页脚。"""
         c = self.canv
         page_num = c.getPageNumber()
 
-        # 页眉
         c.setFont(self.cn_font_name, 9)
         c.setFillColor(HexColor('#666666'))
         header_text = f"{self.software_name} {self.version} 用户手册"
@@ -179,49 +154,20 @@ class DocTemplate(SimpleDocTemplate):
         c.drawRightString(PAGE_WIDTH - MARGIN, PAGE_HEIGHT - 15 * mm,
                           f"第 {page_num} 页")
 
-        # 页眉分隔线
         c.setStrokeColor(HexColor('#CCCCCC'))
         c.setLineWidth(0.5)
         c.line(MARGIN, PAGE_HEIGHT - 18 * mm,
                PAGE_WIDTH - MARGIN, PAGE_HEIGHT - 18 * mm)
 
-        # 页脚分隔线
         c.line(MARGIN, 15 * mm, PAGE_WIDTH - MARGIN, 15 * mm)
 
-        # 页脚
         c.setFont(self.cn_font_name, 8)
         c.setFillColor(HexColor('#999999'))
         c.drawCentredString(PAGE_WIDTH / 2, 10 * mm,
                             f"© {datetime.now().year} {self.copyright_holder} 版权所有")
 
 
-# ============================================================
-# 用户手册内容生成
-# ============================================================
 def generate_manual_content(info, styles):
-    """
-    根据软件信息生成用户手册内容。
-    info 字典应包含:
-    - software_name: 软件全称
-    - software_short_name: 软件简称
-    - version: 版本号
-    - author: 权利人/著作权人
-    - category: 软件分类
-    - dev_hardware: 开发硬件环境
-    - run_hardware: 运行硬件环境
-    - dev_os: 开发操作系统
-    - dev_tools: 开发工具
-    - run_os: 运行平台/操作系统
-    - run_support: 运行支撑环境
-    - languages: 编程语言列表
-    - source_lines: 源程序量
-    - purpose: 开发目的
-    - domain: 面向领域
-    - main_functions: 主要功能
-    - tech_features: 技术特点补充说明
-    - tech_tags: 技术标签列表
-    - functions_detail: 可选，详细功能描述字典 {模块名: 描述}
-    """
     story = []
     name = info.get('software_name', '软件')
     short = info.get('software_short_name', '')
@@ -229,7 +175,6 @@ def generate_manual_content(info, styles):
     author = info.get('author', '')
     display_name = short if short else name
 
-    # ======== 封面 ========
     story.append(Spacer(1, 80 * mm))
     story.append(Paragraph(name, styles['title']))
     story.append(Paragraph(f"用户手册", styles['title']))
@@ -240,7 +185,6 @@ def generate_manual_content(info, styles):
     story.append(Paragraph(f"日期：{datetime.now().strftime('%Y年%m月')}", styles['subtitle']))
     story.append(PageBreak())
 
-    # ======== 版权声明 ========
     story.append(Paragraph("版权声明", styles['h1']))
     story.append(Paragraph(
         f"本文档是{name}（以下简称\"{display_name}\"）的用户手册。本文档的版权归{author}所有。"
@@ -260,7 +204,6 @@ def generate_manual_content(info, styles):
     ))
     story.append(PageBreak())
 
-    # ======== 目录（文字版） ========
     story.append(Paragraph("目  录", styles['title']))
     story.append(Spacer(1, 10 * mm))
     toc_items = [
@@ -290,7 +233,6 @@ def generate_manual_content(info, styles):
         "第五章  功能详细说明",
         "    5.1 功能概览",
     ]
-    # 动态添加功能模块目录
     functions_detail = info.get('functions_detail', {})
     main_funcs = info.get('main_functions', '')
     if functions_detail:
@@ -333,7 +275,6 @@ def generate_manual_content(info, styles):
         story.append(Paragraph(item, styles['body_no_indent']))
     story.append(PageBreak())
 
-    # ======== 第一章 概述 ========
     story.append(Paragraph("第一章  概述", styles['h1']))
 
     story.append(Paragraph("1.1 软件简介", styles['h2']))
@@ -440,7 +381,6 @@ def generate_manual_content(info, styles):
     ))
     story.append(PageBreak())
 
-    # ======== 第二章 系统环境要求 ========
     story.append(Paragraph("第二章  系统环境要求", styles['h1']))
     story.append(Paragraph(
         f"本章详细介绍运行{display_name}所需的硬件环境、软件环境和网络环境要求，"
@@ -530,7 +470,6 @@ def generate_manual_content(info, styles):
         story.append(Paragraph(f"• {tip}", styles['bullet']))
     story.append(PageBreak())
 
-    # ======== 第三章 安装与部署 ========
     story.append(Paragraph("第三章  安装与部署", styles['h1']))
     story.append(Paragraph(
         f"本章详细介绍{display_name}的安装部署流程，包括安装前的准备工作、"
@@ -618,7 +557,6 @@ def generate_manual_content(info, styles):
     ))
     story.append(PageBreak())
 
-    # ======== 第四章 系统架构 ========
     story.append(Paragraph("第四章  系统架构", styles['h1']))
 
     story.append(Paragraph("4.1 总体架构", styles['h2']))
@@ -700,7 +638,6 @@ def generate_manual_content(info, styles):
         story.append(Paragraph(f"• {item}", styles['bullet']))
     story.append(PageBreak())
 
-    # ======== 第五章 功能详细说明 ========
     story.append(Paragraph("第五章  功能详细说明", styles['h1']))
 
     story.append(Paragraph("5.1 功能概览", styles['h2']))
@@ -711,12 +648,10 @@ def generate_manual_content(info, styles):
     ))
     story.append(Paragraph(f"{main_funcs}", styles['body']))
 
-    # 详细功能模块描述
     if functions_detail:
         section_num = 2
         for mod_name, mod_desc in functions_detail.items():
             story.append(Paragraph(f"5.{section_num} {mod_name}", styles['h2']))
-            # 如果描述较短，扩展为多段
             if isinstance(mod_desc, str):
                 story.append(Paragraph(f"本模块提供{mod_name}相关功能。{mod_desc}", styles['body']))
                 story.append(Paragraph(
@@ -735,7 +670,6 @@ def generate_manual_content(info, styles):
                     story.append(Paragraph(f"• {item}", styles['bullet']))
             section_num += 1
     else:
-        # 如果没有提供详细功能，根据主要功能文本生成展开描述
         story.append(Paragraph("5.2 核心功能模块", styles['h2']))
         story.append(Paragraph(
             f"{display_name}的核心功能模块涵盖了{info.get('domain', '行业')}的关键业务场景。"
@@ -756,7 +690,6 @@ def generate_manual_content(info, styles):
 
     story.append(PageBreak())
 
-    # ======== 第六章 操作指南 ========
     story.append(Paragraph("第六章  操作指南", styles['h1']))
     story.append(Paragraph(
         f"本章提供{display_name}的详细操作指南，帮助用户快速掌握软件的使用方法。",
@@ -901,7 +834,6 @@ def generate_manual_content(info, styles):
         story.append(Paragraph(f"• {item}", styles['bullet']))
     story.append(PageBreak())
 
-    # ======== 第七章 系统管理 ========
     story.append(Paragraph("第七章  系统管理", styles['h1']))
     story.append(Paragraph(
         f"本章介绍{display_name}的系统管理功能，主要面向系统管理员。"
@@ -1013,7 +945,6 @@ def generate_manual_content(info, styles):
     ))
     story.append(PageBreak())
 
-    # ======== 第八章 接口说明 ========
     story.append(Paragraph("第八章  接口说明", styles['h1']))
 
     story.append(Paragraph("8.1 接口概述", styles['h2']))
@@ -1058,7 +989,6 @@ def generate_manual_content(info, styles):
     ))
     story.append(PageBreak())
 
-    # ======== 第九章 安全说明 ========
     story.append(Paragraph("第九章  安全说明", styles['h1']))
 
     story.append(Paragraph("9.1 安全机制概述", styles['h2']))
@@ -1116,7 +1046,6 @@ def generate_manual_content(info, styles):
     ))
     story.append(PageBreak())
 
-    # ======== 第十章 常见问题 ========
     story.append(Paragraph("第十章  常见问题与解决方案", styles['h1']))
 
     story.append(Paragraph("10.1 安装常见问题", styles['h2']))
@@ -1187,7 +1116,6 @@ def generate_manual_content(info, styles):
     story.append(err_table)
     story.append(PageBreak())
 
-    # ======== 附录 ========
     story.append(Paragraph("附录A  术语表", styles['h1']))
     terms = [
         ("RBAC", "基于角色的访问控制（Role-Based Access Control），一种通过角色来管理权限的模型"),
@@ -1267,12 +1195,8 @@ def generate_manual_content(info, styles):
     return story
 
 
-# ============================================================
-# 从已有文档转换
-# ============================================================
 def convert_text_to_pdf(input_path, output_path, software_name, version, author,
                         cn_font, cn_bold_font):
-    """将纯文本文档转换为PDF。"""
     styles = create_styles(cn_font, cn_bold_font)
 
     encodings = ['utf-8', 'gbk', 'gb2312', 'gb18030', 'latin-1']
@@ -1316,97 +1240,14 @@ def convert_text_to_pdf(input_path, output_path, software_name, version, author,
     doc.build(story)
 
 
-# ============================================================
-# 主函数
-# ============================================================
 def main():
     parser = argparse.ArgumentParser(
         description='软著文档鉴别材料PDF生成器',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例：
-  # 从JSON配置生成用户手册
   python generate_doc_pdf.py --config software_info.json
 
-  # 从已有文档转换
   python generate_doc_pdf.py --input manual.txt --name "智慧管理系统" --version "V1.0" --author "XX公司"
 
 JSON配置文件格式见 references/fields.md 中的字段说明。
-        """
-    )
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('--config', '-c', help='软件信息JSON配置文件路径')
-    group.add_argument('--input', '-i', help='已有文档文件路径（纯文本格式）')
-
-    parser.add_argument('--name', '-n', help='软件全称（--input模式必填）')
-    parser.add_argument('--version', '-v', help='版本号（--input模式必填）')
-    parser.add_argument('--author', '-a', help='著作权人（--input模式必填）')
-    parser.add_argument('--output', '-o', default=None, help='输出PDF路径')
-
-    args = parser.parse_args()
-
-    # 设置字体
-    cn_font, cn_bold_font = setup_fonts()
-
-    if args.input:
-        # 从已有文档转换模式
-        if not args.name or not args.version or not args.author:
-            print("错误：--input 模式需要同时提供 --name、--version 和 --author")
-            sys.exit(1)
-
-        if not os.path.isfile(args.input):
-            print(f"错误：文件不存在: {args.input}")
-            sys.exit(1)
-
-        output_path = args.output or f"{re.sub(r'[^\\w\\u4e00-\\u9fff]', '_', args.name)}_文档鉴别材料.pdf"
-        print(f"正在转换文档: {args.input}")
-        convert_text_to_pdf(args.input, output_path, args.name, args.version,
-                            args.author, cn_font, cn_bold_font)
-        print(f"生成完成！输出文件: {output_path}")
-    else:
-        # 从JSON配置生成模式
-        if not os.path.isfile(args.config):
-            print(f"错误：配置文件不存在: {args.config}")
-            sys.exit(1)
-
-        with open(args.config, 'r', encoding='utf-8') as f:
-            info = json.load(f)
-
-        software_name = info.get('software_name', '软件')
-        version = info.get('version', 'V1.0')
-        author = info.get('author', '')
-
-        output_path = args.output or f"{re.sub(r'[^\\w\\u4e00-\\u9fff]', '_', software_name)}_文档鉴别材料.pdf"
-
-        styles = create_styles(cn_font, cn_bold_font)
-
-        doc = DocTemplate(
-            str(output_path), pagesize=A4,
-            leftMargin=MARGIN, rightMargin=MARGIN,
-            topMargin=MARGIN + 5 * mm, bottomMargin=MARGIN,
-            software_name=software_name, version=version,
-            copyright_holder=author, cn_font=cn_font
-        )
-
-        print(f"正在生成用户手册: {output_path}")
-        story = generate_manual_content(info, styles)
-        doc.build(story)
-
-        # 检查页数
-        try:
-            import fitz  # PyMuPDF
-            pdf_doc = fitz.open(str(output_path))
-            page_count = len(pdf_doc)
-            pdf_doc.close()
-            print(f"生成完成！")
-            print(f"  输出文件: {output_path}")
-            print(f"  总页数: {page_count}")
-            if page_count < MIN_PAGES:
-                print(f"  ⚠️ 警告：文档页数({page_count})不足{MIN_PAGES}页，建议补充更多内容")
-        except ImportError:
-            print(f"生成完成！输出文件: {output_path}")
-            print(f"  提示：安装 PyMuPDF (pip install pymupdf) 可自动检查页数")
-
-
-if __name__ == '__main__':
-    main()

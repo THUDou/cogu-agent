@@ -1,23 +1,7 @@
-/**
- * @file 根据transform参数变换轮廓
- * @author mengke01(kekee000@gmail.com)
- */
 
 import {mul, multiply} from '../../graphics/matrix';
 import pathTransform from '../../graphics/pathTransform';
 
-/**
- * 根据transform参数变换轮廓
- *
- * @param {Array} contours 轮廓集合
- * @param {Array} transforms 变换指令集合
- *     transforms = [{
- *         name: 'scale'
- *         params: [3,4]
- *     }]
- *
- * @return {Array} 变换后的轮廓数组
- */
 export default function contoursTransform(contours, transforms) {
     if (!contours || !contours.length || !transforms || !transforms.length) {
         return contours;

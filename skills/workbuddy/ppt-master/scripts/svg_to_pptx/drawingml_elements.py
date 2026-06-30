@@ -1,4 +1,3 @@
-"""SVG element converters: rect, circle, line, path, polygon, polyline, text, image, ellipse."""
 
 from __future__ import annotations
 
@@ -38,7 +37,6 @@ def _wrap_shape(
     effect_xml: str = '', extra_xml: str = '',
     rot: int = 0,
 ) -> str:
-    """Wrap DrawingML content into a <p:sp> shape element."""
     rot_attr = f' rot="{rot}"' if rot else ''
     return f'''<p:sp>
 <p:nvSpPr>
@@ -56,19 +54,11 @@ def _wrap_shape(
 </p:sp>'''
 
 
-# ---------------------------------------------------------------------------
-# rect
-# ---------------------------------------------------------------------------
 
-# Cubic-Bézier control distance for approximating a quarter circle / ellipse.
-# Distance from corner to control point along the tangent, expressed as a
-# fraction of the radius. Standard "magic number" for a 90° arc (max error
-# ~0.027% of the radius).
 _BEZIER_QUARTER_K = 0.5522847498
 
 
 def _build_preset_geom_from_meta(elem: ET.Element) -> str | None:
-    """Build native DrawingML preset geometry from SVG metadata."""
     prst = elem.get('data-pptx-prst')
     if prst != 'round2SameRect':
         return None
@@ -92,32 +82,6 @@ def _build_preset_geom_from_meta(elem: ET.Element) -> str | None:
 
 
 def _build_round_rect_custgeom(w: float, h: float, rx: float, ry: float) -> str:
-    """Build a DrawingML ``custGeom`` for a rectangle with elliptical corners.
-
-    Used when ``<rect>`` has rx ≠ ry, which DrawingML's preset ``roundRect``
-    cannot express (the preset takes a single ``adj`` shared by all four
-    corners and is implicitly symmetric). Each 90° elliptical arc is
-    approximated by one cubic Bézier — within 0.03% of the true ellipse, far
-    below any visible threshold at slide resolution.
-
-    Trade-off vs. the symmetric ``prstGeom roundRect`` path: this geometry
-    is custom, so PowerPoint's yellow corner-radius handle is gone and the
-    shape can no longer be retuned in-place. That matches the underlying
-    reality — rx ≠ ry has no single "radius" to drag — and remains far
-    better than the previous behaviour (silently dropping all corners and
-    rendering a hard rectangle).
-
-    Args:
-        w, h:   Pixel dimensions of the rectangle (post ctx-scale).
-        rx, ry: Pixel corner radii along x and y. Will be clamped to half
-                of w / h respectively per the SVG spec.
-
-    Returns:
-        A complete ``<a:custGeom>...</a:custGeom>`` XML string. Coordinates
-        are emitted in EMU within a path-local coordinate system whose
-        ``w`` / ``h`` equal the rectangle's pixel-converted dimensions.
-    """
-    # Clamp radii (SVG spec): rx > w/2 collapses to a half-circle end.
     rx = min(max(rx, 0.0), w / 2)
     ry = min(max(ry, 0.0), h / 2)
 
@@ -137,32 +101,27 @@ def _build_round_rect_custgeom(w: float, h: float, rx: float, ry: float) -> str:
             f'<a:cubicBezTo>{pt(*c1)}{pt(*c2)}{pt(*end)}</a:cubicBezTo>'
         )
 
-    # Path traversed clockwise, starting just past the top-left corner.
     parts = [
         f'<a:moveTo>{pt(rx_emu, 0)}</a:moveTo>',
         f'<a:lnTo>{pt(width_emu - rx_emu, 0)}</a:lnTo>',
-        # Top-right corner: (W-Rx, 0) → (W, Ry)
         cubic(
             (width_emu - rx_emu + cx_off, 0),
             (width_emu, ry_emu - cy_off),
             (width_emu, ry_emu),
         ),
         f'<a:lnTo>{pt(width_emu, height_emu - ry_emu)}</a:lnTo>',
-        # Bottom-right corner: (W, H-Ry) → (W-Rx, H)
         cubic(
             (width_emu, height_emu - ry_emu + cy_off),
             (width_emu - rx_emu + cx_off, height_emu),
             (width_emu - rx_emu, height_emu),
         ),
         f'<a:lnTo>{pt(rx_emu, height_emu)}</a:lnTo>',
-        # Bottom-left corner: (Rx, H) → (0, H-Ry)
         cubic(
             (rx_emu - cx_off, height_emu),
             (0, height_emu - ry_emu + cy_off),
             (0, height_emu - ry_emu),
         ),
         f'<a:lnTo>{pt(0, ry_emu)}</a:lnTo>',
-        # Top-left corner: (0, Ry) → (Rx, 0)
         cubic(
             (0, ry_emu - cy_off),
             (rx_emu - cx_off, 0),
@@ -184,15 +143,6 @@ def _build_round_rect_custgeom(w: float, h: float, rx: float, ry: float) -> str:
 
 
 def convert_rect(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
-    """Convert SVG <rect> to DrawingML shape.
-
-    Symmetric rounded corners (rx == ry) are emitted as ``prstGeom roundRect``
-    so PowerPoint treats them as a native rounded-rectangle shape: the yellow
-    adjustment handle stays draggable, and "Reset Picture / Shape" works as
-    expected. Elliptical corners (rx != ry) fall back to plain rect geometry
-    for now — current corpora contain none, but the branch keeps callers from
-    silently producing distorted custom geometry if one ever appears.
-    """
     x = ctx_x(_f(elem.get('x')), ctx)
     y = ctx_y(_f(elem.get('y')), ctx)
     w = ctx_w(_f(elem.get('width')), ctx)
@@ -201,9 +151,6 @@ def convert_rect(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
     if w <= 0 or h <= 0:
         return None
 
-    # SVG spec: when only one of rx/ry is specified, the other inherits its
-    # value. Real-world svg_output decks always write only `rx`, so ry must
-    # be inferred to keep round corners from collapsing to zero on one axis.
     rx_attr = elem.get('rx')
     ry_attr = elem.get('ry')
     rx_raw = _f(rx_attr) if rx_attr is not None else 0.0
@@ -233,10 +180,6 @@ def convert_rect(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
             rot = int(float(r_match.group(1)) * ANGLE_UNIT)
 
     if rx > 0 and abs(rx - ry) < 0.5:
-        # Symmetric corners → native PowerPoint rounded rectangle. adj is
-        # the corner radius as a fraction of the shorter side, in 1/1000-
-        # percent units, capped at 50000 (= radius equals half the shorter
-        # side, i.e. capsule end).
         short_side = min(w, h)
         radius = min(rx, short_side / 2)
         adj = max(0, min(50000, int(round(radius / short_side * 100000))))
@@ -246,12 +189,6 @@ def convert_rect(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
             '</a:prstGeom>'
         )
     elif rx > 0 or ry > 0:
-        # Asymmetric corners (rx != ry) → DrawingML has no preset for
-        # elliptical-corner rectangles, so emit a custGeom with one cubic
-        # Bézier per 90° arc. We lose the prstGeom roundRect adjustment
-        # handle, but symmetric and asymmetric cases now both render with
-        # rounded corners instead of one of them silently flattening to
-        # a hard rectangle.
         geom = _build_round_rect_custgeom(w, h, rx, ry)
     else:
         geom = '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>'
@@ -271,9 +208,6 @@ def convert_rect(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
     )
 
 
-# ---------------------------------------------------------------------------
-# circle (including donut-chart arc segments)
-# ---------------------------------------------------------------------------
 
 def _build_arc_ring_path(
     cx: float, cy: float, r: float,
@@ -282,15 +216,6 @@ def _build_arc_ring_path(
     rotate_deg: float,
     sx: float, sy: float,
 ) -> tuple[str, int, int, int, int]:
-    """Build a filled annular-sector (donut segment) as DrawingML custGeom.
-
-    SVG donut charts use stroke-dasharray on a circle to draw arc segments.
-    DrawingML cannot reproduce this, so we convert each arc segment into a
-    filled ring shape (outer arc -> line -> inner arc -> close).
-
-    Returns:
-        (geom_xml, min_x_emu, min_y_emu, w_emu, h_emu).
-    """
     circumference = 2 * math.pi * r
     if circumference <= 0:
         return '', 0, 0, 0, 0
@@ -352,7 +277,6 @@ def _build_arc_ring_path(
 
 
 def _is_donut_circle(elem: ET.Element, ctx: ConvertContext) -> bool:
-    """Detect if a circle uses stroke-dasharray to simulate an arc segment."""
     dasharray = _get_attr(elem, 'stroke-dasharray', ctx)
     if not dasharray or dasharray == 'none':
         return False
@@ -365,12 +289,9 @@ def _is_donut_circle(elem: ET.Element, ctx: ConvertContext) -> bool:
     if sw <= 0 or r <= 0:
         return False
 
-    # Standard dash presets are not donut segments
     if dasharray.strip() in DASH_PRESETS:
         return False
 
-    # Thin strokes relative to radius are decorative dashed rings, not donut arcs.
-    # Real donut arcs need sw/r >= 0.15 (e.g. sw=40 on r=100 → 0.40).
     if sw / r < 0.15:
         return False
 
@@ -378,7 +299,6 @@ def _is_donut_circle(elem: ET.Element, ctx: ConvertContext) -> bool:
 
 
 def convert_circle(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
-    """Convert SVG <circle> to DrawingML ellipse or donut-arc shape."""
     cx_ = _f(elem.get('cx'))
     cy_ = _f(elem.get('cy'))
     r = _f(elem.get('r'))
@@ -386,7 +306,6 @@ def convert_circle(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
     if r <= 0:
         return None
 
-    # --- Donut-chart arc segment detection ---
     if _is_donut_circle(elem, ctx):
         dasharray = _get_attr(elem, 'stroke-dasharray', ctx)
         dash_vals = re.split(r'[\s,]+', dasharray.strip())
@@ -409,7 +328,6 @@ def convert_circle(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
         if not geom:
             return None
 
-        # Use the stroke color/gradient as fill for the arc shape
         stroke_val = _get_attr(elem, 'stroke', ctx)
         op = get_fill_opacity(elem, ctx)
         grad_id = resolve_url_id(stroke_val) if stroke_val else None
@@ -438,7 +356,6 @@ def convert_circle(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
             bounds_emu=(min_x, min_y, min_x + w_emu, min_y + h_emu),
         )
 
-    # --- Normal circle ---
     cx_s = ctx_x(cx_, ctx)
     cy_s = ctx_y(cy_, ctx)
     r_x = r * ctx.scale_x
@@ -476,18 +393,8 @@ def convert_circle(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
     )
 
 
-# ---------------------------------------------------------------------------
-# line
-# ---------------------------------------------------------------------------
 
 def convert_line(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
-    """Convert SVG <line> to DrawingML shape.
-
-    Lines with marker-start / marker-end are converted using the 'line' preset
-    geometry (prstGeom prst="line") so that PowerPoint renders native arrow
-    heads (headEnd / tailEnd) correctly.  Plain lines (no markers) continue to
-    use custom geometry which is sufficient and avoids flipH/flipV complexity.
-    """
     x1 = ctx_x(_f(elem.get('x1')), ctx)
     y1 = ctx_y(_f(elem.get('y1')), ctx)
     x2 = ctx_x(_f(elem.get('x2')), ctx)
@@ -510,33 +417,14 @@ def convert_line(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
     off_x = px_to_emu(min_x)
     off_y = px_to_emu(min_y)
 
-    # Determine if this line carries arrow markers.
     has_marker = bool(
         _get_attr(elem, 'marker-start', ctx) or
         _get_attr(elem, 'marker-end', ctx)
     )
 
     if has_marker:
-        # ----------------------------------------------------------------
-        # Preset geometry approach: prstGeom prst="line"
-        # PowerPoint only renders headEnd / tailEnd on lines whose geometry
-        # it can intrinsically understand as a "line" (i.e. preset or
-        # connector shapes).  Custom geometry shapes silently ignore
-        # headEnd / tailEnd in most PowerPoint versions.
-        #
-        # The "line" preset draws from (0,0) to (w,h).
-        #   headEnd  → placed at the start of the line = (x1, y1)
-        #   tailEnd  → placed at the end   of the line = (x2, y2)
-        # We set flipH / flipV so that the preset start/end align with the
-        # original SVG endpoints:
-        #   default  (no flip)  : top-left  → bottom-right  (x1≤x2, y1≤y2)
-        #   flipH               : top-right → bottom-left   (x1>x2, y1≤y2)
-        #   flipV               : bottom-left → top-right   (x1≤x2, y1>y2)
-        #   flipH + flipV       : bottom-right → top-left   (x1>x2, y1>y2)
-        # ----------------------------------------------------------------
         w = abs(x2 - x1)
         h = abs(y2 - y1)
-        # DrawingML requires ext cx/cy ≥ 1 EMU
         w_emu = px_to_emu(w) if w > 0 else 1
         h_emu = px_to_emu(h) if h > 0 else 1
 
@@ -569,9 +457,6 @@ def convert_line(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
             f'</p:sp>'
         )
     else:
-        # ----------------------------------------------------------------
-        # Custom geometry (original behaviour) for plain lines.
-        # ----------------------------------------------------------------
         w = max(abs(x2 - x1), 1)
         h = max(abs(y2 - y1), 1)
         w_emu = px_to_emu(w)
@@ -604,12 +489,8 @@ def convert_line(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
     )
 
 
-# ---------------------------------------------------------------------------
-# path
-# ---------------------------------------------------------------------------
 
 def convert_path(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
-    """Convert SVG <path> to DrawingML custom geometry shape."""
     d = elem.get('d', '')
     if not d:
         return None
@@ -674,12 +555,8 @@ def convert_path(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
     )
 
 
-# ---------------------------------------------------------------------------
-# polygon / polyline
-# ---------------------------------------------------------------------------
 
 def _parse_points(points_str: str) -> list[tuple[float, float]]:
-    """Parse SVG points attribute into a list of (x, y) tuples."""
     nums = re.findall(r'[-+]?(?:\d+\.?\d*|\.\d+)', points_str)
     if len(nums) < 4:
         return []
@@ -687,7 +564,6 @@ def _parse_points(points_str: str) -> list[tuple[float, float]]:
 
 
 def convert_polygon(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
-    """Convert SVG <polygon> to DrawingML custom geometry shape."""
     points = _parse_points(elem.get('points', ''))
     if not points:
         return None
@@ -742,7 +618,6 @@ def convert_polygon(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None
 
 
 def convert_polyline(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
-    """Convert SVG <polyline> to DrawingML custom geometry shape."""
     points = _parse_points(elem.get('points', ''))
     if not points:
         return None
@@ -795,22 +670,8 @@ def convert_polyline(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | Non
     )
 
 
-# ---------------------------------------------------------------------------
-# text
-# ---------------------------------------------------------------------------
 
 def _normalize_text(text: str, *, preserve_space: bool = False) -> str:
-    """Collapse runs of whitespace into a single space; do NOT strip the ends.
-
-    Stripping at this layer would silently delete the inline boundary
-    spaces in nested-tspan structures like
-    ``<tspan>foo <tspan>bar</tspan> baz</tspan>``: the parent's text
-    ("foo ") and the child's tail (" baz") would each lose the only space
-    that separated them from the inner run, producing "foobarbaz".
-
-    The paragraph's overall leading / trailing whitespace is removed once
-    in ``_build_text_runs`` after all inline runs have been concatenated.
-    """
     if not text:
         return ''
     if preserve_space:
@@ -827,7 +688,6 @@ def _override_run_attrs(
     parent_attrs: dict[str, Any],
     tspan: ET.Element,
 ) -> dict[str, Any]:
-    """Layer a tspan's styling attributes over the inherited run attrs."""
     run_attrs = dict(parent_attrs)
     if tspan.get('font-weight'):
         run_attrs['font_weight'] = tspan.get('font-weight')
@@ -862,10 +722,6 @@ def _collect_tspan_runs(
     inherited_attrs: dict[str, Any],
     preserve_space: bool = False,
 ) -> list[dict[str, Any]]:
-    """Recursively turn a tspan subtree into runs, propagating styling through nested tspans.
-
-    Order: tspan.text → (each nested child tspan's runs → that child's tail under THIS tspan's attrs).
-    """
     runs: list[dict[str, Any]] = []
     own_attrs = _override_run_attrs(inherited_attrs, tspan)
     child_preserve_space = preserve_space or _preserves_space(tspan)
@@ -891,12 +747,6 @@ def _build_text_runs(
     elem: ET.Element,
     parent_attrs: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    """Build a list of text runs from a <text> element, handling <tspan> children.
-
-    Each run is a dict with keys: text, fill, fill_raw, font_weight,
-    font_style, font_family, font_size. Nested tspans are walked recursively so
-    inline format changes inside a tspan still produce distinct runs.
-    """
     runs: list[dict[str, Any]] = []
     preserve_space = _preserves_space(elem)
 
@@ -914,8 +764,6 @@ def _build_text_runs(
                 if t:
                     runs.append({**parent_attrs, 'text': t})
 
-    # Strip the paragraph's overall leading / trailing whitespace once unless
-    # xml:space="preserve" asks us to keep source indentation.
     if runs and not preserve_space:
         runs[0]['text'] = runs[0]['text'].lstrip(' ')
         runs[-1]['text'] = runs[-1]['text'].rstrip(' ')
@@ -930,7 +778,6 @@ def _build_text_fill_xml(
     opacity: float | None,
     ctx: ConvertContext | None,
 ) -> str:
-    """Build DrawingML fill XML for a text run."""
     if fill_raw == 'none':
         return '<a:noFill/>'
 
@@ -945,7 +792,6 @@ def _build_text_fill_xml(
 
 
 def _build_text_outline_xml(run: dict[str, Any]) -> str:
-    """Build DrawingML outline XML for a text run from SVG stroke attributes."""
     stroke_raw = run.get('stroke_raw')
     if not stroke_raw or stroke_raw == 'none':
         return ''
@@ -973,7 +819,6 @@ def _build_run_xml(
     ctx: ConvertContext | None = None,
     effect_xml: str = '',
 ) -> str:
-    """Build a single <a:r> XML from a run dict. Supports gradient fills on text."""
     text = run['text']
     fill = run.get('fill', '000000')
     fill_raw = run.get('fill_raw', '')
@@ -1012,7 +857,6 @@ def _build_run_xml(
 
 
 def convert_text(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
-    """Convert SVG <text> to DrawingML text shape with multi-run support."""
     x = ctx_x(_f(elem.get('x')), ctx)
     y = ctx_y(_f(elem.get('y')), ctx)
     font_size = _f(_get_attr(elem, 'font-size', ctx), 16) * ctx.scale_y
@@ -1052,12 +896,10 @@ def convert_text(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
     if not full_text.strip():
         return None
 
-    # Estimate text dimensions
     text_width = estimate_text_width(full_text, font_size, font_weight) * 1.15
     text_height = font_size * 1.5
     padding = font_size * 0.1
 
-    # Adjust position based on text-anchor
     if text_anchor == 'middle':
         box_x = x - text_width / 2 - padding
     elif text_anchor == 'end':
@@ -1069,7 +911,6 @@ def convert_text(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
     box_w = text_width + padding * 2
     box_h = text_height + padding
 
-    # Letter spacing
     spc_attr = ''
     letter_spacing = _get_attr(elem, 'letter-spacing', ctx)
     if letter_spacing:
@@ -1079,11 +920,6 @@ def convert_text(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
         except ValueError:
             pass
 
-    # Text rotation. SVG's rotate(angle [cx cy]) rotates around (cx, cy), but
-    # DrawingML's <a:xfrm rot="..."> rotates the shape around its own center.
-    # When a pivot is given (and differs from the box center), translate the
-    # box so its center lands where SVG would place the rotated visual center —
-    # otherwise rotated y-axis labels etc. drift to the wrong location.
     text_rot = 0
     text_transform = elem.get('transform', '')
     if text_transform:
@@ -1107,11 +943,9 @@ def convert_text(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
                 box_x = new_cx - box_w / 2
                 box_y = new_cy - box_h / 2
 
-    # Alignment
     algn_map = {'start': 'l', 'middle': 'ctr', 'end': 'r'}
     algn = algn_map.get(text_anchor, 'l')
 
-    # Shadow effect
     shape_effect_xml = ''
     text_effect_xml = ''
     filt_id = get_effective_filter_id(elem, ctx)
@@ -1158,9 +992,6 @@ def convert_text(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
 </p:sp>''', bounds_emu=(off_x, off_y, off_x + ext_cx, off_y + ext_cy))
 
 
-# ---------------------------------------------------------------------------
-# clipPath support (image clipping)
-# ---------------------------------------------------------------------------
 
 def _clip_commands_to_geom(
     commands: list[PathCommand],
@@ -1168,12 +999,6 @@ def _clip_commands_to_geom(
     img_w: float, img_h: float,
     object_bbox: bool,
 ) -> str:
-    """Convert clip path commands to DrawingML custGeom XML.
-
-    Coordinates are transformed relative to the image bounding box so that
-    (img_x, img_y) maps to (0, 0) and (img_x+img_w, img_y+img_h) maps to
-    (w_emu, h_emu).
-    """
     w_emu = px_to_emu(img_w)
     h_emu = px_to_emu(img_h)
 
@@ -1227,22 +1052,6 @@ def _resolve_clip_geometry(
     raw_x: float, raw_y: float,
     raw_w: float, raw_h: float,
 ) -> str:
-    """Resolve clip-path on an image element to DrawingML geometry XML.
-
-    Supports:
-      - circle / ellipse  → prstGeom ellipse
-      - rect with rx/ry   → prstGeom roundRect
-      - path / polygon     → custGeom
-
-    Args:
-        elem: SVG element bearing a clip-path attribute.
-        ctx:  Conversion context (carries defs).
-        raw_x, raw_y: Image position in SVG space (pre-ctx-transform).
-        raw_w, raw_h: Image dimensions in SVG space (pre-ctx-transform).
-
-    Returns:
-        DrawingML geometry XML string.
-    """
     DEFAULT = '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>'
 
     clip_ref = elem.get('clip-path', '')
@@ -1258,7 +1067,6 @@ def _resolve_clip_geometry(
     if clip_tag != 'clipPath':
         return DEFAULT
 
-    # Find the first shape child of the clipPath
     shape = None
     for child in clip_elem:
         child_tag = child.tag.replace(f'{{{SVG_NS}}}', '')
@@ -1272,11 +1080,9 @@ def _resolve_clip_geometry(
     shape_tag = shape.tag.replace(f'{{{SVG_NS}}}', '')
     is_obb = clip_elem.get('clipPathUnits') == 'objectBoundingBox'
 
-    # --- Circle / Ellipse → preset ellipse ---
     if shape_tag in ('circle', 'ellipse'):
         return '<a:prstGeom prst="ellipse"><a:avLst/></a:prstGeom>'
 
-    # --- Rect with rx/ry → preset roundRect ---
     if shape_tag == 'rect':
         rx = _f(shape.get('rx'))
         ry = _f(shape.get('ry'), rx)
@@ -1295,7 +1101,6 @@ def _resolve_clip_geometry(
             f'</a:avLst></a:prstGeom>'
         )
 
-    # --- Path → custGeom ---
     if shape_tag == 'path':
         d = shape.get('d', '')
         if not d:
@@ -1309,7 +1114,6 @@ def _resolve_clip_geometry(
             commands, raw_x, raw_y, raw_w, raw_h, is_obb,
         )
 
-    # --- Polygon → custGeom ---
     if shape_tag == 'polygon':
         pts = _parse_points(shape.get('points', ''))
         if not pts:
@@ -1325,9 +1129,6 @@ def _resolve_clip_geometry(
     return DEFAULT
 
 
-# ---------------------------------------------------------------------------
-# image
-# ---------------------------------------------------------------------------
 
 def _picture_xfrm_from_rect(
     ctx: ConvertContext,
@@ -1336,13 +1137,6 @@ def _picture_xfrm_from_rect(
     w: float,
     h: float,
 ) -> tuple[str, int, int, int, int, tuple[int, int, int, int]]:
-    """Build DrawingML xfrm data for a picture rectangle.
-
-    Coordinates ``x``, ``y``, ``w``, ``h`` MUST already be in ctx-resolved
-    space (i.e. callers have applied ``ctx_x`` / ``ctx_w`` upstream). When
-    ``ctx.use_transform_matrix`` is set, raw SVG-space coordinates are
-    expected and the matrix path applies the transform itself.
-    """
     if ctx.use_transform_matrix:
         return rect_to_dml_xfrm(x, y, w, h, ctx.transform_matrix)
 
@@ -1354,15 +1148,6 @@ def _picture_xfrm_from_rect(
 
 
 def _read_image_size(data: bytes) -> tuple[int | None, int | None]:
-    """Read intrinsic image dimensions (width, height) from raw bytes.
-
-    Used by ``convert_image`` to translate SVG ``preserveAspectRatio`` into
-    DrawingML ``<a:srcRect>`` so the original image is preserved and remains
-    croppable inside PowerPoint.
-
-    Returns ``(None, None)`` on any failure — callers fall back to the
-    legacy stretch behaviour.
-    """
     try:
         from PIL import Image, UnidentifiedImageError  # type: ignore
     except ImportError:
@@ -1379,21 +1164,9 @@ def _compute_slice_src_rect(
     box_w: float, box_h: float,
     align: str,
 ) -> tuple[int, int, int, int] | None:
-    """Compute DrawingML ``<a:srcRect>`` (l, t, r, b) for SVG slice mode.
-
-    SVG ``preserveAspectRatio="<align> slice"`` means: scale the image so it
-    fully covers the box (CSS object-fit: cover) and crop the overflow at the
-    given alignment anchor. DrawingML ``srcRect`` expresses the same intent
-    by specifying which sub-rectangle of the source image to display, in
-    units of 1/1000 of a percent (0–100000).
-
-    Returns ``None`` when no cropping is required (image and box already
-    match) or when inputs are degenerate.
-    """
     if img_w <= 0 or img_h <= 0 or box_w <= 0 or box_h <= 0:
         return None
 
-    # Scale factor that makes the image cover the box (cover semantics).
     scale = max(box_w / img_w, box_h / img_h)
     visible_w = box_w / scale  # ≤ img_w
     visible_h = box_h / scale  # ≤ img_h
@@ -1425,16 +1198,6 @@ def _resolve_image_src_rect(
     img_data: bytes,
     box_w: float, box_h: float,
 ) -> str:
-    """Build ``<a:srcRect .../>`` XML for an SVG <image> based on its
-    preserveAspectRatio. Returns an empty string when no srcRect is needed
-    (meet mode, none mode, or already-aligned content).
-
-    Slice mode is resolved into a srcRect so the original image is embedded
-    intact and PowerPoint's crop tool / "Reset Picture" continue to work.
-    Meet mode is handled separately by ``_resolve_image_meet_fit`` (which
-    shrinks the picture frame to match image aspect ratio); none mode keeps
-    the legacy stretch behaviour intentionally.
-    """
     par = (elem.get('preserveAspectRatio') or 'xMidYMid meet').strip()
     parts = par.split()
     align = parts[0] if parts else 'xMidYMid'
@@ -1460,22 +1223,6 @@ def _resolve_image_meet_fit(
     img_data: bytes,
     box_w: float, box_h: float,
 ) -> tuple[float, float, float, float] | None:
-    """For SVG ``preserveAspectRatio="<align> meet"``, compute the letterboxed
-    sub-rectangle ``(dx, dy, fit_w, fit_h)`` inside the original box that
-    matches the image's intrinsic aspect ratio.
-
-    PowerPoint has no native ``meet`` semantic — ``<a:stretch><a:fillRect/>``
-    fills the entire frame and would distort the image whenever the SVG
-    container ratio differs from the source image ratio. The fix is to shrink
-    the ``<p:pic>`` frame itself (off + ext) so the frame and image share an
-    aspect ratio; the stretch then fills a correctly-shaped frame.
-
-    Returns ``None`` when the adjustment is not applicable:
-      - mode is ``slice`` (handled by srcRect path)
-      - align is ``none`` (SVG spec says: stretch — do not adjust)
-      - intrinsic image dimensions cannot be read
-      - frame already matches image ratio (no-op)
-    """
     par = (elem.get('preserveAspectRatio') or 'xMidYMid meet').strip()
     parts = par.split()
     align = parts[0] if parts else 'xMidYMid'
@@ -1507,17 +1254,10 @@ def _resolve_image_meet_fit(
 
 
 def convert_image(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
-    """Convert SVG <image> to DrawingML picture element.
-
-    Supports clip-path attribute: when present, the clipPath shape is mapped
-    to DrawingML picture geometry (prstGeom or custGeom) so the image is
-    natively clipped in PowerPoint.
-    """
     href = elem.get('href') or elem.get(f'{{{XLINK_NS}}}href')
     if not href:
         return None
 
-    # Raw coordinates (pre-context-transform) for clip path calculations
     raw_x = _f(elem.get('x'))
     raw_y = _f(elem.get('y'))
     raw_w = _f(elem.get('width'))
@@ -1537,7 +1277,6 @@ def convert_image(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
     if w <= 0 or h <= 0:
         return None
 
-    # Extract image data
     if href.startswith('data:'):
         match = re.match(r'data:image/([A-Za-z0-9.+-]+);base64,(.+)', href, re.DOTALL)
         if not match:
@@ -1580,21 +1319,10 @@ def convert_image(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
             rot = int(float(r_match.group(1)) * ANGLE_UNIT)
     rot_attr = f' rot="{rot}"' if rot else ''
 
-    # Resolve clip-path → DrawingML geometry
     clip_geom = _resolve_clip_geometry(elem, ctx, raw_x, raw_y, raw_w, raw_h)
 
-    # Resolve preserveAspectRatio="<align> slice" → DrawingML <a:srcRect>.
-    # This keeps the original image intact in the .pptx and lets users
-    # re-crop or reset the picture in PowerPoint, instead of permanently
-    # baking the crop into the embedded asset.
     src_rect_xml = _resolve_image_src_rect(elem, img_data, w, h)
 
-    # Resolve preserveAspectRatio="<align> meet" by shrinking the picture
-    # frame to match the image's aspect ratio. Skipped when a real clip-path
-    # produces non-trivial geometry: such clip rectangles are defined against
-    # the original box and would no longer line up after a frame shift.
-    # A clip-path that resolves back to the default rect geometry (e.g. plain
-    # <rect> without rx/ry) is a no-op and must not block meet adjustment.
     clip_is_noop = clip_geom == '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>'
     meet_fit = None if not clip_is_noop else _resolve_image_meet_fit(elem, img_data, w, h)
 
@@ -1629,12 +1357,8 @@ def convert_image(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
 </p:pic>''', bounds_emu=bounds_emu)
 
 
-# ---------------------------------------------------------------------------
-# ellipse
-# ---------------------------------------------------------------------------
 
 def convert_ellipse(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
-    """Convert SVG <ellipse> to DrawingML ellipse shape."""
     cx_ = ctx_x(_f(elem.get('cx')), ctx)
     cy_ = ctx_y(_f(elem.get('cy')), ctx)
     rx = _f(elem.get('rx')) * ctx.scale_x
@@ -1677,27 +1401,9 @@ def convert_ellipse(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None
     )
 
 
-# ---------------------------------------------------------------------------
-# nested <svg> sprite (template-import round-trip)
-# ---------------------------------------------------------------------------
 
-# Inverse of pptx_to_svg/pic_to_svg.py:101-113 — that path writes a cropped
-# DrawingML picture as an outer <svg viewBox> wrapping a unit-rectangle <image>.
-# Without this converter, every cropped picture in a template-import SVG is
-# silently dropped on re-export.
 
 def convert_nested_svg(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
-    """Convert a nested <svg> sprite-crop wrapper to a DrawingML picture.
-
-    Pattern produced by pptx_to_svg::
-
-        <svg x="10" y="20" width="200" height="300" viewBox="0.5 0.3 0.5 0.7">
-          <image href="..." x="0" y="0" width="1" height="1" preserveAspectRatio="none"/>
-        </svg>
-
-    The viewBox crops the unit-rectangle inner image; that crop is mapped to a
-    DrawingML <a:srcRect> so PowerPoint can re-crop / "Reset Picture".
-    """
     image_elem = elem.find(f'{{{SVG_NS}}}image')
     if image_elem is None:
         image_elem = elem.find('image')

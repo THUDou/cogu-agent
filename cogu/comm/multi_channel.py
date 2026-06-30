@@ -1,8 +1,3 @@
-"""Multi Channel — 多渠道统一抽象
-
-基于源码: copaw/qwenpaw multi-channel + Claude Code Best channels
-COGU 实现: 统一消息格式 + 渠道路由
-"""
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -49,7 +44,6 @@ class ChannelBackend(ABC):
 
 
 class MultiChannelManager:
-    """多渠道管理器 — 统一消息格式 + 渠道路由"""
 
     def __init__(self):
         self._backends: dict[ChannelType, ChannelBackend] = {}

@@ -1,7 +1,3 @@
-/**
- * @file 解析glyf轮廓
- * @author mengke01(kekee000@gmail.com)
- */
 
 import glyFlag from '../../enum/glyFlag';
 import componentFlag from '../../enum/componentFlag';
@@ -9,28 +5,18 @@ import componentFlag from '../../enum/componentFlag';
 const MAX_INSTRUCTION_LENGTH = 5000; // 设置instructions阈值防止读取错误
 const MAX_NUMBER_OF_COORDINATES = 20000; // 设置坐标最大个数阈值，防止glyf读取错误
 
-/**
- * 读取简单字形
- *
- * @param {Reader} reader Reader对象
- * @param {Object} glyf 空glyf
- * @return {Object} 解析后的glyf
- */
 function parseSimpleGlyf(reader, glyf) {
     const offset = reader.offset;
 
-    // 轮廓点个数
     const numberOfCoordinates = glyf.endPtsOfContours[
         glyf.endPtsOfContours.length - 1
     ] + 1;
 
-    // 判断坐标是否超过最大个数
     if (numberOfCoordinates > MAX_NUMBER_OF_COORDINATES) {
         console.warn('error read glyf coordinates:' + offset);
         return glyf;
     }
 
-    // 获取flag标志
     let i;
     let length;
     const flags = [];
@@ -42,9 +28,7 @@ function parseSimpleGlyf(reader, glyf) {
         flags.push(flag);
         i++;
 
-        // 标志位3重复flag
         if ((flag & glyFlag.REPEAT) && i < numberOfCoordinates) {
-            // 重复个数
             const repeat = reader.readUint8();
             for (let j = 0; j < repeat; j++) {
                 flags.push(flag);
@@ -53,7 +37,6 @@ function parseSimpleGlyf(reader, glyf) {
         }
     }
 
-    // 坐标集合
     const coordinates = [];
     const xCoordinates = [];
     let prevX = 0;
@@ -63,19 +46,14 @@ function parseSimpleGlyf(reader, glyf) {
         x = 0;
         flag = flags[i];
 
-        // 标志位1
-        // If set, the corresponding y-coordinate is 1 byte long, not 2
         if (flag & glyFlag.XSHORT) {
             x = reader.readUint8();
 
-            // 标志位5
             x = (flag & glyFlag.XSAME) ? x : -1 * x;
         }
-        // 与上一值一致
         else if (flag & glyFlag.XSAME) {
             x = 0;
         }
-        // 新值
         else {
             x = reader.readInt16();
         }
@@ -117,7 +95,6 @@ function parseSimpleGlyf(reader, glyf) {
         }
     }
 
-    // 计算轮廓集合
     if (coordinates.length) {
         const endPtsOfContours = glyf.endPtsOfContours;
         const contours = [];
@@ -133,13 +110,6 @@ function parseSimpleGlyf(reader, glyf) {
     return glyf;
 }
 
-/**
- * 读取复合字形
- *
- * @param {Reader} reader Reader对象
- * @param {Object} glyf glyf对象
- * @return {Object} glyf对象
- */
 function parseCompoundGlyf(reader, glyf) {
     glyf.compound = true;
     glyf.glyfs = [];
@@ -147,7 +117,6 @@ function parseCompoundGlyf(reader, glyf) {
     let flags;
     let g;
 
-    // 读取复杂字形
     do {
         flags = reader.readUint16();
         g = {};
@@ -239,14 +208,6 @@ function parseCompoundGlyf(reader, glyf) {
 
 
 
-/**
- * 解析glyf轮廓
- *
- * @param  {Reader} reader 读取器
- * @param  {Object} ttf    ttf对象
- * @param  {number=} offset 偏移
- * @return {Object}        glyf对象
- */
 export default function parseGlyf(reader, ttf, offset) {
 
     if (null != offset) {
@@ -258,16 +219,13 @@ export default function parseGlyf(reader, ttf, offset) {
     let length;
     let instructions;
 
-    // 边界值
     const numberOfContours = reader.readInt16();
     glyf.xMin = reader.readInt16();
     glyf.yMin = reader.readInt16();
     glyf.xMax = reader.readInt16();
     glyf.yMax = reader.readInt16();
 
-    // 读取简单字形
     if (numberOfContours >= 0) {
-        // endPtsOfConturs
         glyf.endPtsOfContours = [];
         if (numberOfContours > 0) {
             for (i = 0; i < numberOfContours; i++) {
@@ -281,10 +239,8 @@ export default function parseGlyf(reader, ttf, offset) {
             delete glyf.yMax;
         }
 
-        // instructions
         length = reader.readUint16();
         if (length) {
-            // range错误
             if (length < MAX_INSTRUCTION_LENGTH) {
                 instructions = [];
                 for (i = 0; i < length; ++i) {

@@ -1,14 +1,3 @@
-#!/usr/bin/env python3
-"""
-PPT Master - SVG Quality Check Tool
-
-Checks whether SVG files comply with project technical specifications.
-
-Usage:
-    python3 scripts/svg_quality_checker.py <svg_file>
-    python3 scripts/svg_quality_checker.py <directory>
-    python3 scripts/svg_quality_checker.py --all examples
-"""
 
 import sys
 import re
@@ -44,35 +33,11 @@ except ImportError:
 
 HEX_VALUE_RE = re.compile(r"#[0-9A-Fa-f]{3,8}")
 
-# Ramp envelope for font-size drift detection.
-# From design_spec_reference.md §IV — Font Size Hierarchy: the ramp spans
-# from page-number floor (0.5x body) to cover-title ceiling (5.0x body).
-# Intermediate px values within this envelope are permitted per
-# executor-base.md §2.1 ("Executor may use an intermediate size ... provided
-# the size's ratio to body falls within the corresponding role's band"); only
-# values outside every band — i.e. outside this envelope — are drift.
 RAMP_MIN_RATIO = 0.5
 RAMP_MAX_RATIO = 5.0
 
 
 def _parse_placeholders_fallback(block: str) -> Dict[str, Tuple[str, ...]]:
-    """Tiny YAML-free reader for the documented ``placeholders:`` shape.
-
-    Used only when PyYAML is unavailable. Recognized lines (indentation-aware,
-    two-space indent assumed):
-
-    .. code-block:: yaml
-
-        placeholders:
-          01_cover: ["{{TITLE}}", "{{LOGO}}"]
-          03_content: []
-          03a_content_two_col:
-            - "{{LEFT_TITLE}}"
-            - "{{RIGHT_TITLE}}"
-
-    Anything outside this minimal grammar is silently skipped — designers who
-    rely on advanced YAML should install pyyaml.
-    """
     out: Dict[str, Tuple[str, ...]] = {}
     inline_re = re.compile(
         r"^\s{2}([A-Za-z0-9_]+)\s*:\s*\[(.*)\]\s*$"
@@ -99,7 +64,6 @@ def _parse_placeholders_fallback(block: str) -> Dict[str, Tuple[str, ...]]:
         if not in_section:
             continue
 
-        # End of section: dedent to a non-key line.
         if line and not line.startswith(" "):
             _flush_block()
             in_section = False
@@ -112,7 +76,6 @@ def _parse_placeholders_fallback(block: str) -> Dict[str, Tuple[str, ...]]:
                 if value:
                     current_items.append(value)
                 continue
-            # Block ended.
             _flush_block()
 
         if empty_re.match(line):
@@ -138,18 +101,7 @@ def _parse_placeholders_fallback(block: str) -> Dict[str, Tuple[str, ...]]:
 
 
 class SVGQualityChecker:
-    """SVG quality checker"""
 
-    # Default placeholder convention per page-type prefix. This is a *hint*,
-    # not a hard contract: templates may define their own placeholder vocabulary
-    # via `placeholders:` in design_spec.md frontmatter (see
-    # references/template-designer.md §4). Missing default placeholders surface
-    # as warnings, never errors — designers may legitimately swap
-    # `{{THANK_YOU}}` for `{{CLOSING_MESSAGE}}`, omit `{{DATE}}` when irrelevant,
-    # or build content variants with bespoke slot vocabularies.
-    #
-    # Variants reuse the parent type's expectation (`03a_content_two_col.svg`
-    # is matched by the same `03_content` rules as `03_content.svg`).
     DEFAULT_PLACEHOLDER_CONVENTION = {
         "01_cover": ("{{TITLE}}",),  # only the title is universally expected
         "02_chapter": ("{{CHAPTER_TITLE}}",),
@@ -168,8 +120,6 @@ class SVGQualityChecker:
             'errors': 0
         }
         self.issue_types = defaultdict(int)
-        # spec_lock drift state (populated only when _parse_spec_lock is available
-        # and a spec_lock.md is found near the SVG)
         self._lock_cache: Dict[Path, Dict] = {}
         self._drift_summary: Dict[str, Dict[str, set]] = {
             'colors': defaultdict(set),
@@ -178,23 +128,10 @@ class SVGQualityChecker:
         }
         self._lock_seen = False  # True once we locate at least one spec_lock.md
         self._source_manifest_cache: Dict[Path, Dict] = {}
-        # Template-mode aggregation (populated by check_directory when
-        # template_mode=True). Each entry is (severity, kind, message) where
-        # severity is 'error' or 'warning'. Printed in print_summary.
         self._template_issues: List[Tuple[str, str, str]] = []
         self._animation_issues: List[Tuple[str, str]] = []
 
     def check_file(self, svg_file: str, expected_format: str = None) -> Dict:
-        """
-        Check a single SVG file
-
-        Args:
-            svg_file: SVG file path
-            expected_format: Expected canvas format (e.g., 'ppt169')
-
-        Returns:
-            Check result dictionary
-        """
         svg_path = Path(svg_file)
 
         if not svg_path.exists():
@@ -220,50 +157,33 @@ class SVGQualityChecker:
             with open(svg_path, 'r', encoding='utf-8') as f:
                 content = f.read()
 
-            # 0. Check XML well-formedness — every other check assumes the file
-            # is valid XML.  Bail early on failure so the regex-based checks
-            # below don't produce misleading errors on a broken document.
             if self._check_xml_well_formed(content, result):
-                # 1. Check viewBox
                 self._check_viewbox(content, result, expected_format)
 
-                # 2. Check forbidden elements
                 self._check_forbidden_elements(content, result)
 
-                # 3. Check fonts
                 self._check_fonts(content, result)
 
-                # 4. Check width/height consistency with viewBox
                 self._check_dimensions(content, result)
 
-                # 5. Check text wrapping methods
                 self._check_text_elements(content, result)
 
-                # 6. Check image references (file existence and resolution)
                 self._check_image_references(content, svg_path, result)
 
-                # 7. Check object-level animation anchor quality.
                 self._check_animation_group_ids(content, result)
 
-                # 8. Check spec_lock drift (colors / font-family / font-size).
-                #    Templates do not ship a spec_lock.md, so skip in template
-                #    mode to avoid noise.
                 if not self.template_mode:
                     self._check_spec_lock_drift(content, svg_path, result)
 
-                # 9. Check web-sourced image attribution. Templates don't carry
-                #    image_sources.json; skip in template mode.
                 if not self.template_mode:
                     self._check_sourced_image_attribution(content, svg_path, result)
 
-            # Determine pass/fail
             result['passed'] = len(result['errors']) == 0
 
         except Exception as e:
             result['errors'].append(f"Failed to read file: {e}")
             result['passed'] = False
 
-        # Update statistics
         self.summary['total'] += 1
         if result['passed']:
             if result['warnings']:
@@ -273,7 +193,6 @@ class SVGQualityChecker:
         else:
             self.summary['errors'] += 1
 
-        # Categorize issue types
         for error in result['errors']:
             self.issue_types[self._categorize_issue(error)] += 1
 
@@ -281,17 +200,6 @@ class SVGQualityChecker:
         return result
 
     def _check_xml_well_formed(self, content: str, result: Dict) -> bool:
-        """Check that the SVG content parses as well-formed XML.
-
-        SVG is strict XML.  AI-generated decks frequently produce content that
-        looks fine in HTML5-tolerant previews but fails strict XML parsing —
-        common causes are HTML named entities (&nbsp; &mdash; &copy;…) and
-        bare XML reserved characters in text (R&D, error < 5%).  Such pages
-        cannot be exported to PPTX, so we surface them here as a hard error
-        before any downstream check looks at them.
-
-        Returns True when the document is well-formed; False otherwise.
-        """
         try:
             ET.fromstring(content)
             return True
@@ -305,7 +213,6 @@ class SVGQualityChecker:
             return False
 
     def _check_viewbox(self, content: str, result: Dict, expected_format: str = None):
-        """Check viewBox attribute"""
         viewbox_match = re.search(r'viewBox="([^"]+)"', content)
 
         if not viewbox_match:
@@ -315,11 +222,9 @@ class SVGQualityChecker:
         viewbox = viewbox_match.group(1)
         result['info']['viewbox'] = viewbox
 
-        # Check format
         if not re.match(r'0 0 \d+ \d+', viewbox):
             result['warnings'].append(f"Unusual viewBox format: {viewbox}")
 
-        # Check if it matches expected format
         if expected_format and expected_format in CANVAS_FORMATS:
             expected_viewbox = CANVAS_FORMATS[expected_format]['viewbox']
             if viewbox != expected_viewbox:
@@ -328,19 +233,10 @@ class SVGQualityChecker:
                 )
 
     def _check_forbidden_elements(self, content: str, result: Dict):
-        """Check forbidden elements (blocklist)"""
         content_lower = content.lower()
 
-        # ============================================================
-        # Forbidden elements blocklist - PPT incompatible
-        # ============================================================
 
-        # Clipping / masking
-        # clipPath is allowed on <image> elements and on pptx_to_svg-generated
-        # nested crop <svg data-pptx-crop="1"> wrappers. Both map back to
-        # DrawingML picture geometry in the native converter.
         if '<clippath' in content_lower:
-            # clip-path on non-image elements → error
             clip_on_non_image = re.search(
                 r'<(?!image\b)(?!svg\b[^>]*\bdata-pptx-crop\s*=\s*["\']1["\'])\w+[^>]*\bclip-path\s*=',
                 content,
@@ -351,7 +247,6 @@ class SVGQualityChecker:
                     "clip-path is only allowed on <image> elements or "
                     "pptx_to_svg crop wrappers — for shapes, draw the target "
                     "shape directly instead of clipping")
-            # Check that every clip-path reference has a matching <clipPath> def
             clip_refs = re.findall(r'clip-path\s*=\s*["\']url\(#([^)]+)\)', content)
             for ref_id in clip_refs:
                 if f'id="{ref_id}"' not in content and f"id='{ref_id}'" not in content:
@@ -361,14 +256,10 @@ class SVGQualityChecker:
         if '<mask' in content_lower:
             result['errors'].append("Detected forbidden <mask> element (PPT does not support SVG masks)")
 
-        # Style system
         if '<style' in content_lower:
             result['errors'].append("Detected forbidden <style> element (use inline attributes instead)")
         if re.search(r'\bclass\s*=', content):
             result['errors'].append("Detected forbidden class attribute (use inline styles instead)")
-        # id attribute: only report error when <style> also exists (id is harmful only with CSS selectors)
-        # id inside <defs> for linearGradient/filter etc. is required, Inkscape also auto-adds id to elements,
-        # standalone id attributes have no impact on PPT export
         if '<style' in content_lower and re.search(r'\bid\s*=', content):
             result['errors'].append(
                 "Detected id attribute used with <style> (CSS selectors forbidden, use inline styles instead)"
@@ -380,7 +271,6 @@ class SVGQualityChecker:
         if re.search(r'@import\s+', content_lower):
             result['errors'].append("Detected forbidden @import (external CSS references forbidden)")
 
-        # Structure / nesting
         if '<foreignobject' in content_lower:
             result['errors'].append(
                 "Detected forbidden <foreignObject> element (use <tspan> for manual line breaks)")
@@ -388,22 +278,17 @@ class SVGQualityChecker:
         has_use = re.search(r'<use\b', content_lower) is not None
         if has_symbol and has_use:
             result['errors'].append("Detected forbidden <symbol> + <use> complex usage (use basic shapes or simple <use> instead)")
-        # marker-start / marker-end are conditionally allowed (see shared-standards.md §1.1).
-        # The converter maps qualifying <marker> defs to native DrawingML <a:headEnd>/<a:tailEnd>.
-        # We only warn when a marker is used without an obvious <defs> definition in the same file.
         if re.search(r'\bmarker-(?:start|end)\s*=\s*["\']url\(#([^)]+)\)', content_lower):
             if '<marker' not in content_lower:
                 result['errors'].append(
                     "Detected marker-start/marker-end referencing a marker id, "
                     "but no <marker> element found in the file")
 
-        # Text / fonts
         if '<textpath' in content_lower:
             result['errors'].append("Detected forbidden <textPath> element (path text is incompatible with PPT)")
         if '@font-face' in content_lower:
             result['errors'].append("Detected forbidden @font-face (use system font stack)")
 
-        # Animation / interaction
         if re.search(r'<animate', content_lower):
             result['errors'].append("Detected forbidden SMIL animation element <animate*> (SVG animations are not exported)")
         if re.search(r'<set\b', content_lower):
@@ -413,7 +298,6 @@ class SVGQualityChecker:
         if re.search(r'\bon\w+\s*=', content):  # onclick, onload etc.
             result['errors'].append("Detected forbidden event attributes (e.g., onclick, onload)")
 
-        # Other discouraged elements
         if '<iframe' in content_lower:
             result['errors'].append("Detected <iframe> element (should not appear in SVG)")
         if re.search(r'rgba\s*\(', content_lower):
@@ -424,12 +308,6 @@ class SVGQualityChecker:
             result['errors'].append("Detected forbidden <image opacity> (use overlay mask approach)")
 
     def _check_fonts(self, content: str, result: Dict):
-        """Check font usage.
-
-        PPTX stores a single `typeface` per run with no runtime fallback, so every
-        stack must END with a cross-platform pre-installed family. See
-        strategist.md §g "PPT-safe font discipline".
-        """
         font_matches = re.findall(
             r'font-family[:\s]*["\']([^"\']+)["\']', content, re.IGNORECASE)
 
@@ -438,9 +316,6 @@ class SVGQualityChecker:
 
         result['info']['fonts'] = list(set(font_matches))
 
-        # Pre-installed on Windows + macOS out of the box (plus their direct
-        # FONT_FALLBACK_WIN mappings). A stack whose last concrete family is in
-        # this set survives the PPTX round-trip on any viewer machine.
         ppt_safe_tail = {
             'microsoft yahei', 'simhei', 'simsun', 'kaiti', 'fangsong',
             'pingfang sc', 'heiti sc', 'songti sc', 'stsong',
@@ -452,8 +327,6 @@ class SVGQualityChecker:
         }
 
         for font_family in font_matches:
-            # Drop the generic CSS fallback (sans-serif / serif / monospace)
-            # and inspect the last concrete family.
             parts = [p.strip().strip('"').strip("'").lower()
                      for p in font_family.split(',')]
             parts = [p for p in parts
@@ -471,7 +344,6 @@ class SVGQualityChecker:
                 break
 
     def _check_dimensions(self, content: str, result: Dict):
-        """Check width/height consistency with viewBox"""
         width_match = re.search(r'width="(\d+)"', content)
         height_match = re.search(r'height="(\d+)"', content)
 
@@ -480,7 +352,6 @@ class SVGQualityChecker:
             height = height_match.group(1)
             result['info']['dimensions'] = f"{width}x{height}"
 
-            # Check consistency with viewBox
             if 'viewbox' in result['info']:
                 viewbox_parts = result['info']['viewbox'].split()
                 if len(viewbox_parts) == 4:
@@ -492,15 +363,12 @@ class SVGQualityChecker:
                         )
 
     def _check_text_elements(self, content: str, result: Dict):
-        """Check text elements and wrapping methods"""
-        # Count text and tspan elements
         text_count = content.count('<text')
         tspan_count = content.count('<tspan')
 
         result['info']['text_elements'] = text_count
         result['info']['tspan_elements'] = tspan_count
 
-        # Check for overly long single-line text (may need wrapping)
         text_matches = re.findall(r'<text[^>]*>([^<]{100,})</text>', content)
         if text_matches:
             result['warnings'].append(
@@ -508,8 +376,6 @@ class SVGQualityChecker:
             )
 
     def _check_image_references(self, content: str, svg_path: Path, result: Dict):
-        """Check image file existence and resolution vs display size."""
-        # Find all <image ...> elements (capture the full tag)
         img_tag_pattern = re.compile(r'<image\b([^>]*)/?>', re.IGNORECASE)
 
         svg_dir = svg_path.parent
@@ -518,7 +384,6 @@ class SVGQualityChecker:
         for tag_match in img_tag_pattern.finditer(content):
             attrs = tag_match.group(1)
 
-            # Extract href (prefer href over xlink:href)
             href_match = (
                 re.search(r'\bhref="(?!data:)([^"]+)"', attrs) or
                 re.search(r'\bxlink:href="(?!data:)([^"]+)"', attrs)
@@ -531,7 +396,6 @@ class SVGQualityChecker:
                 continue
             checked.add(href)
 
-            # Resolve path relative to SVG file directory
             img_path = (svg_dir / href).resolve()
 
             if not img_path.exists():
@@ -539,7 +403,6 @@ class SVGQualityChecker:
                     f"Image file not found: {href} (resolved to {img_path})")
                 continue
 
-            # Check resolution vs display size
             w_match = re.search(r'\bwidth="([^"]+)"', attrs)
             h_match = re.search(r'\bheight="([^"]+)"', attrs)
             display_w_str = w_match.group(1) if w_match else None
@@ -573,7 +436,6 @@ class SVGQualityChecker:
                 pass  # Image unreadable, skip resolution check
 
     def _check_animation_group_ids(self, content: str, result: Dict):
-        """Warn when visible top-level groups cannot be customized."""
         try:
             root = ET.fromstring(content)
         except ET.ParseError:
@@ -591,12 +453,6 @@ class SVGQualityChecker:
                 )
 
     def _get_spec_lock(self, svg_path: Path):
-        """Locate and parse spec_lock.md near the SVG. Returns dict or None.
-
-        Looks in svg_path.parent and svg_path.parent.parent (covers the two
-        common layouts: SVG directly under <project>/ or under
-        <project>/svg_output/). Results are cached per lock path.
-        """
         if _parse_spec_lock is None:
             return None
         for candidate in (svg_path.parent / 'spec_lock.md',
@@ -615,29 +471,16 @@ class SVGQualityChecker:
         return None
 
     def _check_spec_lock_drift(self, content: str, svg_path: Path, result: Dict):
-        """Detect values used in the SVG that fall outside spec_lock.md.
-
-        Covers colors (fill / stroke / stop-color), font-family, and font-size.
-        Emits per-file warnings summarising the drift counts; exact drifting
-        values are accumulated in self._drift_summary for the end-of-run
-        aggregation. When spec_lock.md is missing, silently skip (consistent
-        with executor-base.md §2.1's 'missing lock → warn and proceed' policy).
-        """
         lock = self._get_spec_lock(svg_path)
         if lock is None:
             return
 
-        # Build allow-sets from the lock
         allowed_colors = set()
         for v in lock.get('colors', {}).values():
             if HEX_VALUE_RE.fullmatch(v):
                 allowed_colors.add(v.upper())
 
         typo = lock.get('typography', {})
-        # Font families: default `font_family` plus any per-role `*_family`
-        # override (title_family / body_family / emphasis_family / code_family,
-        # per spec_lock_reference.md). Any of these is a legitimate declared
-        # value; an SVG that uses any one of them is not drifting.
         allowed_fonts = set()
         if typo:
             default_font = typo.get('font_family', '').strip()
@@ -647,12 +490,10 @@ class SVGQualityChecker:
                 if k == 'font_family' or not k.endswith('_family'):
                     continue
                 v_clean = v.strip()
-                # Skip placeholder text like "same as body (omit if identical)"
                 if not v_clean or v_clean.lower().startswith('same as'):
                     continue
                 allowed_fonts.add(v_clean)
 
-        # Sizes: declared slots are anchors; body is the ramp baseline.
         allowed_sizes = set()
         body_px = None
         for k, v in typo.items():
@@ -665,7 +506,6 @@ class SVGQualityChecker:
                 except (ValueError, TypeError):
                     body_px = None
 
-        # Scan SVG for used values
         color_drifts = set()
         for attr in ('fill', 'stroke', 'stop-color'):
             pattern = re.compile(rf'\b{attr}\s*=\s*["\'](#[0-9A-Fa-f]{{3,8}})["\']')
@@ -685,8 +525,6 @@ class SVGQualityChecker:
             val = self._normalize_size(m.group(1))
             if not allowed_sizes or val in allowed_sizes:
                 continue
-            # Intermediate values are allowed when they sit inside the ramp
-            # envelope (ratio to body within [RAMP_MIN_RATIO, RAMP_MAX_RATIO]).
             if body_px and body_px > 0:
                 try:
                     ratio = float(val) / body_px
@@ -696,7 +534,6 @@ class SVGQualityChecker:
                     pass
             size_drifts.add(val)
 
-        # Record in run-wide aggregation
         fname = svg_path.name
         for v in color_drifts:
             self._drift_summary['colors'][v].add(fname)
@@ -705,7 +542,6 @@ class SVGQualityChecker:
         for v in size_drifts:
             self._drift_summary['sizes'][v].add(fname)
 
-        # Per-file warning (one condensed line; details live in summary)
         parts = []
         if color_drifts:
             parts.append(f"{len(color_drifts)} color(s)")
@@ -720,11 +556,6 @@ class SVGQualityChecker:
             )
 
     def _find_image_sources_manifest(self, svg_path: Path) -> Path | None:
-        """Locate image_sources.json for a project SVG.
-
-        Quality checks run primarily on <project>/svg_output/*.svg, but this
-        also supports SVGs checked from project root or svg_final.
-        """
         bases = (svg_path.parent, svg_path.parent.parent, svg_path.parent.parent.parent)
         for base in bases:
             candidate = base / 'images' / 'image_sources.json'
@@ -746,13 +577,6 @@ class SVGQualityChecker:
         return payload
 
     def _check_sourced_image_attribution(self, content: str, svg_path: Path, result: Dict):
-        """Require visible credit text for attribution-required web images.
-
-        image_search.py records the legal tier in images/image_sources.json;
-        Executor must render compact credit text into the SVG. This check
-        prevents a quality-first CC BY / CC BY-SA image from silently reaching
-        export without attribution.
-        """
         manifest = self._load_image_sources_manifest(svg_path)
         items = manifest.get('items') or []
         if not items:
@@ -785,16 +609,12 @@ class SVGQualityChecker:
 
     @staticmethod
     def _normalize_size(value: str) -> str:
-        """Normalize a font-size value for comparison: lowercase, strip spaces,
-        strip trailing 'px'. Other units (em / rem / %) are kept as-is so that
-        e.g. '1.5em' vs '24' stay distinct."""
         v = value.strip().lower()
         if v.endswith('px'):
             v = v[:-2].strip()
         return v
 
     def _categorize_issue(self, error_msg: str) -> str:
-        """Categorize issue type"""
         if 'Invalid XML' in error_msg:
             return 'XML well-formedness'
         elif 'viewBox' in error_msg:
@@ -807,28 +627,16 @@ class SVGQualityChecker:
             return 'Other'
 
     def check_directory(self, directory: str, expected_format: str = None) -> List[Dict]:
-        """
-        Check all SVG files in a directory
-
-        Args:
-            directory: Directory path
-            expected_format: Expected canvas format
-
-        Returns:
-            List of check results
-        """
         dir_path = Path(directory)
 
         if not dir_path.exists():
             print(f"[ERROR] Directory does not exist: {directory}")
             return []
 
-        # Find all SVG files
         if dir_path.is_file():
             svg_files = [dir_path]
         else:
             if self.template_mode:
-                # Template directories live at templates/layouts/<id>/.
                 svg_files = sorted(dir_path.glob('*.svg'))
             else:
                 svg_output = dir_path / \
@@ -854,7 +662,6 @@ class SVGQualityChecker:
         return self.results
 
     def _check_animation_config_contract(self, dir_path: Path) -> None:
-        """Project-level animations.json reference checks."""
         if _load_animation_config is None or _validate_animation_config is None:
             return
         project_path = dir_path if (dir_path / 'svg_output').exists() else dir_path.parent
@@ -870,21 +677,6 @@ class SVGQualityChecker:
 
     def _check_template_contract(self, dir_path: Path,
                                  svg_files: List[Path]) -> None:
-        """Template-mode-only checks: roster ↔ design_spec consistency and
-        per-page placeholder hints.
-
-        - **Roster mismatch (orphan / missing)** is reported as an *error*: a
-          stale roster will produce a wrong ``layouts_index.json`` entry.
-        - **Placeholder gaps** are reported as *warnings*. Templates may
-          legitimately omit conventional placeholders or swap them out (e.g.
-          ``{{CLOSING_MESSAGE}}`` instead of ``{{THANK_YOU}}``), and a content
-          variant may use a bespoke slot vocabulary. Designers can declare
-          their own per-stem expectations via ``placeholders:`` frontmatter
-          in ``design_spec.md`` to suppress these warnings explicitly.
-
-        Issues are aggregated and printed in :py:meth:`print_summary` so the
-        per-file report stays focused on intrinsic SVG validity.
-        """
         spec_path = dir_path / 'design_spec.md'
         spec_text = spec_path.read_text(encoding='utf-8') if spec_path.exists() else ""
         spec_pages = self._extract_spec_roster(spec_text) if spec_text else []
@@ -909,8 +701,6 @@ class SVGQualityChecker:
                     f"design_spec.md Page Roster lists {page} but {page}.svg is missing on disk",
                 ))
         elif spec_path.exists():
-            # design_spec.md is present but the roster parser found nothing —
-            # surface as a warning. Legacy specs may lack an explicit roster.
             self._template_issues.append((
                 'warning',
                 'roster_unknown',
@@ -924,9 +714,6 @@ class SVGQualityChecker:
                 f"{spec_path.name} not found — required for every library template",
             ))
 
-        # Per-file placeholder coverage. Variants reuse the parent type's set
-        # (e.g. 03a_content_two_col.svg ↔ 03_content rules) unless the spec
-        # frontmatter overrides that page (custom_contract takes precedence).
         for svg_file in svg_files:
             expected = self._lookup_template_contract(
                 svg_file.stem, overrides=custom_contract,
@@ -948,27 +735,6 @@ class SVGQualityChecker:
 
     @staticmethod
     def _extract_frontmatter_placeholders(spec_text: str) -> Dict[str, Tuple[str, ...]]:
-        """Read the optional ``placeholders:`` map from design_spec.md frontmatter.
-
-        Shape:
-
-        .. code-block:: yaml
-
-            placeholders:
-              01_cover: ["{{TITLE}}", "{{BRAND_LOGO}}"]
-              03_content: []        # explicitly assert "no expectation"
-              03a_content_two_col:  # variant-specific override
-                - "{{LEFT_TITLE}}"
-                - "{{RIGHT_TITLE}}"
-
-        Each key is a stem (full filename without ``.svg``) or page-type prefix
-        (``01_cover``). An empty list silences the default convention for that
-        stem; a populated list replaces the default. Stems / prefixes not
-        listed fall back to ``DEFAULT_PLACEHOLDER_CONVENTION``.
-
-        We parse with PyYAML when available; otherwise we fall back to a
-        minimal regex that handles the documented shape.
-        """
         if not spec_text.startswith("---\n"):
             return {}
         end = spec_text.find("\n---\n", 4)
@@ -1003,20 +769,6 @@ class SVGQualityChecker:
 
     @staticmethod
     def _extract_spec_roster(spec_text: str) -> List[str]:
-        """Best-effort: extract the page roster from design_spec.md.
-
-        Templates do not share a uniform section index for the roster — the
-        personality-only skeleton puts it at §V "Page Roster"; legacy specs use
-        §VI "Page Roster" or bury filenames under §VII "Page Types" as
-        ``### N. Cover Page (01_cover.svg)``. We match by title (any roman
-        index), then fall back to scanning the whole document for any
-        backtick-wrapped ``<stem>.svg`` reference.
-
-        Returns the deduplicated stem list in document order. Empty result
-        means we can't determine the roster confidently — caller should treat
-        that as "skip orphan/missing checks", not as "no pages declared".
-        """
-        # Pass 1: explicit roster section, any roman numeral.
         section = re.search(
             r"^##\s+[IVX]+\.\s+(?:Page Roster|Page Structure|Pages|Page Types)\b.*?(?=^##\s+|\Z)",
             spec_text,
@@ -1024,10 +776,6 @@ class SVGQualityChecker:
         )
         scope = section.group(0) if section else None
 
-        # Pass 2: full document. We *only* trust this scan when the explicit
-        # roster scan came up empty (no `<stem>.svg` references inside it) —
-        # otherwise the explicit section's deliberate roster wins over loose
-        # mentions elsewhere.
         if scope and re.search(r"[`\(][0-9A-Za-z_]+\.svg[`\)]", scope):
             text = scope
         else:
@@ -1035,8 +783,6 @@ class SVGQualityChecker:
 
         stems: List[str] = []
         seen: set = set()
-        # Accept backtick-quoted (`01_cover.svg`) and parenthesized
-        # (01_cover.svg) forms — existing specs use either.
         svg_ref_re = re.compile(r"[`\(]([0-9A-Za-z_]+\.svg)[`\)]")
         for match in svg_ref_re.finditer(text):
             stem = match.group(1)[:-4]
@@ -1045,8 +791,6 @@ class SVGQualityChecker:
             seen.add(stem)
             stems.append(stem)
 
-        # If the explicit §VI scan listed bare stems (without .svg), accept
-        # those as fallback — but only when they were inside that section.
         if not stems and scope:
             for match in re.finditer(r"`([0-9]{2}[a-z]?_[A-Za-z0-9_]+)`", scope):
                 stem = match.group(1)
@@ -1062,26 +806,10 @@ class SVGQualityChecker:
         cls, stem: str, *,
         overrides: Dict[str, Tuple[str, ...]] | None = None,
     ) -> Tuple[str, ...] | None:
-        """Resolve a SVG stem to its expected placeholder set.
-
-        Resolution order, first hit wins:
-        1. ``overrides[stem]`` — frontmatter entry for the exact filename
-        2. ``overrides[<page_type_prefix>]`` — frontmatter entry for the
-           variant's parent type (e.g. ``03_content`` for
-           ``03a_content_two_col``)
-        3. ``DEFAULT_PLACEHOLDER_CONVENTION[<page_type_prefix>]``
-
-        Returns ``None`` for stems with no matching convention or override —
-        e.g. extension pages like ``05_section_break``. ``()`` (empty tuple)
-        is a valid value meaning "no expected placeholders" — used to
-        explicitly silence the default convention.
-        """
         overrides = overrides or {}
         if stem in overrides:
             return overrides[stem]
 
-        # Variant convention: <NN><letter>?_<rest>; strip the letter to find
-        # the parent type prefix, e.g. "03a_content_two_col" -> "03_content".
         match = re.match(r"^(\d{2})([a-z])?_([a-z]+)", stem)
         if not match:
             return None
@@ -1092,7 +820,6 @@ class SVGQualityChecker:
         return cls.DEFAULT_PLACEHOLDER_CONVENTION.get(key)
 
     def _print_result(self, result: Dict):
-        """Print check result for a single file"""
         if result['passed']:
             if result['warnings']:
                 icon = "[WARN]"
@@ -1106,7 +833,6 @@ class SVGQualityChecker:
 
         print(f"{icon} {result['file']} - {status}")
 
-        # Display basic info
         if result['info']:
             info_items = []
             if 'viewbox' in result['info']:
@@ -1114,12 +840,10 @@ class SVGQualityChecker:
             if info_items:
                 print(f"   {' | '.join(info_items)}")
 
-        # Display errors
         if result['errors']:
             for error in result['errors']:
                 print(f"   [ERROR] {error}")
 
-        # Display warnings
         if result['warnings']:
             for warning in result['warnings'][:2]:  # Only show first 2 warnings
                 print(f"   [WARN] {warning}")
@@ -1129,7 +853,6 @@ class SVGQualityChecker:
         print()
 
     def print_summary(self):
-        """Print check summary"""
         print("=" * 80)
         print("[SUMMARY] Check Summary")
         print("=" * 80)
@@ -1147,16 +870,12 @@ class SVGQualityChecker:
             for issue_type, count in sorted(self.issue_types.items(), key=lambda x: x[1], reverse=True):
                 print(f"  {issue_type}: {count}")
 
-        # spec_lock drift aggregation (only printed when a lock was found)
         self._print_drift_summary()
 
-        # Template-mode aggregation (orphan/missing roster + placeholder hints)
         self._print_template_summary()
 
-        # Animation config aggregation.
         self._print_animation_summary()
 
-        # Fix suggestions
         if self.summary['errors'] > 0 or self.summary['warnings'] > 0:
             print(f"\n[TIP] Common fixes:")
             print(f"  1. XML well-formedness: write typography as raw Unicode (—, ©, →, NBSP); escape XML reserved chars as &amp; &lt; &gt; &quot; &apos; — never use HTML named entities like &nbsp; &mdash; &copy;")
@@ -1165,7 +884,6 @@ class SVGQualityChecker:
             print(f"  4. Font issues: end every font-family stack with a PPT-safe family (e.g. Microsoft YaHei / Arial / Consolas)")
 
     def _print_animation_summary(self):
-        """Print animations.json validation issues if present."""
         if not self._animation_issues:
             return
 
@@ -1183,20 +901,12 @@ class SVGQualityChecker:
             print(f"  [WARN] {msg}")
 
     def _print_template_summary(self):
-        """Aggregate template-mode roster / placeholder issues at the bottom.
-
-        Errors land under the ``errors`` summary count (so the exit signal
-        from ``main`` agrees), warnings under ``warnings``. Both are listed
-        per file so the user can act on them directly.
-        """
         if not self._template_issues:
             return
 
         errors = [item for item in self._template_issues if item[0] == 'error']
         warnings = [item for item in self._template_issues if item[0] == 'warning']
 
-        # Mirror into the global summary so downstream "0 errors" gates honor
-        # template-mode issues.
         self.summary['errors'] += len(errors)
         self.summary['warnings'] += len(warnings)
         for severity, kind, _msg in self._template_issues:
@@ -1216,13 +926,6 @@ class SVGQualityChecker:
             print("  declare 'placeholders:' frontmatter in design_spec.md to silence them.")
 
     def _print_drift_summary(self):
-        """Print spec_lock drift aggregation if any was observed.
-
-        Values are sorted by file-count descending so frequent drift surfaces
-        first. Frequent drift usually means spec_lock.md is missing entries
-        the Strategist should have included; rare drift is more likely actual
-        Executor drift and warrants SVG review.
-        """
         if not self._lock_seen:
             return
         has_drift = any(self._drift_summary[cat] for cat in self._drift_summary)
@@ -1251,13 +954,11 @@ class SVGQualityChecker:
         )
 
     def _percentage(self, count: int) -> int:
-        """Calculate percentage"""
         if self.summary['total'] == 0:
             return 0
         return int(count / self.summary['total'] * 100)
 
     def export_report(self, output_file: str = 'svg_quality_report.txt'):
-        """Export check report"""
         with open(output_file, 'w', encoding='utf-8') as f:
             f.write("PPT Master SVG Quality Check Report\n")
             f.write("=" * 80 + "\n\n")
@@ -1282,7 +983,6 @@ class SVGQualityChecker:
 
                 f.write("\n" + "-" * 80 + "\n\n")
 
-            # Write summary
             f.write("\n" + "=" * 80 + "\n")
             f.write("Check Summary\n")
             f.write("=" * 80 + "\n\n")
@@ -1295,7 +995,6 @@ class SVGQualityChecker:
 
 
 def print_usage() -> None:
-    """Print CLI usage information."""
     print("PPT Master - SVG Quality Check Tool\n")
     print("Usage:")
     print("  python3 scripts/svg_quality_checker.py <svg_file>")
@@ -1316,7 +1015,6 @@ def print_usage() -> None:
 
 
 def main() -> None:
-    """Run the CLI entry point."""
     if len(sys.argv) < 2:
         print_usage()
         sys.exit(0)
@@ -1333,7 +1031,6 @@ def main() -> None:
     template_mode = '--template-mode' in sys.argv
     checker = SVGQualityChecker(template_mode=template_mode)
 
-    # Parse arguments
     target = sys.argv[1]
     expected_format = None
 
@@ -1342,9 +1039,7 @@ def main() -> None:
         if idx + 1 < len(sys.argv):
             expected_format = sys.argv[idx + 1]
 
-    # Execute check
     if target == '--all':
-        # Check all example projects
         base_dir = sys.argv[2] if len(sys.argv) > 2 else 'examples'
         from project_utils import find_all_projects
         projects = find_all_projects(base_dir)
@@ -1357,10 +1052,8 @@ def main() -> None:
     else:
         checker.check_directory(target, expected_format)
 
-    # Print summary
     checker.print_summary()
 
-    # Export report (if specified)
     if '--export' in sys.argv:
         output_file = 'svg_quality_report.txt'
         if '--output' in sys.argv:
@@ -1369,7 +1062,6 @@ def main() -> None:
                 output_file = sys.argv[idx + 1]
         checker.export_report(output_file)
 
-    # Return exit code
     if checker.summary['errors'] > 0:
         sys.exit(1)
     else:

@@ -1,12 +1,3 @@
-#!/usr/bin/env python3
-"""
-Ideogram image generation backend.
-
-Configuration keys:
-  IDEOGRAM_API_KEY   (required)
-  IDEOGRAM_BASE_URL  (optional)
-  IDEOGRAM_MODEL     (optional)
-"""
 
 import sys
 
@@ -59,7 +50,6 @@ IMAGE_SIZE_TO_SPEED = {
 
 
 def _resolve_url(base_url: str) -> str:
-    """Resolve the Ideogram generation endpoint."""
     base = base_url.rstrip("/")
     if base.endswith("/generate"):
         return base
@@ -70,7 +60,6 @@ def _generate_image(api_key: str, prompt: str,
                     aspect_ratio: str = "1:1", image_size: str = "1K",
                     output_dir: str = None, filename: str = None,
                     model: str = DEFAULT_MODEL, base_url: str = DEFAULT_BASE_URL) -> str:
-    """Generate one image with the Ideogram backend."""
     normalized_model = model.strip().lower()
     if normalized_model not in MODEL_ALIASES:
         raise ValueError(
@@ -122,7 +111,6 @@ def generate(prompt: str,
              aspect_ratio: str = "1:1", image_size: str = "1K",
              output_dir: str = None, filename: str = None,
              model: str = None, max_retries: int = MAX_RETRIES) -> str:
-    """Generate an image with retries using the Ideogram backend."""
     api_key = require_api_key(
         "IDEOGRAM_API_KEY",
         message="No API key found. Set IDEOGRAM_API_KEY in the current environment or a .env file.",

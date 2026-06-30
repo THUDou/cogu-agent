@@ -1,9 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-PDF 加密/解密工具。
-支持密码保护和权限控制。
-"""
 
 import json
 import sys
@@ -23,7 +17,6 @@ PARAMS = [
 
 
 def encrypt_pdf(input_path, output_path, user_password, owner_password=None, permissions=None):
-    """加密 PDF 文件。"""
     from pypdf import PdfReader, PdfWriter
 
     reader = PdfReader(input_path)
@@ -32,11 +25,9 @@ def encrypt_pdf(input_path, output_path, user_password, owner_password=None, per
     for page in reader.pages:
         writer.add_page(page)
 
-    # 复制元数据
     if reader.metadata:
         writer.add_metadata(reader.metadata)
 
-    # 加密
     if owner_password is None:
         owner_password = user_password
 
@@ -58,7 +49,6 @@ def encrypt_pdf(input_path, output_path, user_password, owner_password=None, per
 
 
 def decrypt_pdf(input_path, output_path, password):
-    """解密 PDF 文件。"""
     from pypdf import PdfReader, PdfWriter
 
     reader = PdfReader(input_path)
@@ -93,20 +83,6 @@ def decrypt_pdf(input_path, output_path, password):
 
 
 def handler(params):
-    """PDF 加密/解密入口。
-
-    Args:
-        params: {
-            "action": "encrypt" | "decrypt",
-            "input": 输入 PDF 路径,
-            "output": 输出 PDF 路径,
-            # encrypt 专用
-            "user_password": 用户密码,
-            "owner_password": 所有者密码（可选）,
-            # decrypt 专用
-            "password": 解密密码
-        }
-    """
     action = params.get("action")
     input_path = params.get("input", "")
     output_path = params.get("output", "")

@@ -1,9 +1,3 @@
-"""Playground — 实验沙箱核心
-
-基于源码: EvoMaster core/playground.py (BasePlayground 1891行)
-         + EvoMaster core/exp.py (BaseExp + extract_agent_response)
-集成: COGU ReActAgent + Session + ToolRegistry
-"""
 from __future__ import annotations
 
 import asyncio
@@ -60,7 +54,6 @@ class ExperimentResult:
 
 
 class BasePlayground:
-    """实验沙箱基类 — 借鉴 EvoMaster BasePlayground 生命周期"""
 
     def __init__(self, workspace_dir: str | Path = "."):
         self.workspace = Path(workspace_dir)
@@ -167,7 +160,6 @@ class BasePlayground:
 
 
 class ExperimentRunner:
-    """实验运行器 — 基于 EvoMaster EvolutionManager baseline→analyze→rerun 模式"""
 
     def __init__(self, playground: BasePlayground):
         self.playground = playground

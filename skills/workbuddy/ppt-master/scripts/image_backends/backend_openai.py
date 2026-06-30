@@ -1,22 +1,3 @@
-#!/usr/bin/env python3
-"""
-OpenAI Compatible Image Generation Backend
-
-Generates images via OpenAI-compatible APIs (OpenAI, local models like Qwen-Image, etc.).
-Used by image_gen.py as a backend module.
-
-Configuration keys:
-  OPENAI_API_KEY   (required) API key
-  OPENAI_BASE_URL  (optional) Custom API endpoint (e.g. http://127.0.0.1:3000/v1)
-  OPENAI_MODEL     (optional) Model name (default: gpt-image-2)
-  OPENAI_OUTPUT_FORMAT       (optional) png, jpeg, or webp for GPT image models
-  OPENAI_OUTPUT_COMPRESSION  (optional) 0-100, only for jpeg/webp GPT image output
-  OPENAI_BACKGROUND          (optional) auto or opaque for gpt-image-2
-  OPENAI_MODERATION          (optional) auto or low for GPT image models
-
-Dependencies:
-  pip install openai Pillow
-"""
 
 import sys
 
@@ -43,12 +24,7 @@ from image_backends.backend_common import (
 )
 
 
-# ╔══════════════════════════════════════════════════════════════════╗
-# ║  Constants                                                      ║
-# ╚══════════════════════════════════════════════════════════════════╝
 
-# Aspect ratio -> DALL-E 3 / legacy compatible size mapping.
-# Unknown OpenAI-compatible models use this table to preserve old behavior.
 LEGACY_COMPAT_ASPECT_RATIO_TO_SIZE = {
     "1:1":  "1024x1024",
     "16:9": "1792x1024",
@@ -62,7 +38,6 @@ LEGACY_COMPAT_ASPECT_RATIO_TO_SIZE = {
     "21:9": "1792x1024",   # closest wide format
 }
 
-# GPT Image 1/1.5/mini officially support only square, landscape, portrait, or auto.
 GPT_IMAGE_LEGACY_ASPECT_RATIO_TO_SIZE = {
     "1:1":  "1024x1024",
     "16:9": "1536x1024",
@@ -76,8 +51,6 @@ GPT_IMAGE_LEGACY_ASPECT_RATIO_TO_SIZE = {
     "21:9": "1536x1024",
 }
 
-# GPT Image 2 supports flexible sizes when both edges are multiples of 16,
-# the edge ratio is <= 3:1, and the total pixels are within model limits.
 GPT_IMAGE_2_SIZES = {
     "512px": {
         "1:1": "1024x1024", "16:9": "1280x720", "9:16": "720x1280",
@@ -114,7 +87,6 @@ DALL_E_2_SIZE_BY_IMAGE_SIZE = {
 
 VALID_ASPECT_RATIOS = list(LEGACY_COMPAT_ASPECT_RATIO_TO_SIZE.keys())
 
-# image_size -> quality mapping
 IMAGE_SIZE_TO_QUALITY = {
     "512px": "low",
     "1K":    "medium",
@@ -140,7 +112,6 @@ GPT_IMAGE_MODERATION_VALUES = {"auto", "low"}
 
 
 def _field(value, name: str):
-    """Read a response field from either an SDK object or a dict."""
     if isinstance(value, Mapping):
         return value.get(name)
     return getattr(value, name, None)
@@ -193,7 +164,6 @@ def _validate_gpt_image_2_size(size: str) -> None:
 
 
 def _select_size(model: str, aspect_ratio: str, image_size: str) -> str:
-    """Select a model-compatible size while preserving legacy fallbacks."""
     if _is_gpt_image_2(model):
         size = GPT_IMAGE_2_SIZES[image_size][aspect_ratio]
         _validate_gpt_image_2_size(size)
@@ -206,7 +176,6 @@ def _select_size(model: str, aspect_ratio: str, image_size: str) -> str:
 
 
 def _supports_response_format(model: str) -> bool:
-    """GPT Image models always return base64; DALL-E/compatible models may need this."""
     return not _is_gpt_image_model(model)
 
 
@@ -235,7 +204,6 @@ def _read_env_int(name: str, minimum: int, maximum: int) -> int | None:
 
 
 def _gpt_image_options(model: str) -> tuple[dict, str]:
-    """Read optional GPT Image request parameters from environment."""
     output_format = _read_env_choice("OPENAI_OUTPUT_FORMAT", GPT_IMAGE_OUTPUT_FORMATS)
     output_ext = GPT_IMAGE_OUTPUT_EXTENSIONS[output_format] if output_format else ".png"
     options = {}
@@ -264,28 +232,13 @@ def _gpt_image_options(model: str) -> tuple[dict, str]:
     return options, output_ext
 
 
-# ╔══════════════════════════════════════════════════════════════════╗
-# ║  Image Generation                                               ║
-# ╚══════════════════════════════════════════════════════════════════╝
 
 def _generate_image(api_key: str, prompt: str,
                     aspect_ratio: str = "1:1", image_size: str = "1K",
                     output_dir: str = None, filename: str = None,
                     model: str = DEFAULT_MODEL, base_url: str = None) -> str:
-    """
-    Image generation via OpenAI-compatible API.
-
-    Maps aspect_ratio to OpenAI's size parameter, and image_size to quality.
-
-    Returns:
-        Path of the saved image file
-
-    Raises:
-        RuntimeError: When generation fails
-    """
     client = OpenAI(api_key=api_key, base_url=base_url)
 
-    # Map parameters
     size = _select_size(model, aspect_ratio, image_size)
     quality = IMAGE_SIZE_TO_QUALITY.get(image_size, "auto")
     output_ext = ".png"
@@ -321,7 +274,6 @@ def _generate_image(api_key: str, prompt: str,
     start_time = time.time()
     print(f"  [..] Generating...", end="", flush=True)
 
-    # Heartbeat thread
     heartbeat_stop = threading.Event()
 
     def _heartbeat():
@@ -358,34 +310,11 @@ def _generate_image(api_key: str, prompt: str,
     raise RuntimeError("No image was generated. The server may have refused the request.")
 
 
-# ╔══════════════════════════════════════════════════════════════════╗
-# ║  Public Entry Point                                             ║
-# ╚══════════════════════════════════════════════════════════════════╝
 
 def generate(prompt: str,
              aspect_ratio: str = "1:1", image_size: str = "1K",
              output_dir: str = None, filename: str = None,
              model: str = None, max_retries: int = MAX_RETRIES) -> str:
-    """
-    OpenAI-compatible image generation with automatic retry.
-
-    Reads credentials from the current process environment or a `.env` file:
-      OPENAI_API_KEY
-      OPENAI_BASE_URL
-      OPENAI_MODEL (optional override)
-
-    Args:
-        prompt: Prompt text
-        aspect_ratio: Aspect ratio, mapped to OpenAI size
-        image_size: Image size, mapped to OpenAI quality
-        output_dir: Output directory
-        filename: Output filename (without extension)
-        model: Model name (default: gpt-image-2)
-        max_retries: Maximum number of retries
-
-    Returns:
-        Path of the saved image file
-    """
     api_key = os.environ.get("OPENAI_API_KEY")
     base_url = os.environ.get("OPENAI_BASE_URL")
 

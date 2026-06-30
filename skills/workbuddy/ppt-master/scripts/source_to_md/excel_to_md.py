@@ -1,17 +1,3 @@
-#!/usr/bin/env python3
-"""
-Excel to Markdown Converter
-
-Supported formats:
-    .xlsx   Excel workbook
-    .xlsm   Excel macro-enabled workbook
-
-Unsupported by default:
-    .xls    Legacy binary Excel format; resave as .xlsx first
-
-All paths produce the same output convention:
-    <input>.md                     Markdown file
-"""
 
 import argparse
 import re
@@ -21,17 +7,11 @@ from pathlib import Path
 from typing import Any
 
 
-# ─────────────────────────────────────────────────────────────
-# Format registry
-# ─────────────────────────────────────────────────────────────
 
 EXCEL_FORMATS = {".xlsx", ".xlsm"}
 LEGACY_EXCEL_FORMATS = {".xls"}
 
 
-# ─────────────────────────────────────────────────────────────
-# Shared helpers
-# ─────────────────────────────────────────────────────────────
 
 def _format_size(size: int) -> str:
     for unit in ("B", "KB", "MB"):
@@ -83,16 +63,8 @@ def _sheet_state_label(sheet_state: str) -> str:
     return sheet_state or "unknown"
 
 
-# ─────────────────────────────────────────────────────────────
-# Worksheet extraction
-# ─────────────────────────────────────────────────────────────
 
 def _merged_value_map(worksheet) -> dict[tuple[int, int], Any]:
-    """Return propagated values for merged cells, keyed by (row, column).
-
-    Merged regions whose top-left cell is empty are intentionally skipped.
-    These are typically formatting-only ranges that carry no textual content.
-    """
     merged_values: dict[tuple[int, int], Any] = {}
     for merged_range in worksheet.merged_cells.ranges:
         value = worksheet.cell(merged_range.min_row, merged_range.min_col).value
@@ -215,9 +187,6 @@ def _rows_to_markdown_table(rows: list[list[Any]]) -> str:
     return "\n".join(lines)
 
 
-# ─────────────────────────────────────────────────────────────
-# Excel → Markdown
-# ─────────────────────────────────────────────────────────────
 
 def _convert_excel(input_file: Path, out_file: Path, max_rows: int, max_cols: int) -> str:
     try:
@@ -295,9 +264,6 @@ def _convert_excel(input_file: Path, out_file: Path, max_rows: int, max_cols: in
     return markdown
 
 
-# ─────────────────────────────────────────────────────────────
-# Dispatcher
-# ─────────────────────────────────────────────────────────────
 
 def convert_to_markdown(
     input_path: str,
@@ -347,32 +313,3 @@ Supported formats:
 
 Unsupported by default:
   .xls   Resave as .xlsx first
-        """,
-    )
-    parser.add_argument("input", help="Input Excel workbook")
-    parser.add_argument("-o", "--output", help="Output Markdown file path")
-    parser.add_argument(
-        "--max-rows",
-        type=int,
-        default=0,
-        help="Maximum rows per sheet to export (0 = no limit)",
-    )
-    parser.add_argument(
-        "--max-cols",
-        type=int,
-        default=0,
-        help="Maximum columns per sheet to export (0 = no limit)",
-    )
-    args = parser.parse_args()
-
-    result = convert_to_markdown(
-        args.input,
-        args.output,
-        max_rows=args.max_rows,
-        max_cols=args.max_cols,
-    )
-    sys.exit(0 if result else 1)
-
-
-if __name__ == "__main__":
-    main()

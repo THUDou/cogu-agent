@@ -1,17 +1,9 @@
-#!/usr/bin/env python3
-"""
-PPT Master - Error Message Helper
-
-Provides user-friendly error messages and specific fix suggestions.
-"""
 
 from typing import Dict, List, Optional
 
 
 class ErrorHelper:
-    """Error message helper."""
 
-    # Error types and their corresponding fix suggestions
     ERROR_SOLUTIONS = {
         'missing_readme': {
             'message': 'Missing README.md file',
@@ -183,9 +175,6 @@ class ErrorHelper:
             ],
             'severity': 'error'
         },
-        # Note: <marker> and marker-end are NO LONGER forbidden — they are
-        # conditionally allowed (see references/shared-standards.md §1.1).
-        # The converter maps qualifying markers to native DrawingML arrow heads.
         'marker_orphan_ref': {
             'message': 'marker-start/marker-end references a marker id, but no <marker> element is defined',
             'solutions': [
@@ -299,26 +288,14 @@ class ErrorHelper:
 
     @classmethod
     def get_solution(cls, error_type: str, context: Optional[Dict] = None) -> Dict:
-        """
-        Get the solution for an error.
-
-        Args:
-            error_type: Error type
-            context: Context information (optional)
-
-        Returns:
-            Dictionary containing message, solutions, severity
-        """
         if error_type in cls.ERROR_SOLUTIONS:
             solution = cls.ERROR_SOLUTIONS[error_type].copy()
 
-            # Customize message based on context
             if context:
                 solution = cls._customize_solution(solution, context)
 
             return solution
 
-        # Unknown error type
         return {
             'message': 'Unknown error',
             'solutions': ['Please check the documentation or contact the maintainer'],
@@ -327,19 +304,8 @@ class ErrorHelper:
 
     @classmethod
     def _customize_solution(cls, solution: Dict, context: Dict) -> Dict:
-        """
-        Customize solution based on context.
-
-        Args:
-            solution: Original solution
-            context: Context information
-
-        Returns:
-            Customized solution
-        """
         customized = solution.copy()
 
-        # Customize based on project path
         if 'project_path' in context:
             project_path = context['project_path']
             customized['solutions'] = [
@@ -348,12 +314,10 @@ class ErrorHelper:
                 for s in customized['solutions']
             ]
 
-        # Customize based on filename
         if 'file_name' in context:
             file_name = context['file_name']
             customized['message'] = f"{customized['message']}: {file_name}"
 
-        # Customize based on expected/actual values
         if 'expected' in context and 'actual' in context:
             customized['message'] += f" (expected: {context['expected']}, actual: {context['actual']})"
 
@@ -361,25 +325,13 @@ class ErrorHelper:
 
     @classmethod
     def format_error_message(cls, error_type: str, context: Optional[Dict] = None) -> str:
-        """
-        Format error message (for terminal output).
-
-        Args:
-            error_type: Error type
-            context: Context information
-
-        Returns:
-            Formatted error message string
-        """
         solution = cls.get_solution(error_type, context)
 
         lines = []
 
-        # Error message
         severity_icon = "[ERROR]" if solution['severity'] == 'error' else "[WARN]"
         lines.append(f"{severity_icon} {solution['message']}")
 
-        # Solutions
         if solution['solutions']:
             lines.append("\nSuggested fixes:")
             for i, sol in enumerate(solution['solutions'], 1):
@@ -389,23 +341,14 @@ class ErrorHelper:
 
     @classmethod
     def print_error(cls, error_type: str, context: Optional[Dict] = None):
-        """
-        Print formatted error message.
-
-        Args:
-            error_type: Error type
-            context: Context information
-        """
         print(cls.format_error_message(error_type, context))
 
     @classmethod
     def get_all_error_types(cls) -> List[str]:
-        """Get all supported error types."""
         return list(cls.ERROR_SOLUTIONS.keys())
 
     @classmethod
     def print_help(cls):
-        """Print all error types and solutions."""
         print("PPT Master - Error Types and Solutions\n")
         print("=" * 80)
 
@@ -420,7 +363,6 @@ class ErrorHelper:
 
 
 def main() -> None:
-    """Run the CLI entry point for error lookup."""
     import sys
 
     if len(sys.argv) > 1:
@@ -431,7 +373,6 @@ def main() -> None:
 
         context = {}
 
-        # Parse context parameters
         for arg in sys.argv[2:]:
             if '=' in arg:
                 key, value = arg.split('=', 1)

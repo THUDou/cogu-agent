@@ -1,7 +1,3 @@
-/**
- * @file 主函数
- * @author mengke01(kekee000@gmail.com)
- */
 
 import {Font, createFont} from './ttf/font';
 import TTF from './ttf/ttf';

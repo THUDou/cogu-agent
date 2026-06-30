@@ -1,12 +1,3 @@
-#!/usr/bin/env python3
-"""
-OpenRouter image generation backend.
-
-Configuration keys:
-  OPENROUTER_API_KEY   (required)
-  OPENROUTER_BASE_URL  (optional)
-  OPENROUTER_MODEL     (optional)
-"""
 
 import sys
 
@@ -31,9 +22,6 @@ from image_backends.backend_common import (
 )
 
 
-# ╔══════════════════════════════════════════════════════════════════╗
-# ║  Constants                                                      ║
-# ╚══════════════════════════════════════════════════════════════════╝
 
 VALID_ASPECT_RATIOS = [
     "1:1", "1:4", "1:8",
@@ -46,21 +34,14 @@ VALID_IMAGE_SIZES = ["1K", "2K", "4K", "0.5K"]
 DEFAULT_MODEL = "google/gemini-3.1-flash-image-preview"
 DEFAULT_ENDPOINT = "https://openrouter.ai/api/v1"
 
-# ╔══════════════════════════════════════════════════════════════════╗
-# ║  Image Generation                                               ║
-# ╚══════════════════════════════════════════════════════════════════╝
 
 def _resolve_url(base_url: str) -> str:
-    """Resolve the OpenRouter generation endpoint."""
     return base_url.rstrip("/") + "/chat/completions"
 
 def _generate_image(api_key: str, prompt: str,
                     aspect_ratio: str = "1:1", image_size: str = "1K",
                     output_dir: str = None, filename: str = None,
                     model: str = DEFAULT_MODEL, base_url: str = DEFAULT_ENDPOINT) -> str:
-    """
-    Image generation via OpenRouter's API.
-    """
 
     url = _resolve_url(base_url)
 
@@ -94,7 +75,6 @@ def _generate_image(api_key: str, prompt: str,
     start_time = time.time()
     print(f"  [..] Generating...", end="", flush=True)
 
-    # Heartbeat thread
     heartbeat_stop = threading.Event()
 
     def _heartbeat():
@@ -120,29 +100,17 @@ def _generate_image(api_key: str, prompt: str,
         message = result["choices"][0]["message"]
         if message.get("images"):
             path = resolve_output_path(prompt, output_dir, filename, ".png")
-            # strip "data:image/png;base64,"
             image_data = base64.urlsafe_b64decode(message["images"][0]["image_url"]["url"][22:])
             return save_image_bytes(image_data, path)
 
     raise RuntimeError("No image was generated. The server may have refused the request.")
 
 
-# ╔══════════════════════════════════════════════════════════════════╗
-# ║  Public Entry Point                                             ║
-# ╚══════════════════════════════════════════════════════════════════╝
 
 def generate(prompt: str,
              aspect_ratio: str = "1:1", image_size: str = "1K",
              output_dir: str = None, filename: str = None,
              model: str = None, max_retries: int = MAX_RETRIES) -> str:
-    """
-    OpenRouter image generation with automatic retry.
-
-    Reads credentials from the current process environment or a `.env` file:
-      OPENROUTER_API_KEY
-      OPENROUTER_BASE_URL
-      OPENROUTER_MODEL (optional override)
-    """
     api_key = os.environ.get("OPENROUTER_API_KEY")
     base_url = os.environ.get("OPENROUTER_BASE_URL")
 

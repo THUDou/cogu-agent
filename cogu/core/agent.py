@@ -104,7 +104,6 @@ class TurnEvent:
 
 @dataclass
 class InputValidationResult:
-    """输入验证结果 — 借鉴 OfficeAce/MiClaw 安全输入处理模式."""
     is_valid: bool = True
     sanitized: str = ""
     error_message: str = ""
@@ -190,18 +189,14 @@ class ReActAgent:
         self._mission_prd: Optional[str] = None
         self._mission_phase = "planning"
 
-        # Agent state machine (OpenManus pattern)
         self._state: AgentState = AgentState.IDLE
         self._duplicate_threshold: int = 2
         self._message_history: list[str] = []
 
-        # Logger
         self._logger = logging.getLogger(__name__)
         
-        # Progress callback (for UI feedback)
         self._progress_callback: Optional[Callable[[str], None]] = None
 
-        # MultiStep mode (EvoMaster pattern)
         self._trajectory: list[dict[str, Any]] = []
         self._step_history: list[TurnResult] = []
 
@@ -221,54 +216,29 @@ class ReActAgent:
         raise RuntimeError("No LLM client configured. Set client or multi_provider_client in constructor.")
 
     def _validate_input(self, user_message: str, max_length: int = 50000) -> InputValidationResult:
-        """验证并清理用户输入 — 借鉴 OfficeAce 安全输入处理 & MiClaw 防护模式.
-        
-        执行多层验证：
-        1. 类型检查 — 确保输入为字符串
-        2. 空值/纯空白检查
-        3. 控制字符清理（保留换行符和制表符）
-        4. 长度限制检查
-        5. 潜在注入检测（警告级别，不阻止）
-        
-        借鉴 OfficeAce 模式：sanitize-first, then validate, warn on suspicious patterns.
-        借鉴 MiClaw 模式：rail-based validation with progressive severity.
-        
-        Args:
-            user_message: 原始用户输入
-            max_length: 最大允许字符数
-            
-        Returns:
-            InputValidationResult 包含验证状态、清理后的消息和警告信息
-        """
         import re
         
-        # 1. 类型检查
         if not isinstance(user_message, str):
             return InputValidationResult(
                 is_valid=False,
                 error_message="❌ 输入类型无效，请输入文本。",
             )
         
-        # 2. 空值检查
         if not user_message or not user_message.strip():
             return InputValidationResult(
                 is_valid=False,
                 error_message="❌ 请输入有效的问题或指令。",
             )
         
-        # 3. 清理 null 字节和危险控制字符
         sanitized = user_message.replace('\x00', '')
-        # 移除 ASCII 控制字符（保留 \n \t）
         sanitized = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]', '', sanitized)
         
-        # 4. 清理后再次检查空值
         if not sanitized.strip():
             return InputValidationResult(
                 is_valid=False,
                 error_message="❌ 输入仅包含无效字符，请输入有效文本。",
             )
         
-        # 5. 长度检查
         if len(sanitized) > max_length:
             return InputValidationResult(
                 is_valid=False,
@@ -278,7 +248,6 @@ class ReActAgent:
                 ),
             )
         
-        # 6. 潜在注入检测（借鉴 OfficeAce factcheck 安全模式 — 仅警告，不阻止）
         warning = ""
         injection_patterns = [
             (r'\[system\]\(#.*?\)', '检测到可能的系统指令注入标记'),
@@ -301,14 +270,6 @@ class ReActAgent:
         )
 
     def _is_retryable_error(self, error: Exception) -> bool:
-        """判断错误是否可重试 — 借鉴 MiClaw retry classifier 模式.
-        
-        Args:
-            error: 异常对象
-            
-        Returns:
-            True 如果应该重试
-        """
         error_text = type(error).__name__.lower() + " " + str(error).lower()
         retryable_keywords = ["connection", "timeout", "rate", "429", "502", "503", "504", "server error"]
         return any(keyword in error_text for keyword in retryable_keywords)
@@ -320,23 +281,6 @@ class ReActAgent:
         max_retries: int = 3,
         retry_delay: float = 1.0,
     ):
-        """通用 LLM 调用重试包装器 — 借鉴 OfficeAce 韧性调用模式.
-        
-        对可重试错误（网络、超时、限流）使用指数退避重试。
-        不可重试错误（认证、参数错误）立即失败。
-        
-        Args:
-            call_name: 调用名称（用于日志）
-            call_fn: 异步无参数函数，返回 LLM 调用结果
-            max_retries: 最大重试次数
-            retry_delay: 初始退避延迟（秒）
-            
-        Returns:
-            LLM 调用结果，如果所有重试都失败则返回 None
-            
-        Raises:
-            不可重试的错误会直接抛出
-        """
         last_error = None
         for attempt in range(max_retries):
             try:
@@ -347,7 +291,6 @@ class ReActAgent:
             except Exception as e:
                 last_error = e
                 if not self._is_retryable_error(e):
-                    # 不可重试错误直接抛出
                     raise
                 
                 if attempt < max_retries - 1:
@@ -363,23 +306,13 @@ class ReActAgent:
                     await asyncio.sleep(wait_time)
                     continue
         
-        # 所有重试用尽
         self._logger.error(f"{call_name}: all {max_retries} attempts failed: {last_error}")
         raise last_error
 
     def _format_user_friendly_error(self, e: Exception) -> str:
-        """将技术错误转换为用户友好提示.
-        
-        Args:
-            e: 原始异常
-            
-        Returns:
-            用户友好的错误提示
-        """
         error_type = type(e).__name__
         error_msg = str(e)
         
-        # LLM API 相关错误
         if "APIConnectionError" in error_type or "Connection" in error_type:
             return (
                 "❌ 无法连接到 AI 服务\n\n"
@@ -436,7 +369,6 @@ class ReActAgent:
                 "• 移除特殊字符"
             )
         
-        # 通用错误
         return (
             f"❌ 处理请求时出现错误\n\n"
             f"错误类型：{error_type}\n"
@@ -449,15 +381,6 @@ class ReActAgent:
         )
 
     def _format_tool_error(self, tool_name: str, e: Exception) -> str:
-        """将工具执行错误转换为用户友好提示.
-        
-        Args:
-            tool_name: 工具名称
-            e: 原始异常
-            
-        Returns:
-            用户友好的错误提示
-        """
         error_type = type(e).__name__
         error_msg = str(e)
         
@@ -473,38 +396,21 @@ class ReActAgent:
         if "ValueError" in error_type:
             return f"❌ 工具 '{tool_name}' 失败：输入参数错误。请检查输入格式是否正确。"
         
-        # 通用工具错误
         return f"❌ 工具 '{tool_name}' 执行失败：{error_msg[:100]}"
 
     def set_progress_callback(self, callback: Optional[Callable[[str], None]]) -> None:
-        """设置进度回调函数.
-        
-        Args:
-            callback: 进度回调函数，接收一个字符串参数（进度消息）
-        """
         self._progress_callback = callback
 
     def _notify_progress(self, message: str) -> None:
-        """发送进度通知.
-        
-        Args:
-            message: 进度消息
-        """
         if self._progress_callback:
             self._progress_callback(message)
 
     async def startup(self) -> None:
-        """启动 Agent，初始化资源.
-        
-        此方法应在使用 Agent 前调用，用于初始化资源（如连接池、线程池等）。
-        """
         self._logger.info("agent.startup.started")
         
-        # 初始化工具执行器（如果需要）
         if hasattr(self._tool_executor, 'startup'):
             await self._tool_executor.startup()
         
-        # 初始化记忆系统（如果需要）
         if self._memory and hasattr(self._memory, 'startup'):
             await self._memory.startup()
         
@@ -512,25 +418,17 @@ class ReActAgent:
         self._logger.info("agent.startup.completed")
 
     async def shutdown(self) -> None:
-        """关闭 Agent，清理资源.
-        
-        此方法应在不使用 Agent 时调用，用于清理资源（如关闭连接、释放内存等）。
-        """
         self._logger.info("agent.shutdown.started")
         
-        # 清理工具执行器
         if hasattr(self._tool_executor, 'shutdown'):
             await self._tool_executor.shutdown()
         
-        # 清理记忆系统
         if self._memory and hasattr(self._memory, 'close'):
             await self._memory.close()
         
-        # 清理压缩管道
         if hasattr(self._compression, 'close'):
             await self._compression.close()
         
-        # 清理 offloader
         if self._offloader and hasattr(self._offloader, 'close'):
             await self._offloader.close()
         
@@ -538,10 +436,6 @@ class ReActAgent:
         self._logger.info("agent.shutdown.completed")
 
     def __del__(self):
-        """析构函数 - 兜底清理资源.
-        
-        注意：此方法不保证被调用（依赖垃圾回收），应优先使用 startup()/shutdown() 或上下文管理器。
-        """
         try:
             if hasattr(self, '_logger'):
                 self._logger.warning("agent.__del__ called - please use shutdown() explicitly")
@@ -549,12 +443,10 @@ class ReActAgent:
             pass
 
     async def __aenter__(self):
-        """异步上下文管理器入口."""
         await self.startup()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """异步上下文管理器出口."""
         await self.shutdown()
 
     def _register_skills_as_tools(self):
@@ -570,24 +462,18 @@ class ReActAgent:
             )
 
     def is_stuck(self) -> bool:
-        """Detect if agent is stuck (OpenManus pattern).
-
-        Checks if the last N assistant messages are duplicates.
-        """
         if len(self._message_history) < self._duplicate_threshold:
             return False
         recent = self._message_history[-self._duplicate_threshold:]
         return len(set(recent)) == 1 and recent[0] != ""
 
     def _get_stuck_prompt(self) -> str:
-        """Generate a strategy-change prompt when stuck (OpenManus pattern)."""
         return (
             "I notice I've been repeating myself. Let me try a completely different approach. "
             "I'll break this problem into smaller steps and try alternative strategies."
         )
 
     def _track_message(self, content: str) -> None:
-        """Track assistant messages for stuck detection."""
         self._message_history.append(content[:200])
         if len(self._message_history) > 20:
             self._message_history = self._message_history[-20:]
@@ -722,10 +608,8 @@ class ReActAgent:
         try:
             result = await self._tool_registry.execute(tool_name, tool_args)
         except Exception as e:
-            # ✅ 记录详细错误日志（不暴露给用户）
             self._logger.error(f"Tool '{tool_name}' execution failed: {e}", exc_info=True)
             
-            # ✅ 返回用户友好的错误提示
             friendly_error = self._format_tool_error(tool_name, e)
             result = ToolResult.err(friendly_error)
             
@@ -788,7 +672,6 @@ class ReActAgent:
             _agent_metrics = None
             _trace_span = None
         
-        # ✅ 增强输入验证（OfficeAce/MiClaw 多层安全验证模式）
         validation = self._validate_input(user_message)
         if not validation.is_valid:
             return TurnResult(
@@ -799,14 +682,12 @@ class ReActAgent:
         if validation.warning:
             self._logger.warning(f"invoke.input_suspicious: {validation.warning}")
         
-        # ✅ 日志记录：开始处理
         self._logger.info(
             "agent.invoke.started",
             user_message_length=len(user_message),
             max_iterations=self._agent_config.max_iterations,
         )
         
-        # ✅ 通知：开始处理
         self._notify_progress("正在思考...")
         
         ctx = AgentCallbackContext(
@@ -830,7 +711,6 @@ class ReActAgent:
         for iteration in range(1, self._agent_config.max_iterations + 1):
             self._turn_counter = iteration
 
-            # ✅ 通知：当前轮次
             if iteration == 1:
                 self._notify_progress("正在调用 AI 模型...")
             else:
@@ -838,14 +718,12 @@ class ReActAgent:
 
             tools = self._format_tools()
             
-            # ✅ 日志记录：开始第 N 轮
             self._logger.debug(
                 "agent.invoke.iteration_start",
                 iteration=iteration,
                 tools_count=len(tools) if tools else 0,
             )
             
-            # ✅ 重试机制（最多 3 次，指数退避）
             max_retries = 3
             retry_delay = 1.0
             response = None
@@ -865,7 +743,6 @@ class ReActAgent:
                     break  # 成功则跳出重试循环
                 except Exception as e:
                     error_type = type(e).__name__
-                    # 只对可重试错误进行重试（网络、超时、速率限制）
                     is_retryable = any(keyword in error_type.lower() + str(e).lower() 
                                       for keyword in ["connection", "timeout", "rate", "429", "502", "503", "504"])
                     
@@ -879,7 +756,6 @@ class ReActAgent:
                         await asyncio.sleep(wait_time)
                         continue
                     
-                    # 不可重试或重试次数用尽
                     self._logger.error(f"Agent invocation failed: {e}", exc_info=True)
                     final_status = TurnStatus.ERROR
                     full_content = self._format_user_friendly_error(e)
@@ -906,7 +782,6 @@ class ReActAgent:
                 except Exception:
                     pass
 
-            # ✅ 日志记录：LLM 响应
             self._logger.debug(
                 "agent.invoke.llm_response",
                 iteration=iteration,
@@ -920,11 +795,9 @@ class ReActAgent:
                 if self._session:
                     self._session.add_message("assistant", response.content)
                 
-                # ✅ 通知：完成
                 elapsed = (time.time() - started) * 1000
                 self._notify_progress(f"完成！用时 {elapsed/1000:.1f} 秒")
                 
-                # ✅ 日志记录：完成
                 self._logger.info(
                     "agent.invoke.completed",
                     iteration=iteration,
@@ -933,13 +806,11 @@ class ReActAgent:
                 )
                 break
 
-            # ✅ 通知：正在执行工具
             self._notify_progress(f"正在执行 {len(response.tool_calls)} 个工具...")
             
             all_tool_calls.extend(response.tool_calls)
             tool_result_texts = []
             for tc in response.tool_calls:
-                # ✅ 通知：具体工具名称
                 self._notify_progress(f"正在执行工具: {tc['name']}...")
                 
                 try:
@@ -947,7 +818,6 @@ class ReActAgent:
                 except (json.JSONDecodeError, TypeError):
                     args = {}
                 
-                # ✅ 日志记录：工具执行开始
                 self._logger.debug(
                     "agent.invoke.tool_start",
                     iteration=iteration,
@@ -971,7 +841,6 @@ class ReActAgent:
                     except Exception:
                         pass
                 
-                # ✅ 日志记录：工具执行完成
                 self._logger.debug(
                     "agent.invoke.tool_completed",
                     iteration=iteration,
@@ -1028,7 +897,6 @@ class ReActAgent:
         return result
 
     async def stream(self, user_message: str) -> AsyncIterator[StreamFrame]:
-        # ✅ 增强输入验证（OfficeAce/MiClaw 多层安全验证模式）
         validation = self._validate_input(user_message)
         if not validation.is_valid:
             yield StreamFrame(type="error", content=validation.error_message)
@@ -1097,7 +965,6 @@ class ReActAgent:
         use_planner: bool = False,
         use_memory_rag: bool = True,
     ) -> AsyncGenerator[TurnEvent, None]:
-        # ✅ 增强输入验证（OfficeAce/MiClaw 多层安全验证模式）
         validation = self._validate_input(user_message)
         if not validation.is_valid:
             yield TurnEvent(type="error", content=validation.error_message)
@@ -1234,10 +1101,8 @@ class ReActAgent:
             if current_text:
                 final_content += current_text
 
-            # Track message for stuck detection (OpenManus pattern)
             self._track_message(current_text)
 
-            # Check if agent is stuck
             if self.is_stuck():
                 stuck_prompt = self._get_stuck_prompt()
                 yield TurnEvent(
@@ -1246,7 +1111,6 @@ class ReActAgent:
                     iteration=iteration,
                     metadata={"threshold": self._duplicate_threshold},
                 )
-                # Inject strategy change into session
                 if self._session:
                     self._session.add_message("system", stuck_prompt)
 
@@ -1380,12 +1244,6 @@ class ReActAgent:
         max_steps: int = 10,
         on_step: Optional[Callable] = None,
     ) -> dict[str, Any]:
-        """MultiStep task execution (EvoMaster pattern).
-
-        Runs the agent through multiple steps, recording trajectory.
-        Returns a dict with: output, trajectory, step_count, success.
-        """
-        # ✅ 增强输入验证（OfficeAce/MiClaw 多层安全验证模式）
         validation = self._validate_input(task_description)
         if not validation.is_valid:
             return {
@@ -1407,7 +1265,6 @@ class ReActAgent:
         for step_num in range(1, max_steps + 1):
             step_start = time.time()
 
-            # Build context from trajectory
             context_parts = [f"Task: {task_description}"]
             if self._trajectory:
                 context_parts.append("Previous steps:")
@@ -1416,7 +1273,6 @@ class ReActAgent:
 
             step_prompt = "\n".join(context_parts)
 
-            # Execute one step via invoke
             result = await self.invoke(step_prompt)
 
             step_record = {
@@ -1437,11 +1293,9 @@ class ReActAgent:
                 except Exception as e:
                     self._logger.warning(f"on_step callback failed: {e}")
 
-            # Check if agent finished (no tool calls = done)
             if not result.tool_calls:
                 break
 
-        # Summarize trajectory
         summary = {
             "output": result.content if result else "",
             "trajectory": self._trajectory,
@@ -1451,7 +1305,6 @@ class ReActAgent:
             "total_elapsed_ms": sum(t.get("elapsed_ms", 0) for t in self._trajectory),
         }
 
-        # Record to memory
         if self._memory:
             try:
                 await self._memory.remember(
@@ -1469,11 +1322,6 @@ class ReActAgent:
         prompt: str,
         tools: Optional[list[dict]] = None,
     ) -> TurnResult:
-        """Execute a single step (EvoMaster _step pattern).
-
-        Returns TurnResult with content, tool_calls, tool_results.
-        """
-        # ✅ 增强输入验证（OfficeAce/MiClaw 多层安全验证模式）
         validation = self._validate_input(prompt)
         if not validation.is_valid:
             return TurnResult(
@@ -1498,7 +1346,6 @@ class ReActAgent:
         all_tool_results = []
         usage = {}
 
-        # ✅ 重试机制（最多 3 次，指数退避）— 借鉴 MiClaw resilient agent 模式
         max_retries = 3
         retry_delay = 1.0
         response = None
@@ -1565,11 +1412,9 @@ class ReActAgent:
         )
 
     def get_trajectory(self) -> list[dict[str, Any]]:
-        """Return execution trajectory (EvoMaster pattern)."""
         return list(self._trajectory)
 
     def get_step_history(self) -> list[TurnResult]:
-        """Return step history."""
         return list(self._step_history)
 
     async def _query_mission(

@@ -1,10 +1,3 @@
-"""Openverse provider.
-
-Zero-config (no API key required). Indexes openly licensed images across
-Wikimedia, Flickr, museums, and other sources.
-
-API docs: https://api.openverse.org/v1/
-"""
 
 from __future__ import annotations
 
@@ -30,11 +23,8 @@ API_URL = "https://api.openverse.org/v1/images/"
 DEFAULT_PAGE_SIZE = 20
 DEFAULT_TIMEOUT = 30
 
-# Map our orientation vocabulary to Openverse's ``aspect_ratio`` parameter.
 _ASPECT_MAP = {"landscape": "wide", "portrait": "tall", "square": "square"}
 
-# Openverse license param values. ``cc0,pdm`` covers our "no-attribution" tier;
-# adding ``by,by-sa`` opens the "attribution-required" tier.
 _LICENSE_PARAM = {
     "no-attribution-only": "cc0,pdm",
     "all": "by,by-sa,cc0,pdm",
@@ -42,7 +32,6 @@ _LICENSE_PARAM = {
 
 
 def parse_results(payload: dict) -> list[AssetCandidate]:
-    """Translate an Openverse search payload into a list of candidates."""
     candidates: list[AssetCandidate] = []
     for item in payload.get("results", []) or []:
         license_name = (item.get("license") or "").strip()
@@ -83,13 +72,6 @@ def search(
     page_size: int = DEFAULT_PAGE_SIZE,
     timeout: int = DEFAULT_TIMEOUT,
 ) -> list[AssetCandidate]:
-    """Search Openverse for candidates matching ``request``.
-
-    ``license_tier_filter`` is one of ``"no-attribution-only"`` or ``"all"``.
-    Returns the candidates from the first non-empty query in the
-    progression — caller is responsible for picking the best one via
-    ``score_candidate``.
-    """
     if license_tier_filter not in _LICENSE_PARAM:
         raise ValueError(f"unsupported license_tier_filter: {license_tier_filter!r}")
 

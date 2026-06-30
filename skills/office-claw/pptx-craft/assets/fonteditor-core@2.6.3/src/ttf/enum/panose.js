@@ -1,10 +1,3 @@
-/**
- * @file 字体外观分类器
- * @author mengke01(kekee000@gmail.com)
- *
- * @see:
- * https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6OS2.html
- */
 
 export default {
 

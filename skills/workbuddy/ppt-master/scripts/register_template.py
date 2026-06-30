@@ -1,25 +1,3 @@
-#!/usr/bin/env python3
-"""Register a layout template into the global template index.
-
-Reads ``templates/layouts/<template_id>/design_spec.md`` (preferring its YAML
-frontmatter when present, falling back to prose section values) and
-synchronizes two derived indexes:
-
-- ``templates/layouts/layouts_index.json`` — slim machine-readable map
-- ``templates/layouts/README.md`` — human-facing "Quick Template Index" table
-
-This script is the single source-of-truth bridge between a template's design
-spec and the indexes. Run it after creating a new template (or after editing a
-spec) and the indexes update automatically — no manual JSON / Markdown surgery.
-
-Usage:
-    python3 scripts/register_template.py <template_id>
-    python3 scripts/register_template.py <template_id> --dry-run
-    python3 scripts/register_template.py --rebuild-all
-
-The last form rebuilds every entry from scratch, which is the recommended way
-to repair index drift across many templates at once.
-"""
 
 from __future__ import annotations
 
@@ -47,16 +25,11 @@ QUICK_INDEX_BEGIN = "<!-- quick-index:begin -->"
 QUICK_INDEX_END = "<!-- quick-index:end -->"
 
 
-# ---------------------------------------------------------------------------
-# design_spec.md parsing
-# ---------------------------------------------------------------------------
 
 class SpecParseError(RuntimeError):
-    """Raised when a design_spec.md cannot be turned into an index entry."""
 
 
 def _read_spec(spec_path: Path) -> tuple[dict | None, str]:
-    """Split YAML frontmatter from the body. Returns ``(frontmatter, body)``."""
     text = spec_path.read_text(encoding="utf-8")
     if not text.startswith("---\n"):
         return None, text
@@ -82,15 +55,6 @@ def _read_spec(spec_path: Path) -> tuple[dict | None, str]:
 
 
 def _extract_section_field(body: str, section_title: str, labels: list[str]) -> str | None:
-    """Find a field within the named section.
-
-    Tolerates two layouts the existing specs use:
-
-    1. Markdown table row: ``| **Label** | value |``
-    2. Bullet list: ``- **Label**: value``
-
-    Tries each label variant in order. Returns the first match or ``None``.
-    """
     section_re = re.compile(
         rf"^##\s+{re.escape(section_title)}\b.*?(?=^##\s+|\Z)",
         re.MULTILINE | re.DOTALL,
@@ -101,7 +65,6 @@ def _extract_section_field(body: str, section_title: str, labels: list[str]) -> 
     section = section_match.group(0)
 
     for label in labels:
-        # Table form
         row = re.search(
             rf"^\|\s*\*?\*?{re.escape(label)}\*?\*?\s*\|\s*(.+?)\s*\|",
             section,
@@ -110,7 +73,6 @@ def _extract_section_field(body: str, section_title: str, labels: list[str]) -> 
         if row:
             return _clean_field_value(row.group(1))
 
-        # Bullet form
         bullet = re.search(
             rf"^[-*]\s*\*?\*?{re.escape(label)}\*?\*?\s*[:：]\s*(.+?)\s*$",
             section,
@@ -122,9 +84,7 @@ def _extract_section_field(body: str, section_title: str, labels: list[str]) -> 
 
 
 def _clean_field_value(value: str) -> str:
-    """Strip surrounding markdown decorations from an extracted field value."""
     value = value.strip()
-    # Drop wrapping backticks / asterisks / underscores.
     value = re.sub(r"^[`*_]+", "", value)
     value = re.sub(r"[`*_]+$", "", value)
     return value.strip()
@@ -136,7 +96,6 @@ def _find_first_color(section: str) -> str | None:
 
 
 def _extract_primary_color(body: str) -> str | None:
-    """Pull the first hex color out of the Color Scheme section (any roman index)."""
     section_match = re.search(
         r"^##\s+[IVX]+\.\s+Color Scheme\b.*?(?=^##\s+|\Z)",
         body,
@@ -165,9 +124,6 @@ def _summary_from_use_cases(use_cases: str | None) -> str | None:
     return f"{cleaned}."
 
 
-# ---------------------------------------------------------------------------
-# Per-template extraction
-# ---------------------------------------------------------------------------
 
 def _list_pages(template_dir: Path) -> list[str]:
     return sorted(p.stem for p in template_dir.glob("*.svg"))
@@ -231,9 +187,6 @@ def _extract_entry(template_id: str, template_dir: Path) -> dict:
     return {"entry": entry, "extras": extras}
 
 
-# ---------------------------------------------------------------------------
-# Index writers
-# ---------------------------------------------------------------------------
 
 def _load_index() -> "OrderedDict[str, dict]":
     if not INDEX_PATH.exists():
@@ -278,7 +231,6 @@ def _patch_readme(
 ) -> None:
     text = README_PATH.read_text(encoding="utf-8") if README_PATH.exists() else ""
 
-    # Update header count
     new_total = len(items)
     text = re.sub(
         r"^# Page Layout Template Library \(\d+ Templates\)",
@@ -300,13 +252,9 @@ def _patch_readme(
             flags=re.DOTALL,
         )
     else:
-        # Insert the auto-managed block after the "## Quick Template Index"
-        # heading; if the heading is missing, append at end.
         anchor = "## Quick Template Index"
         if anchor in text:
             head, _, tail = text.partition(anchor)
-            # Drop the legacy hand-maintained table that follows the anchor up
-            # to the next "## " heading, then re-insert the managed block.
             tail_lines = tail.splitlines(keepends=True)
             keep_from = 0
             for idx, line in enumerate(tail_lines[1:], start=1):
@@ -327,9 +275,6 @@ def _patch_readme(
     README_PATH.write_text(text, encoding="utf-8")
 
 
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
 
 def _enumerate_templates() -> list[str]:
     return sorted(
@@ -359,7 +304,6 @@ def _print_completion_card(template_id: str, entry: dict, extras: dict) -> None:
 
 
 def main() -> int:
-    """CLI entry: register one template (or rebuild all) into the index."""
     parser = argparse.ArgumentParser(
         description="Register / refresh layout templates in the global index."
     )
@@ -393,7 +337,6 @@ def main() -> int:
                   file=sys.stderr)
             return 1
 
-    # Build entries for the requested ids.
     extracted: dict[str, dict] = {}
     for tid in ids:
         try:
@@ -402,7 +345,6 @@ def main() -> int:
             print(f"Error: {tid}: {exc}", file=sys.stderr)
             return 1
 
-    # Merge into the index (preserving sibling entries when single-template mode).
     if args.rebuild_all:
         index = OrderedDict(
             (tid, extracted[tid]["entry"]) for tid in sorted(extracted)
@@ -415,8 +357,6 @@ def main() -> int:
 
     _write_index(index, dry_run=args.dry_run)
 
-    # README is rebuilt from the union of (current index) + (newly extracted
-    # entries). For rebuild-all it is just the extracted set.
     if args.rebuild_all:
         readme_items: list[tuple[str, dict, dict]] = [
             (tid, extracted[tid]["entry"], extracted[tid]["extras"])

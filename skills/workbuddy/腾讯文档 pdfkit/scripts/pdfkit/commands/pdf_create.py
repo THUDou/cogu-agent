@@ -1,25 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-PDF 创建工具（增强版）。
-从 JSON 描述创建 PDF 文档，支持丰富的样式参数和多种元素类型。
-
-支持的元素类型：
-  - title: 标题（可自定义字号/颜色/对齐）
-  - heading: 多级标题（level 1-4）
-  - paragraph: 段落（支持富文本标记）
-  - table: 表格（自定义列宽/表头颜色/条纹/边框）
-  - image: 图片（支持对齐和标题）
-  - list: 列表（有序/无序）
-  - spacer: 间距
-  - page_break: 分页
-  - hr: 水平分割线
-  - link: 超链接
-  - columns: 多栏布局
-  - watermark: 水印文字
-  - toc: 目录占位符
-  - header/footer: 页眉/页脚
-"""
 
 import os
 import sys
@@ -45,37 +23,25 @@ PARAMS = [
 
 
 def _escape_xml(text):
-    """转义 XML 特殊字符，防止 ReportLab Paragraph 解析出错。
-
-    仅转义 XML 保留字符中不属于富文本标记的部分：
-    - & → &amp;（必须最先替换）
-    - 不成对的 < > 会被转义，但保留 ReportLab 支持的富文本标签
-    """
     import re
     if not text:
         return text
-    # 先保护已有的合法 HTML/XML 标签（ReportLab 支持的富文本标记）
-    # 支持的标签: b, i, u, a, br, font, super, sub, strike, span, para, img
     _VALID_TAG_RE = re.compile(
         r'(</?(?:b|i|u|a|br|font|super|sub|strike|span|para|img)(?:\s[^>]*)?>)',
         re.IGNORECASE
     )
-    # 将合法标签替换为占位符
     placeholders = []
     def _save_tag(m):
         placeholders.append(m.group(0))
         return f'\x00TAG{len(placeholders) - 1}\x00'
     text = _VALID_TAG_RE.sub(_save_tag, text)
-    # 转义 & < >
     text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-    # 恢复合法标签
     for i, tag in enumerate(placeholders):
         text = text.replace(f'\x00TAG{i}\x00', tag)
     return text
 
 
 def _parse_color(color_str, default=None):
-    """解析颜色字符串，支持 #RRGGBB 和颜色名称。"""
     from reportlab.lib import colors
     if not color_str:
         return default
@@ -84,7 +50,6 @@ def _parse_color(color_str, default=None):
     if isinstance(color_str, str):
         if color_str.startswith("#") and len(color_str) == 7:
             return colors.HexColor(color_str)
-        # 尝试颜色名称
         color_map = {
             "black": colors.black, "white": colors.white, "red": colors.red,
             "blue": colors.blue, "green": colors.green, "grey": colors.grey,
@@ -99,7 +64,6 @@ def _parse_color(color_str, default=None):
 
 
 def _parse_alignment(align_str):
-    """解析对齐方式。"""
     from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT, TA_JUSTIFY
     align_map = {
         "left": TA_LEFT, "center": TA_CENTER, "right": TA_RIGHT,
@@ -109,25 +73,6 @@ def _parse_alignment(align_str):
 
 
 def handler(params):
-    """从 JSON 描述创建 PDF。
-
-    Args:
-        params: {
-            "output": 输出 PDF 路径,
-            "page_size": 页面尺寸（A4/A3/letter/legal），默认 A4,
-            "orientation": 页面方向（portrait/landscape），默认 portrait,
-            "font_path": 自定义字体路径（支持中文等）,
-            "margins": {"left": 72, "right": 72, "top": 72, "bottom": 72},
-            "default_style": {
-                "font_size": 12, "font_color": "#333333",
-                "line_spacing": 1.2, "alignment": "left"
-            },
-            "header": {"text": "页眉文字", "font_size": 9, "font_color": "#999999", "alignment": "center"},
-            "footer": {"text": "页脚文字", "show_page_number": true, "page_number_format": "第 {page} 页 / 共 {total} 页"},
-            "watermark": {"text": "机密", "font_size": 50, "font_color": "#EEEEEE", "angle": 45},
-            "elements": [...]
-        }
-    """
     from reportlab.lib.pagesizes import A4, A3, letter, legal
     from reportlab.platypus import (
         SimpleDocTemplate, Frame, PageTemplate,
@@ -145,12 +90,10 @@ def handler(params):
     if not output_path:
         raise ValueError("'output' 参数是必需的")
 
-    # 确保输出目录存在
     output_dir = os.path.dirname(output_path)
     if output_dir and not os.path.exists(output_dir):
         os.makedirs(output_dir, exist_ok=True)
 
-    # ===== 页面设置 =====
     page_size_name = params.get("page_size", "A4")
     page_size_map = {"A4": A4, "A3": A3, "letter": letter, "legal": legal}
     page_size = page_size_map.get(page_size_name, A4)
@@ -159,7 +102,6 @@ def handler(params):
     if orientation == "landscape":
         page_size = (page_size[1], page_size[0])
 
-    # ===== 字体注册 =====
     font_path = params.get("font_path")
     font_name = "Helvetica"
     bold_font_name = "Helvetica-Bold"
@@ -174,30 +116,25 @@ def handler(params):
         except Exception:
             pass
 
-    # ===== 全局默认样式 =====
     default_style = params.get("default_style", {})
     default_font_size = default_style.get("font_size", 12)
     default_font_color = _parse_color(default_style.get("font_color"), colors.HexColor("#333333"))
     default_line_spacing = default_style.get("line_spacing", 1.2)
     default_alignment = _parse_alignment(default_style.get("alignment"))
 
-    # ===== 页边距 =====
     margins = params.get("margins", {})
     left_margin = margins.get("left", 72)
     right_margin = margins.get("right", 72)
     top_margin = margins.get("top", 72)
     bottom_margin = margins.get("bottom", 72)
 
-    # ===== 页眉/页脚/水印配置 =====
     header_cfg = params.get("header")
     footer_cfg = params.get("footer")
     watermark_cfg = params.get("watermark")
 
-    # ===== 构建样式表 =====
     styles = getSampleStyleSheet()
 
     def make_style(name, parent_name, **overrides):
-        """创建自定义段落样式。"""
         parent = styles[parent_name]
         kw = {
             "fontName": font_name,
@@ -234,15 +171,12 @@ def handler(params):
             spaceAfter=12, spaceBefore=4),
     }
 
-    # ===== 页眉/页脚/水印绘制回调 =====
     page_count_holder = [0]  # 用于存储总页数
 
     def draw_header_footer_watermark(canvas, doc):
-        """在每页上绘制页眉、页脚和水印。"""
         canvas.saveState()
         page_width, page_height = page_size
 
-        # 水印
         if watermark_cfg:
             wm_text = watermark_cfg.get("text", "")
             wm_font_size = watermark_cfg.get("font_size", 50)
@@ -257,7 +191,6 @@ def handler(params):
             canvas.drawCentredString(0, 0, wm_text)
             canvas.restoreState()
 
-        # 页眉
         if header_cfg:
             h_text = header_cfg.get("text", "")
             h_font_size = header_cfg.get("font_size", 9)
@@ -272,13 +205,11 @@ def handler(params):
                 canvas.drawRightString(page_width - right_margin, y, h_text)
             else:
                 canvas.drawCentredString(page_width / 2, y, h_text)
-            # 页眉下划线
             if header_cfg.get("show_line", True):
                 canvas.setStrokeColor(colors.HexColor("#DDDDDD"))
                 canvas.setLineWidth(0.5)
                 canvas.line(left_margin, y - 5, page_width - right_margin, y - 5)
 
-        # 页脚
         if footer_cfg:
             f_text = footer_cfg.get("text", "")
             f_font_size = footer_cfg.get("font_size", 9)
@@ -289,7 +220,6 @@ def handler(params):
             canvas.setFillColor(f_color)
             y = bottom_margin - 25
 
-            # 页脚上划线
             if footer_cfg.get("show_line", True):
                 canvas.setStrokeColor(colors.HexColor("#DDDDDD"))
                 canvas.setLineWidth(0.5)
@@ -299,13 +229,11 @@ def handler(params):
                 canvas.drawString(left_margin, y, f_text)
             if show_page_num:
                 page_num_text = page_num_format.replace("{page}", str(doc.page))
-                # {total} 在第一次构建时不可用，用占位
                 page_num_text = page_num_text.replace("{total}", str(doc.page))
                 canvas.drawRightString(page_width - right_margin, y, page_num_text)
 
         canvas.restoreState()
 
-    # ===== 创建文档 =====
     doc = SimpleDocTemplate(
         output_path,
         pagesize=page_size,
@@ -322,11 +250,9 @@ def handler(params):
     element_count = 0
     toc_entries = []  # 收集目录条目
 
-    # ===== 处理元素 =====
     for elem in params.get("elements", []):
         elem_type = elem.get("type", "paragraph")
 
-        # ---------- title ----------
         if elem_type == "title":
             style = ParagraphStyle(
                 f"Title_{element_count}", parent=custom_styles["CustomTitle"],
@@ -344,7 +270,6 @@ def handler(params):
             toc_entries.append(("title", elem["text"]))
             element_count += 1
 
-        # ---------- heading ----------
         elif elem_type == "heading":
             level = min(max(elem.get("level", 1), 1), 4)
             base_style = custom_styles[f"CustomHeading{level}"]
@@ -362,7 +287,6 @@ def handler(params):
             toc_entries.append((f"h{level}", elem["text"]))
             element_count += 1
 
-        # ---------- paragraph ----------
         elif elem_type == "paragraph":
             fs = elem.get("font_size", default_font_size)
             ls = elem.get("line_spacing", default_line_spacing)
@@ -379,7 +303,6 @@ def handler(params):
                 rightIndent=elem.get("right_indent", 0),
             )
             text = _escape_xml(elem["text"])
-            # 支持简单的富文本标记
             if elem.get("bold"):
                 text = f"<b>{text}</b>"
             if elem.get("italic"):
@@ -387,7 +310,6 @@ def handler(params):
             if elem.get("underline"):
                 text = f"<u>{text}</u>"
 
-            # 背景色支持（通过表格包裹实现）
             bg_color = _parse_color(elem.get("bg_color"))
             if bg_color:
                 para = Paragraph(text, style)
@@ -405,7 +327,6 @@ def handler(params):
                 story.append(Paragraph(text, style))
             element_count += 1
 
-        # ---------- table ----------
         elif elem_type == "table":
             headers = elem.get("headers", [])
             rows = elem.get("rows", [])
@@ -419,14 +340,12 @@ def handler(params):
                 data = rows
 
             if data:
-                # 列宽
                 col_widths = elem.get("col_widths")
                 if col_widths:
                     table = Table(data, colWidths=col_widths)
                 else:
                     table = Table(data)
 
-                # 表格样式
                 header_bg = _parse_color(elem.get("header_bg_color"), colors.HexColor("#2E86C1"))
                 header_text_color = _parse_color(elem.get("header_text_color"), colors.whitesmoke)
                 border_color = _parse_color(elem.get("border_color"), colors.HexColor("#CCCCCC"))
@@ -434,47 +353,38 @@ def handler(params):
                 header_font_size = elem.get("header_font_size", 11)
                 body_font_size = elem.get("body_font_size", 10)
 
-                # 条纹颜色
                 stripe_colors_cfg = elem.get("stripe_colors", ["#F8F9FA", "#FFFFFF"])
                 stripe_1 = _parse_color(stripe_colors_cfg[0], colors.HexColor("#F8F9FA"))
                 stripe_2 = _parse_color(stripe_colors_cfg[1] if len(stripe_colors_cfg) > 1 else "#FFFFFF", colors.white)
 
                 style_commands = [
-                    # 表头样式
                     ('BACKGROUND', (0, 0), (-1, 0), header_bg),
                     ('TEXTCOLOR', (0, 0), (-1, 0), header_text_color),
                     ('FONTNAME', (0, 0), (-1, 0), bold_font_name),
                     ('FONTSIZE', (0, 0), (-1, 0), header_font_size),
                     ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
                     ('TOPPADDING', (0, 0), (-1, 0), 10),
-                    # 表体样式
                     ('FONTNAME', (0, 1), (-1, -1), font_name),
                     ('FONTSIZE', (0, 1), (-1, -1), body_font_size),
                     ('BOTTOMPADDING', (0, 1), (-1, -1), 7),
                     ('TOPPADDING', (0, 1), (-1, -1), 7),
-                    # 对齐
                     ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
                     ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                    # 边框
                     ('GRID', (0, 0), (-1, -1), border_width, border_color),
                 ]
 
-                # 表体对齐
                 body_align = elem.get("body_alignment", "left").upper()
                 style_commands.append(('ALIGN', (0, 1), (-1, -1), body_align))
 
-                # 条纹行
                 for i in range(1, len(data)):
                     bg = stripe_1 if i % 2 == 1 else stripe_2
                     style_commands.append(('BACKGROUND', (0, i), (-1, i), bg))
 
-                # 合并单元格
                 for span in elem.get("spans", []):
                     style_commands.append(('SPAN', tuple(span[0]), tuple(span[1])))
 
                 table.setStyle(TableStyle(style_commands))
 
-                # 表格标题
                 caption = elem.get("caption")
                 if caption:
                     story.append(Paragraph(caption, custom_styles["CustomCaption"]))
@@ -483,7 +393,6 @@ def handler(params):
                 story.append(Spacer(1, 12))
                 element_count += 1
 
-        # ---------- image ----------
         elif elem_type == "image":
             img_path = elem.get("path") or elem.get("image_path")
             if img_path and os.path.exists(img_path):
@@ -495,7 +404,6 @@ def handler(params):
 
                 img = RLImage(img_path, **kwargs)
 
-                # 对齐
                 img_align = elem.get("alignment", "center")
                 if img_align == "center":
                     img.hAlign = "CENTER"
@@ -506,7 +414,6 @@ def handler(params):
 
                 story.append(img)
 
-                # 图片标题
                 caption = elem.get("caption")
                 if caption:
                     story.append(Paragraph(caption, custom_styles["CustomCaption"]))
@@ -514,7 +421,6 @@ def handler(params):
                     story.append(Spacer(1, 12))
                 element_count += 1
 
-        # ---------- list ----------
         elif elem_type == "list":
             items = elem.get("items", [])
             ordered = elem.get("ordered", False)
@@ -538,15 +444,12 @@ def handler(params):
                 story.append(Paragraph(text, list_style))
             element_count += len(items)
 
-        # ---------- spacer ----------
         elif elem_type == "spacer":
             story.append(Spacer(1, elem.get("height", 12)))
 
-        # ---------- page_break ----------
         elif elem_type == "page_break":
             story.append(PageBreak())
 
-        # ---------- hr (水平分割线) ----------
         elif elem_type in ("hr", "line"):
             line_width = elem.get("width", page_size[0] - left_margin - right_margin)
             line_color = _parse_color(elem.get("color"), colors.HexColor("#CCCCCC"))
@@ -563,7 +466,6 @@ def handler(params):
             story.append(hr)
             element_count += 1
 
-        # ---------- link ----------
         elif elem_type == "link":
             url = elem.get("url", "")
             text = _escape_xml(elem.get("text", url))
@@ -576,12 +478,10 @@ def handler(params):
             story.append(Paragraph(f'<a href="{url}">{text}</a>', link_style))
             element_count += 1
 
-        # ---------- columns (多栏布局) ----------
         elif elem_type == "columns":
             col_data = elem.get("columns", [])
             col_count = len(col_data)
             if col_count > 0:
-                # 用表格模拟多栏
                 col_width = (page_size[0] - left_margin - right_margin) / col_count
                 col_widths = elem.get("col_widths", [col_width] * col_count)
                 cells = []
@@ -589,7 +489,6 @@ def handler(params):
                     if isinstance(col_content, str):
                         cells.append(Paragraph(_escape_xml(col_content), custom_styles["CustomNormal"]))
                     elif isinstance(col_content, list):
-                        # 多个段落
                         cell_story = []
                         for item in col_content:
                             if isinstance(item, str):
@@ -615,7 +514,6 @@ def handler(params):
                     ('LEFTPADDING', (0, 0), (-1, -1), 4),
                     ('RIGHTPADDING', (0, 0), (-1, -1), 4),
                 ]))
-                # 可选列间分割线
                 if elem.get("show_divider", False):
                     for i in range(col_count - 1):
                         col_table.setStyle(TableStyle([
@@ -624,17 +522,14 @@ def handler(params):
                 story.append(col_table)
                 element_count += 1
 
-        # ---------- toc (目录) ----------
         elif elem_type == "toc":
             toc_title = elem.get("title", "目录")
             story.append(Paragraph(toc_title, custom_styles["CustomHeading1"]))
             story.append(Spacer(1, 12))
-            # 目录将在文档构建后填充
             story.append(Paragraph("<i>（目录将根据标题自动生成）</i>", custom_styles["CustomNormal"]))
             story.append(PageBreak())
             element_count += 1
 
-        # ---------- blockquote (引用块) ----------
         elif elem_type == "blockquote":
             text = _escape_xml(elem.get("text", ""))
             fs = elem.get("font_size", default_font_size)
@@ -652,7 +547,6 @@ def handler(params):
                 text = f"<i>{text}</i>"
             para = Paragraph(text, quote_style)
 
-            # 用表格实现左边框 + 背景色
             quote_table = Table([[para]], colWidths=[page_size[0] - left_margin - right_margin])
             quote_table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, -1), bg),
@@ -665,7 +559,6 @@ def handler(params):
             story.append(quote_table)
             element_count += 1
 
-        # ---------- code (代码块) ----------
         elif elem_type == "code":
             code_text = elem.get("text", "")
             fs = elem.get("font_size", 10)
@@ -679,7 +572,6 @@ def handler(params):
                 spaceBefore=8, spaceAfter=8,
                 leading=fs * 1.4,
             )
-            # 转义 HTML 特殊字符
             code_text = code_text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
             code_text = code_text.replace("\n", "<br/>")
             para = Paragraph(code_text, code_style)
@@ -696,7 +588,6 @@ def handler(params):
             story.append(code_table)
             element_count += 1
 
-        # ---------- badge (徽章/标签) ----------
         elif elem_type == "badge":
             text = _escape_xml(elem.get("text", ""))
             bg = _parse_color(elem.get("bg_color"), colors.HexColor("#1976d2"))
@@ -721,7 +612,6 @@ def handler(params):
             story.append(badge_table)
             element_count += 1
 
-        # ---------- key_value (键值对) ----------
         elif elem_type == "key_value":
             pairs = elem.get("pairs", [])
             if pairs:
@@ -745,7 +635,6 @@ def handler(params):
                 story.append(kv_table)
                 element_count += 1
 
-    # ===== 构建文档 =====
     if not story:
         story.append(Paragraph("空文档", custom_styles["CustomNormal"]))
 
@@ -756,7 +645,6 @@ def handler(params):
     else:
         doc.build(story)
 
-    # 获取文件大小
     file_size = os.path.getsize(output_path)
 
     return {

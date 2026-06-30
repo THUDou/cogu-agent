@@ -1,10 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""PDF IR (Intermediate Representation) 导入 / 重建。
-
-从 JSON IR 文件重建 PDF 文档。使用 PyMuPDF 根据 IR 中的
-文本块、图片、链接等信息生成新 PDF。
-"""
 
 import json
 import os
@@ -20,7 +13,6 @@ PARAMS = [
 
 
 def handler(params):
-    """从 IR JSON 重建 PDF。"""
     import fitz
     import base64
 
@@ -44,7 +36,6 @@ def handler(params):
         if page_ir.get("rotation", 0):
             page.set_rotation(page_ir["rotation"])
 
-        # 重建文本块
         for block in page_ir.get("blocks", []):
             if block.get("type") == "text":
                 for line in block.get("lines", []):
@@ -57,7 +48,6 @@ def handler(params):
                         font_name = span.get("font", "helv")
                         color = span.get("color", 0)
 
-                        # 解析颜色
                         if isinstance(color, int):
                             r = ((color >> 16) & 0xFF) / 255.0
                             g = ((color >> 8) & 0xFF) / 255.0
@@ -70,7 +60,6 @@ def handler(params):
 
                         point = fitz.Point(bbox[0], bbox[3] - 2)
                         try:
-                            # 尝试使用原始字体
                             font = fitz.Font(font_name)
                         except Exception:
                             font = fitz.Font("helv")
@@ -80,11 +69,9 @@ def handler(params):
                             tw.append(point, text, font=font, fontsize=font_size)
                             tw.write_text(page, color=text_color)
                         except Exception:
-                            # 回退：直接 insert_text
                             page.insert_text(point, text, fontsize=font_size, color=text_color)
 
             elif block.get("type") == "image":
-                # 如果有 base64 数据，插入图片
                 data_b64 = block.get("data_base64")
                 if data_b64:
                     img_data = base64.b64decode(data_b64)
@@ -92,15 +79,11 @@ def handler(params):
                     rect = fitz.Rect(bbox)
                     page.insert_image(rect, stream=img_data)
 
-        # 重建图片（独立 images 列表中带 base64 的）
         for img in page_ir.get("images", []):
             data_b64 = img.get("data_base64")
             if data_b64:
                 img_data = base64.b64decode(data_b64)
-                # 没有精确位置信息时跳过
-                # 这些图片已经在 blocks 中通过 image block 处理了
 
-        # 重建链接
         for link in page_ir.get("links", []):
             link_dict = {
                 "kind": link.get("kind", 2),  # LINK_URI
@@ -120,7 +103,6 @@ def handler(params):
 
         pages_created += 1
 
-    # 设置元数据
     metadata = ir.get("metadata", {})
     doc.set_metadata({
         "title": metadata.get("title", ""),

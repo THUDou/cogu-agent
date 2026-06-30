@@ -1,8 +1,3 @@
-"""Security Checks — BashTool 23项安全检查
-
-基于源码: Claude Code BashTool 三层安全架构
-         23项语法检查 → 权限规则匹配 → 只读模式强制
-"""
 from __future__ import annotations
 
 import re
@@ -37,7 +32,6 @@ from typing import Any
 
 
 class SecurityChecker:
-    """23项安全检查 — 基于 Claude Code BashTool"""
 
     DANGEROUS_COMMANDS = [
         "rm -rf", "mkfs", "dd if=", "> /dev/", "chmod 777",

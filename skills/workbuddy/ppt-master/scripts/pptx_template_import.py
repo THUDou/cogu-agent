@@ -1,20 +1,3 @@
-#!/usr/bin/env python3
-"""Unified PPTX preparation entry point for the /create-template workflow.
-
-Reads OOXML directly via `pptx_to_svg` and writes a reusable reference workspace:
-
-- `manifest.json` — single source of truth for slide size, theme colors, fonts,
-  asset inventory, and per-slide / per-layout / per-master metadata
-- `summary.md` — short human-readable digest derived from manifest.json
-- `assets/` — extracted reusable image assets
-- `svg/` — primary view: by default the layered template view (every master
-  and layout in the deck rendered once each as `master_*.svg` /
-  `layout_*.svg`, slides contain only their own shapes, and an
-  `inheritance.json` describes the reuse graph)
-- `svg-flat/` — companion view (default mode "both"): each `slide_NN.svg`
-  is self-contained — master/layout decoration is inlined — so opening any
-  one slide shows the full page like PowerPoint would
-"""
 
 from __future__ import annotations
 
@@ -26,7 +9,6 @@ from template_import.manifest import build_manifest
 
 
 def parse_args() -> argparse.Namespace:
-    """Build the CLI argument parser for the import entry point."""
     parser = argparse.ArgumentParser(
         description="Prepare a PPTX reference workspace for /create-template."
     )
@@ -73,7 +55,6 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
-    """CLI entry point: write the PPTX reference workspace to disk."""
     args = parse_args()
     pptx_path = Path(args.pptx_file).expanduser().resolve()
     if not pptx_path.exists():

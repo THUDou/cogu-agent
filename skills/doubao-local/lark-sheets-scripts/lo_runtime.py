@@ -1,8 +1,3 @@
-"""
-Helper for running LibreOffice (soffice) in environments where AF_UNIX
-sockets may be blocked (e.g., sandboxed VMs).  Detects the restriction
-at runtime and applies an LD_PRELOAD shim if needed.
-"""
 
 import os
 import socket
@@ -55,14 +50,6 @@ def _ensure_shim() -> Path:
 
 
 _SHIM_SOURCE = r"""
-#define _GNU_SOURCE
-#include <dlfcn.h>
-#include <errno.h>
-#include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/socket.h>
-#include <unistd.h>
 
 static int (*real_socket)(int, int, int);
 static int (*real_socketpair)(int, int, int, int[2]);
@@ -154,10 +141,3 @@ int close(int fd) {
     }
     return real_close(fd);
 }
-"""
-
-
-if __name__ == "__main__":
-    import sys
-    result = run_soffice(sys.argv[1:])
-    sys.exit(result.returncode)

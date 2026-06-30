@@ -1,7 +1,3 @@
-/**
- * @file 字体宽度度量
- * @author mengke01(kekee000@gmail.com)
- */
 
 export default {
     1: 'Ultra-condensed',

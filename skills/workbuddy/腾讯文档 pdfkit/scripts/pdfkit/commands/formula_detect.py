@@ -1,12 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""PDF 公式识别（LaTeX）脚本。
-
-从 PDF 中识别数学公式并转换为 LaTeX 格式。
-使用 pix2tex 或 nougat 模型进行公式识别。
-
-依赖：PyMuPDF (fitz), pix2tex (可选), Pillow
-"""
 
 import os
 import io
@@ -22,15 +13,6 @@ PARAMS = [
 
 
 def handler(params):
-    """检测 PDF 中的数学公式区域。
-
-    Args:
-        params: {
-            "input": PDF 文件路径,
-            "pages": 页码列表，None 表示全部页,
-            "method": 检测方法 - "heuristic"(启发式), "model"(模型)
-        }
-    """
     import fitz
     from PIL import Image
 
@@ -52,7 +34,6 @@ def handler(params):
         page = doc[p_idx]
 
         if method == "heuristic":
-            # 启发式检测：查找包含数学符号的文本块
             blocks = page.get_text("dict")["blocks"]
             for block in blocks:
                 if block["type"] != 0:
@@ -62,16 +43,13 @@ def handler(params):
                     has_math_font = False
                     for span in line.get("spans", []):
                         line_text += span["text"]
-                        # 检测数学字体
                         font_name = span.get("font", "").lower()
                         if any(mf in font_name for mf in ["math", "symbol", "cmmi", "cmsy", "cmex"]):
                             has_math_font = True
 
-                    # 检测数学符号
                     math_chars = set("∑∏∫∂∇√∞±≤≥≠≈∈∉⊂⊃∪∩αβγδεζηθικλμνξπρστυφχψω")
                     has_math_symbols = bool(set(line_text) & math_chars)
 
-                    # 检测 LaTeX 风格的公式标记
                     has_latex_markers = any(m in line_text for m in ["\\frac", "\\sum", "\\int", "^{", "_{"])
 
                     if has_math_font or has_math_symbols or has_latex_markers:
@@ -86,7 +64,6 @@ def handler(params):
                         })
 
         elif method == "model":
-            # 模型检测：渲染页面为图片，使用 pix2tex 识别
             mat = fitz.Matrix(2, 2)  # 2x 缩放
             pix = page.get_pixmap(matrix=mat)
             img_data = pix.tobytes("png")
@@ -95,7 +72,6 @@ def handler(params):
             try:
                 from pix2tex.cli import LatexOCR
                 model = LatexOCR()
-                # 对整页进行识别
                 latex = model(img)
                 if latex:
                     formulas.append({
@@ -106,7 +82,6 @@ def handler(params):
                         "detection_method": "pix2tex"
                     })
             except ImportError:
-                # pix2tex 未安装，回退到启发式
                 formulas.append({
                     "page": p_idx,
                     "error": "pix2tex 未安装，请执行: pip install pix2tex",

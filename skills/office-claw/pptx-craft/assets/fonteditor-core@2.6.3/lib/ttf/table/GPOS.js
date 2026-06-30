@@ -6,12 +6,6 @@ Object.defineProperty(exports, "__esModule", {
 exports.default = void 0;
 var _table = _interopRequireDefault(require("./table"));
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-/**
- * @file GPOS
- * @author fr33z00(https://github.com/fr33z00)
- *
- * @reference: https://learn.microsoft.com/en-us/typography/opentype/spec/gpos
- */
 var _default = exports.default = _table.default.create('GPOS', [], {
   read: function read(reader, ttf) {
     var length = ttf.tables.GPOS.length;

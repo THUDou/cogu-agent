@@ -1,30 +1,16 @@
 #!/usr/bin/env node
 
-/**
- * docx-craft: Create DOCX documents from recipe + content JSON.
- *
- * 支持两种引擎：
- *   - docx（默认）：使用 docx-js 构建，适用于 6 种标准文档模板
- *   - mammoth：使用 HTML 模板 + pandoc 构建，适用于会议纪要等模板
- *
- * Usage:
- *   node scripts/create.js --recipe report --content content.json --output out.docx
- *   node scripts/create.js --recipe meeting_decision --content decision.json --output meeting.docx
- *   node scripts/create.js --recipe meeting_decision --content data.json --output meeting.docx --engine docx
- */
 
 const path = require('path');
 const fs = require('fs');
 const documentBuilder = require('./generator/document_builder');
 
-// mammoth 引擎的 recipe 名称列表
 const MAMMOTH_RECIPES = ['meeting_decision', 'meeting_daily', 'meeting_seminar'];
 
 function parseArgs(argv) {
   const args = {};
   for (let i = 2; i < argv.length; i++) {
     if (argv[i].startsWith('--')) {
-      // 保留原始 key 名（不转 camelCase），用于 engine 等参数
       const rawKey = argv[i].slice(2);
       const key = rawKey.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
       const next = argv[i + 1];
@@ -68,7 +54,6 @@ async function main() {
     process.exit(1);
   }
 
-  // 确定引擎 — 优先级: --engine 参数 > recipe JSON 声明 > 自动检测
   let engine = args.engine || getRecipeEngine(args.recipe);
   if (engine === 'auto') {
     engine = MAMMOTH_RECIPES.includes(args.recipe) ? 'mammoth' : 'docx';
@@ -81,7 +66,6 @@ async function main() {
   }
 
   if (engine === 'mammoth') {
-    // ====== mammoth + HTML 路径 ======
     const htmlBuilder = require('./create_html');
     try {
       const outputPath = await htmlBuilder.build({
@@ -95,7 +79,6 @@ async function main() {
       process.exit(1);
     }
   } else {
-    // ====== docx-js 路径（原有） ======
     const options = {
       recipe: args.recipe,
       content: contentPath,

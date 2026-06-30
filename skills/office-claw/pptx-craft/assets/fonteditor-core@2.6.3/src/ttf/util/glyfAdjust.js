@@ -1,25 +1,9 @@
-/**
- * @file glyf的缩放和平移调整
- * @author mengke01(kekee000@gmail.com)
- */
 
 import pathAdjust from '../../graphics/pathAdjust';
 import pathCeil from '../../graphics/pathCeil';
 import {computePathBox} from '../../graphics/computeBoundingBox';
 
 
-/**
- * 简单字形的缩放和平移调整
- *
- * @param {Object} g glyf对象
- * @param {number} scaleX x缩放比例
- * @param {number} scaleY y缩放比例
- * @param {number} offsetX x偏移
- * @param {number} offsetY y偏移
- * @param {boolan} useCeil 是否对字形设置取整，默认取整
- *
- * @return {Object} 调整后的glyf对象
- */
 export default function glyfAdjust(g, scaleX = 1, scaleY = 1, offsetX = 0, offsetY = 0, useCeil = true) {
 
     if (g.contours && g.contours.length) {
@@ -42,7 +26,6 @@ export default function glyfAdjust(g, scaleX = 1, scaleY = 1, offsetX = 0, offse
         }
     }
 
-    // 重新计算xmin，xmax，ymin，ymax
     const advanceWidth = g.advanceWidth;
     if (
         undefined === g.xMin
@@ -50,10 +33,8 @@ export default function glyfAdjust(g, scaleX = 1, scaleY = 1, offsetX = 0, offse
         || undefined === g.leftSideBearing
         || undefined === g.advanceWidth
     ) {
-        // 有的字形没有形状，需要特殊处理一下
         let bound;
         if (g.contours && g.contours.length) {
-            // eslint-disable-next-line no-invalid-this
             bound = computePathBox.apply(this, g.contours);
         }
         else {
@@ -72,7 +53,6 @@ export default function glyfAdjust(g, scaleX = 1, scaleY = 1, offsetX = 0, offse
 
         g.leftSideBearing = g.xMin;
 
-        // 如果设置了advanceWidth就是用默认的，否则为xMax + abs(xMin)
         if (undefined !== advanceWidth) {
             g.advanceWidth = Math.round(advanceWidth * scaleX + offsetX);
         }

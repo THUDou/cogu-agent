@@ -1,4 +1,3 @@
-"""Coordinate helpers, color parsing, and font utilities for DrawingML conversion."""
 
 from __future__ import annotations
 
@@ -8,9 +7,6 @@ from xml.etree import ElementTree as ET
 
 from .drawingml_context import AffineMatrix, ConvertContext, IDENTITY_MATRIX
 
-# ---------------------------------------------------------------------------
-# Constants
-# ---------------------------------------------------------------------------
 
 SVG_NS = 'http://www.w3.org/2000/svg'
 XLINK_NS = 'http://www.w3.org/1999/xlink'
@@ -19,7 +15,6 @@ EMU_PER_PX = 9525  # 1 SVG px = 9525 EMU (96 DPI)
 FONT_PX_TO_HUNDREDTHS_PT = 75  # 1px = 0.75pt -> 75 hundredths-of-a-point
 ANGLE_UNIT = 60000  # DrawingML angle: 60000ths of a degree
 
-# SVG attributes inheritable from parent <g>
 INHERITABLE_ATTRS = [
     'fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'stroke-linecap',
     'stroke-linejoin', 'opacity', 'fill-opacity', 'stroke-opacity',
@@ -27,7 +22,6 @@ INHERITABLE_ATTRS = [
     'text-anchor', 'letter-spacing', 'text-decoration',
 ]
 
-# Known East Asian fonts
 EA_FONTS = {
     'PingFang SC', 'PingFang TC', 'PingFang HK',
     'Microsoft YaHei', 'Microsoft JhengHei',
@@ -44,17 +38,14 @@ EA_FONTS = {
     'WenQuanYi Micro Hei', 'WenQuanYi Zen Hei',
     'YouYuan', 'LiSu', 'HuaWenKaiTi',
     'Songti SC', 'Songti TC',
-    # Japanese fonts (Windows-available)
     'Yu Gothic', 'Yu Gothic UI', 'Yu Mincho',
     'Meiryo', 'Meiryo UI', 'メイリオ',
     'MS Gothic', 'MS Mincho', 'MS PGothic', 'MS PMincho', 'MS UI Gothic',
-    # Korean
     'Malgun Gothic', 'Gulim', 'Dotum', 'Batang',
     'Noto Sans KR', 'Noto Serif KR',
 }
 SYSTEM_FONTS = {'system-ui', '-apple-system', 'BlinkMacSystemFont'}
 
-# macOS/Linux-only fonts -> Windows equivalents
 FONT_FALLBACK_WIN = {
     'PingFang SC': 'Microsoft YaHei',
     'PingFang TC': 'Microsoft JhengHei',
@@ -74,9 +65,6 @@ FONT_FALLBACK_WIN = {
     'Noto Sans TC': 'Microsoft JhengHei',
     'Noto Serif SC': 'SimSun',
     'Noto Serif TC': 'SimSun',
-    # Japanese: keep as-is if user specified (PowerPoint will fallback if uninstalled)
-    # 'Noto Sans JP': → keep as 'Noto Sans JP' (do not map)
-    # 'メイリオ': → keep as 'メイリオ' (Meiryo alias)
     'メイリオ': 'Meiryo',
     'Source Han Sans SC': 'Microsoft YaHei',
     'Source Han Sans TC': 'Microsoft JhengHei',
@@ -86,7 +74,6 @@ FONT_FALLBACK_WIN = {
     'Source Han Serif JP': 'Noto Serif JP',
     'WenQuanYi Micro Hei': 'Microsoft YaHei',
     'WenQuanYi Zen Hei': 'Microsoft YaHei',
-    # Latin fonts (macOS / Linux / Web -> Windows)
     'SF Pro': 'Segoe UI',
     'SF Pro Display': 'Segoe UI',
     'SF Pro Text': 'Segoe UI',
@@ -111,14 +98,11 @@ GENERIC_FONT_MAP = {
     'serif': 'Times New Roman',
 }
 
-# When the latin font is serif and no EA font is specified,
-# prefer SimSun (serif CJK) over Microsoft YaHei (sans-serif CJK).
 _SERIF_LATIN = {
     'Times New Roman', 'Georgia', 'Garamond', 'Palatino', 'Palatino Linotype',
     'Book Antiqua', 'Cambria', 'SimSun', 'Liberation Serif', 'DejaVu Serif',
 }
 
-# SVG stroke-dasharray -> DrawingML prstDash
 DASH_PRESETS = {
     '4,4': 'dash',  '4 4': 'dash',
     '6,3': 'dash',  '6 3': 'dash',
@@ -128,17 +112,12 @@ DASH_PRESETS = {
 }
 
 
-# ---------------------------------------------------------------------------
-# Coordinate helpers
-# ---------------------------------------------------------------------------
 
 def px_to_emu(px: float) -> int:
-    """Convert SVG pixels to EMU."""
     return round(px * EMU_PER_PX)
 
 
 def _f(val: str | None, default: float = 0.0) -> float:
-    """Parse a float attribute value, returning default if missing."""
     if val is None:
         return default
     try:
@@ -147,16 +126,12 @@ def _f(val: str | None, default: float = 0.0) -> float:
         return default
 
 
-# ---------------------------------------------------------------------------
-# SVG transform matrix helpers
-# ---------------------------------------------------------------------------
 
 _TRANSFORM_RE = re.compile(r'([a-zA-Z]+)\(([^)]*)\)')
 _NUMBER_RE = re.compile(r'[-+]?(?:\d*\.\d+|\d+\.?)(?:[eE][-+]?\d+)?')
 
 
 def matrix_multiply(left: AffineMatrix, right: AffineMatrix) -> AffineMatrix:
-    """Compose two SVG affine matrices, applying ``right`` before ``left``."""
     a1, b1, c1, d1, e1, f1 = left
     a2, b2, c2, d2, e2, f2 = right
     return (
@@ -191,7 +166,6 @@ def _rotate_matrix(angle_deg: float, cx: float | None = None, cy: float | None =
 
 
 def parse_transform_matrix(transform_str: str) -> AffineMatrix:
-    """Parse an SVG transform list into one affine matrix."""
     if not transform_str:
         return IDENTITY_MATRIX
 
@@ -220,7 +194,6 @@ def parse_transform_matrix(transform_str: str) -> AffineMatrix:
 
 
 def transform_point(matrix: AffineMatrix, x: float, y: float) -> tuple[float, float]:
-    """Apply an SVG affine matrix to a point."""
     a, b, c, d, e, f = matrix
     return a * x + c * y + e, b * x + d * y + f
 
@@ -232,12 +205,6 @@ def rect_to_dml_xfrm(
     h: float,
     matrix: AffineMatrix,
 ) -> tuple[str, int, int, int, int, tuple[int, int, int, int]]:
-    """Map a transformed SVG rectangle to DrawingML xfrm attributes.
-
-    DrawingML can represent rotated/flipped rectangles, but not arbitrary
-    shear. Template-import picture wrappers only use translate/rotate/scale,
-    so decomposing the transformed local X/Y axes is sufficient here.
-    """
     p0 = transform_point(matrix, x, y)
     p1 = transform_point(matrix, x + w, y)
     p2 = transform_point(matrix, x + w, y + h)
@@ -282,7 +249,6 @@ def rect_to_dml_xfrm(
 
 
 def _extract_inheritable_styles(elem: ET.Element) -> dict[str, str]:
-    """Extract all SVG-inheritable presentation attributes from an element."""
     styles: dict[str, str] = {}
     for attr in INHERITABLE_ATTRS:
         val = elem.get(attr)
@@ -292,7 +258,6 @@ def _extract_inheritable_styles(elem: ET.Element) -> dict[str, str]:
 
 
 def _get_attr(elem: ET.Element, attr: str, ctx: ConvertContext) -> str | None:
-    """Get effective attribute: element's own value first, then inherited."""
     val = elem.get(attr)
     if val is not None:
         return val
@@ -300,31 +265,23 @@ def _get_attr(elem: ET.Element, attr: str, ctx: ConvertContext) -> str | None:
 
 
 def ctx_x(val: float, ctx: ConvertContext) -> float:
-    """Apply context scale + translate to an X coordinate."""
     return val * ctx.scale_x + ctx.translate_x
 
 
 def ctx_y(val: float, ctx: ConvertContext) -> float:
-    """Apply context scale + translate to a Y coordinate."""
     return val * ctx.scale_y + ctx.translate_y
 
 
 def ctx_w(val: float, ctx: ConvertContext) -> float:
-    """Apply context scale to a width value."""
     return val * ctx.scale_x
 
 
 def ctx_h(val: float, ctx: ConvertContext) -> float:
-    """Apply context scale to a height value."""
     return val * ctx.scale_y
 
 
-# ---------------------------------------------------------------------------
-# Color / style parsing
-# ---------------------------------------------------------------------------
 
 def parse_hex_color(color_str: str) -> str | None:
-    """Parse '#RRGGBB' or '#RGB' to 'RRGGBB'. Returns None on failure."""
     if not color_str:
         return None
     color_str = color_str.strip()
@@ -338,14 +295,6 @@ def parse_hex_color(color_str: str) -> str | None:
 
 
 def parse_stop_style(style_str: str) -> tuple[str | None, float]:
-    """Parse a gradient stop's style attribute.
-
-    Args:
-        style_str: Style string like 'stop-color:#XXX;stop-opacity:N'.
-
-    Returns:
-        (color, opacity) tuple.
-    """
     color = None
     opacity = 1.0
     if not style_str:
@@ -365,7 +314,6 @@ def parse_stop_style(style_str: str) -> tuple[str | None, float]:
 
 
 def resolve_url_id(url_str: str) -> str | None:
-    """Extract ID from 'url(#someId)' reference."""
     if not url_str:
         return None
     m = re.match(r'url\(#([^)]+)\)', url_str.strip())
@@ -373,23 +321,14 @@ def resolve_url_id(url_str: str) -> str | None:
 
 
 def get_effective_filter_id(elem: ET.Element, ctx: ConvertContext) -> str | None:
-    """Get the effective filter ID for an element, including inherited context."""
     filt = elem.get('filter')
     if filt:
         return resolve_url_id(filt)
     return ctx.filter_id
 
 
-# ---------------------------------------------------------------------------
-# Font parsing
-# ---------------------------------------------------------------------------
 
 def parse_font_family(font_family_str: str) -> dict[str, str]:
-    """Parse CSS font-family into latin/ea typeface names.
-
-    Prioritizes Windows-available fonts since PPTX is primarily opened on
-    Windows. macOS/Linux-only fonts are mapped via FONT_FALLBACK_WIN.
-    """
     if not font_family_str:
         return {'latin': 'Segoe UI', 'ea': 'Microsoft YaHei'}
 
@@ -411,13 +350,11 @@ def parse_font_family(font_family_str: str) -> dict[str, str]:
         else:
             latin_font = latin_font or win_font
 
-    # PPT renders CJK text via latin typeface when ea doesn't match
     if not latin_font and ea_font:
         latin_font = ea_font
 
     final_latin = latin_font or 'Segoe UI'
 
-    # EA must always be a CJK-capable font
     if not ea_font:
         ea_font = 'SimSun' if final_latin in _SERIF_LATIN else 'Microsoft YaHei'
 
@@ -425,7 +362,6 @@ def parse_font_family(font_family_str: str) -> dict[str, str]:
 
 
 def is_cjk_char(ch: str) -> bool:
-    """Check if a character is CJK (Chinese/Japanese/Korean)."""
     cp = ord(ch)
     return (0x4E00 <= cp <= 0x9FFF or 0x3400 <= cp <= 0x4DBF or
             0x2E80 <= cp <= 0x2EFF or 0x3000 <= cp <= 0x303F or
@@ -434,7 +370,6 @@ def is_cjk_char(ch: str) -> bool:
 
 
 def estimate_text_width(text: str, font_size: float, font_weight: str = '400') -> float:
-    """Estimate text width in SVG pixels."""
     width = 0.0
     for ch in text:
         if is_cjk_char(ch):
@@ -455,7 +390,6 @@ def estimate_text_width(text: str, font_size: float, font_weight: str = '400') -
 
 
 def _xml_escape(text: str) -> str:
-    """Escape XML special characters."""
     return (text.replace('&', '&amp;')
                 .replace('<', '&lt;')
                 .replace('>', '&gt;')

@@ -1,19 +1,5 @@
-/**
- * @file ajax获取文本数据
- * @author mengke01(kekee000@gmail.com)
- */
 
 
-/**
- * ajax获取数据
- *
- * @param {Object} options 参数选项
- * @param {string=} options.type 类型
- * @param {string=} options.method method
- * @param {Function=} options.onSuccess 成功回调
- * @param {Function=} options.onError 失败回调
- * @param {Object=} options.params 参数集合
- */
 export default function ajaxFile(options) {
     const xhr = new XMLHttpRequest();
 

@@ -1,7 +1,3 @@
-/**
- * @file name表
- * @author mengke01(kekee000@gmail.com)
- */
 
 import table from './table';
 import nameIdTbl from '../enum/nameId';
@@ -41,7 +37,6 @@ export default table.create(
 
             offset += nameTbl.stringOffset;
 
-            // 读取字符名字
             for (i = 0; i < count; ++i) {
                 nameRecord = nameRecordTbl[i];
                 nameRecord.name = reader.readBytes(offset + nameRecord.offset, nameRecord.length);
@@ -49,12 +44,10 @@ export default table.create(
 
             const names = {};
 
-            // mac 下的english name
             let platform = platformTbl.Macintosh;
             let encoding = mac.Default;
             let language = 0;
 
-            // 如果有windows 下的 english，则用windows下的 name
             if (nameRecordTbl.some((record) => record.platform === platformTbl.Microsoft
                     && record.encoding === win.UCS2
                     && record.language === 1033)) {
@@ -85,7 +78,6 @@ export default table.create(
             writer.writeUint16(nameRecordTbl.length); // count
             writer.writeUint16(6 + nameRecordTbl.length * 12); // string offset
 
-            // write name tbl header
             let offset = 0;
             nameRecordTbl.forEach((nameRecord) => {
                 writer.writeUint16(nameRecord.platform);
@@ -97,7 +89,6 @@ export default table.create(
                 offset += nameRecord.name.length;
             });
 
-            // write name tbl strings
             nameRecordTbl.forEach((nameRecord) => {
                 writer.writeBytes(nameRecord.name);
             });
@@ -109,9 +100,6 @@ export default table.create(
             const names = ttf.name;
             let nameRecordTbl = [];
 
-            // 写入name信息
-            // 这里为了简化书写，仅支持英文编码字符，
-            // 中文编码字符将被转化成url encode
             let size = 6;
             Object.keys(names).forEach((name) => {
                 const id = nameIdTbl.names[name];
@@ -120,7 +108,6 @@ export default table.create(
                 const usc2Bytes = string.toUCS2Bytes(names[name]);
 
                 if (undefined !== id) {
-                    // mac
                     nameRecordTbl.push({
                         nameId: id,
                         platform: 1,
@@ -129,7 +116,6 @@ export default table.create(
                         name: utf8Bytes
                     });
 
-                    // windows
                     nameRecordTbl.push({
                         nameId: id,
                         platform: 3,
@@ -138,7 +124,6 @@ export default table.create(
                         name: usc2Bytes
                     });
 
-                    // 子表大小
                     size += 12 * 2 + utf8Bytes.length + usc2Bytes.length;
                 }
             });
@@ -157,7 +142,6 @@ export default table.create(
                 return l;
             });
 
-            // 保存预处理信息
             ttf.support.name = nameRecordTbl;
 
             return size;

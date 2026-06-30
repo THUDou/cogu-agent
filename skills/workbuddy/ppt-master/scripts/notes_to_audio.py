@@ -1,25 +1,3 @@
-#!/usr/bin/env python3
-"""Generate per-slide narration audio from PPT Master notes.
-
-This script uses provider backends for the same per-slide output contract on
-macOS, Linux, and Windows. `edge-tts` remains the default no-key backend.
-
-Usage:
-    python3 skills/ppt-master/scripts/notes_to_audio.py <project_path> --voice zh-CN-XiaoxiaoNeural
-    python3 skills/ppt-master/scripts/notes_to_audio.py <project_path> --provider elevenlabs --voice-id <voice_id>
-    python3 skills/ppt-master/scripts/notes_to_audio.py <project_path> --provider minimax --voice-id <voice_id>
-    python3 skills/ppt-master/scripts/notes_to_audio.py <project_path> --provider qwen --voice-id <voice>
-    python3 skills/ppt-master/scripts/notes_to_audio.py <project_path> --provider cosyvoice --voice-id <voice>
-    python3 skills/ppt-master/scripts/notes_to_audio.py --list-common-voices
-    python3 skills/ppt-master/scripts/notes_to_audio.py --list-voices --locale zh-CN
-
-Dependencies:
-    python3 -m pip install edge-tts
-    ELEVENLABS_API_KEY=<key> for --provider elevenlabs
-    MINIMAX_API_KEY=<key> for --provider minimax
-    QWEN_API_KEY or DASHSCOPE_API_KEY=<key> for --provider qwen
-    COSYVOICE_API_KEY or DASHSCOPE_API_KEY=<key> for --provider cosyvoice
-"""
 
 from __future__ import annotations
 
@@ -49,7 +27,6 @@ class AudioBackend:
 
 
 def _load_tts_env_file() -> None:
-    """Load TTS-related keys from the first .env file, without overriding shell env."""
     load_prefixed_env_file((
         "ELEVENLABS_",
         "MINIMAX_",
@@ -60,7 +37,6 @@ def _load_tts_env_file() -> None:
 
 
 def spoken_text(markdown: str) -> str:
-    """Return narration text exactly from notes, except Markdown headings."""
     lines: list[str] = []
     for raw in markdown.splitlines():
         if raw.lstrip().startswith("#"):

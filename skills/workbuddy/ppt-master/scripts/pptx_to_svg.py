@@ -1,25 +1,3 @@
-#!/usr/bin/env python3
-"""CLI entry: convert a .pptx file to one SVG per slide.
-
-Usage:
-    python3 pptx_to_svg.py <pptx_file> [-o <output_dir>] [--embed-images]
-                                       [--media-subdir <name>] [--keep-hidden]
-                                       [--inheritance-mode {both,layered,flat}]
-
-Output structure (default --inheritance-mode both):
-    <output_dir>/
-        svg/                    layered machine input: masters/layouts/slides
-        svg-flat/               self-contained visual preview slides
-        <media_subdir>/         (default: assets/)
-            image1.png
-            image2.png
-            ...
-
-If -o is omitted, writes alongside the source file as <pptx_stem>_pptx_to_svg/.
-
-This is the reverse of svg_to_pptx.py: it reads OOXML directly and emits
-shape-level SVG without going through PowerPoint or PDF rendering.
-"""
 
 from __future__ import annotations
 
@@ -27,7 +5,6 @@ import argparse
 import sys
 from pathlib import Path
 
-# Allow running this script from anywhere
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from pptx_to_svg import convert_pptx_to_svg

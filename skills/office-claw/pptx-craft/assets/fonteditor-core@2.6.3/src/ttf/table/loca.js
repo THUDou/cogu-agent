@@ -1,7 +1,3 @@
-/**
- * @file loca表
- * @author mengke01(kekee000@gmail.com)
- */
 
 import table from './table';
 import struct from './struct';
@@ -14,7 +10,6 @@ export default table.create(
         read(reader, ttf) {
             let offset = this.offset;
             const indexToLocFormat = ttf.head.indexToLocFormat;
-            // indexToLocFormat有2字节和4字节的区别
             const type = struct.names[(indexToLocFormat === 0) ? struct.Uint16 : struct.Uint32];
             const size = (indexToLocFormat === 0) ? 2 : 4; // 字节大小
             const sizeRatio = (indexToLocFormat === 0) ? 2 : 1; // 真实地址偏移
@@ -48,7 +43,6 @@ export default table.create(
                 offset += glyfSupport[i].size * sizeRatio;
             }
 
-            // write extra
             if (indexToLocFormat) {
                 writer.writeUint32(offset);
             }

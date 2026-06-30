@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""PDF 压缩。支持 Ghostscript（主要）和 pikepdf（备选）两种压缩方式。"""
 
 import os
 
@@ -17,7 +14,6 @@ PARAMS = [
 
 
 def handler(params):
-    """压缩 PDF 文件体积。"""
     import shutil
     import subprocess
 
@@ -28,19 +24,16 @@ def handler(params):
 
     original_size = os.path.getsize(input_path)
 
-    # 确保输出目录存在
     output_dir = os.path.dirname(output_path)
     if output_dir and not os.path.exists(output_dir):
         os.makedirs(output_dir, exist_ok=True)
 
     engine_used = "none"
 
-    # 质量级别映射
     quality_levels = ["screen", "ebook", "printer", "prepress"]
     if quality not in quality_levels:
         quality = "ebook"
 
-    # 尝试 Ghostscript
     gs_path = shutil.which("gs") or shutil.which("gswin64c") or shutil.which("gswin32c")
     if gs_path:
         def compress_with_gs(q, out):
@@ -61,7 +54,6 @@ def handler(params):
             return os.path.getsize(out)
 
         if target_size_mb:
-            # 迭代调整质量直到满足目标大小
             target_bytes = target_size_mb * 1024 * 1024
             best_quality = quality
             best_size = original_size
@@ -86,13 +78,11 @@ def handler(params):
         engine_used = "ghostscript"
 
     else:
-        # Ghostscript 不可用，尝试 pikepdf
         try:
             import pikepdf
 
             pdf = pikepdf.open(input_path)
 
-            # pikepdf 压缩选项
             save_kwargs = {
                 "linearize": True,
                 "object_stream_mode": pikepdf.ObjectStreamMode.generate,
@@ -109,12 +99,10 @@ def handler(params):
             engine_used = "pikepdf"
 
         except ImportError:
-            # 最后尝试 PyMuPDF 的基础压缩
             try:
                 import fitz
 
                 doc = fitz.open(input_path)
-                # PyMuPDF 的 garbage 和 deflate 选项
                 doc.save(
                     output_path,
                     garbage=4,      # 最大垃圾回收级别
@@ -129,7 +117,6 @@ def handler(params):
             except ImportError:
                 raise RuntimeError("无可用的压缩引擎。请安装 Ghostscript、pikepdf 或 PyMuPDF。")
 
-    # 计算压缩比
     compression_ratio = round((1 - compressed_size / original_size) * 100, 1) if original_size > 0 else 0
 
     return {

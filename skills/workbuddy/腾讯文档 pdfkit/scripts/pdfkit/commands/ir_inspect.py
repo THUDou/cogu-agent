@@ -1,10 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""PDF 文档结构摘要 / 检查。
-
-快速输出 PDF 的结构摘要：页数、页面尺寸、文本量、图片数、
-字体使用情况、加密状态等。不需要导出完整 IR。
-"""
 
 import os
 
@@ -19,7 +12,6 @@ PARAMS = [
 
 
 def handler(params):
-    """检查 PDF 结构摘要。"""
     import fitz
 
     input_path = params["input"]
@@ -70,7 +62,6 @@ def handler(params):
             "link_count": len(links),
         }
 
-        # 检测页面类型
         has_text = len(text.strip()) > 10
         has_full_page_img = False
         for img_info in images:
@@ -101,7 +92,6 @@ def handler(params):
         summary["totals"]["images"] += len(images)
         summary["totals"]["links"] += len(links)
 
-        # 收集字体
         for font_info in doc.get_page_fonts(i, full=True):
             name = font_info[3] if len(font_info) > 3 else f"xref-{font_info[0]}"
             if name not in all_fonts:

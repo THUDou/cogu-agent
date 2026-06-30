@@ -1,14 +1,3 @@
-"""Wikimedia Commons provider.
-
-Zero-config (no API key required). Strong on educational, scientific,
-geographic, and historical imagery; weaker on contemporary stock-style
-photography and people.
-
-Uses the MediaWiki API's ``generator=search`` mode to combine fulltext
-search with imageinfo/extmetadata in a single round trip.
-
-API docs: https://www.mediawiki.org/wiki/API:Search
-"""
 
 from __future__ import annotations
 
@@ -38,8 +27,6 @@ API_URL = "https://commons.wikimedia.org/w/api.php"
 DEFAULT_SEARCH_LIMIT = 20
 DEFAULT_TIMEOUT = 30
 
-# File extensions we are willing to embed in a deck. SVG/GIF/audio etc. are
-# excluded — Wikimedia returns these freely from a generic search.
 _ACCEPTED_EXTENSIONS = frozenset({".jpg", ".jpeg", ".png", ".webp", ".tiff", ".tif"})
 
 _TAG_RE = re.compile(r"<[^>]+>")
@@ -47,7 +34,6 @@ _WS_RE = re.compile(r"\s+")
 
 
 def _strip_html(value: str) -> str:
-    """Wikimedia's extmetadata fields contain inline HTML markup. Flatten it."""
     if not value:
         return ""
     text = html.unescape(str(value))
@@ -57,7 +43,6 @@ def _strip_html(value: str) -> str:
 
 
 def _ext_value(extmetadata: dict, key: str) -> str:
-    """Pull ``extmetadata[key].value`` and strip HTML."""
     entry = extmetadata.get(key) or {}
     if isinstance(entry, dict):
         return _strip_html(entry.get("value", ""))
@@ -65,13 +50,11 @@ def _ext_value(extmetadata: dict, key: str) -> str:
 
 
 def _accept_extension(title: str) -> bool:
-    """Drop non-image files (svg/gif/audio/video) by extension."""
     lower = (title or "").lower()
     return any(lower.endswith(ext) for ext in _ACCEPTED_EXTENSIONS)
 
 
 def _page_label(title: str) -> str:
-    """``File:Some_image.jpg`` → ``Some_image.jpg``."""
     clean = _strip_html(title)
     if clean.lower().startswith("file:"):
         return clean.split(":", 1)[1].strip()
@@ -79,7 +62,6 @@ def _page_label(title: str) -> str:
 
 
 def parse_results(payload: dict) -> list[AssetCandidate]:
-    """Translate a MediaWiki ``query`` payload into a list of candidates."""
     candidates: list[AssetCandidate] = []
     pages = ((payload.get("query") or {}).get("pages") or {})
 
@@ -130,14 +112,11 @@ def parse_results(payload: dict) -> list[AssetCandidate]:
 def _filter_by_orientation(
     candidates: list[AssetCandidate], orientation: str
 ) -> list[AssetCandidate]:
-    """Wikimedia API has no orientation parameter; filter client-side."""
     if not orientation or orientation == "any":
         return candidates
     matching = [
         c for c in candidates if normalize_orientation(c.width, c.height) == orientation
     ]
-    # Fall back to the unfiltered list if orientation pruning leaves nothing —
-    # better an off-orientation match than no image at all.
     return matching or candidates
 
 
@@ -148,13 +127,6 @@ def search(
     search_limit: int = DEFAULT_SEARCH_LIMIT,
     timeout: int = DEFAULT_TIMEOUT,
 ) -> list[AssetCandidate]:
-    """Search Wikimedia Commons for candidates.
-
-    Wikimedia returns license info via ``extmetadata`` rather than as a
-    request parameter, so the ``license_tier_filter`` does its work in
-    ``parse_results`` (and is honored implicitly because tier classification
-    happens there). Returning candidates from the first non-empty query.
-    """
     if license_tier_filter not in {"no-attribution-only", "all"}:
         raise ValueError(f"unsupported license_tier_filter: {license_tier_filter!r}")
 

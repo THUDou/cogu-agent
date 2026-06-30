@@ -146,10 +146,6 @@ var _woff2tottf = _interopRequireDefault(require("./ttf/woff2tottf"));
 var _index = _interopRequireDefault(require("../woff2/index"));
 var _buffer = _interopRequireDefault(require("./nodejs/buffer"));
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-/**
- * @file 主函数
- * @author mengke01(kekee000@gmail.com)
- */
 
 var toArrayBuffer = exports.toArrayBuffer = _buffer.default.toArrayBuffer;
 var toBuffer = exports.toBuffer = _buffer.default.toBuffer;

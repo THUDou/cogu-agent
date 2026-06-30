@@ -6,19 +6,7 @@ Object.defineProperty(exports, "__esModule", {
 exports.default = parse;
 var _readWindowsAllCodes = _interopRequireDefault(require("../../util/readWindowsAllCodes"));
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-/**
- * @file 解析cmap表
- * @author mengke01(kekee000@gmail.com)
- */
 
-/**
- * 读取cmap子表
- *
- * @param {Reader} reader Reader对象
- * @param {Object} ttf ttf对象
- * @param {Object} subTable 子表对象
- * @param {number} cmapOffset 子表的偏移
- */
 function readSubTable(reader, ttf, subTable, cmapOffset) {
   var i;
   var l;
@@ -27,10 +15,8 @@ function readSubTable(reader, ttf, subTable, cmapOffset) {
   var glyphCount;
   subTable.format = reader.readUint16(startOffset);
 
-  // 0～256 紧凑排列
   if (subTable.format === 0) {
     var format0 = subTable;
-    // 跳过format字段
     format0.length = reader.readUint16();
     format0.language = reader.readUint16();
     glyphIdArray = [];
@@ -40,7 +26,6 @@ function readSubTable(reader, ttf, subTable, cmapOffset) {
     format0.glyphIdArray = glyphIdArray;
   } else if (subTable.format === 2) {
     var format2 = subTable;
-    // 跳过format字段
     format2.length = reader.readUint16();
     format2.language = reader.readUint16();
     var subHeadKeys = [];
@@ -72,10 +57,8 @@ function readSubTable(reader, ttf, subTable, cmapOffset) {
     format2.subHeads = subHeads;
     format2.glyphs = glyphs;
   }
-  // 双字节编码，非紧凑排列
   else if (subTable.format === 4) {
     var format4 = subTable;
-    // 跳过format字段
     format4.length = reader.readUint16();
     format4.language = reader.readUint16();
     format4.segCountX2 = reader.readUint16();
@@ -84,7 +67,6 @@ function readSubTable(reader, ttf, subTable, cmapOffset) {
     format4.rangeShift = reader.readUint16();
     var segCount = format4.segCountX2 / 2;
 
-    // end code
     var endCode = [];
     for (i = 0; i < segCount; ++i) {
       endCode.push(reader.readUint16());
@@ -92,14 +74,12 @@ function readSubTable(reader, ttf, subTable, cmapOffset) {
     format4.endCode = endCode;
     format4.reservedPad = reader.readUint16();
 
-    // start code
     var startCode = [];
     for (i = 0; i < segCount; ++i) {
       startCode.push(reader.readUint16());
     }
     format4.startCode = startCode;
 
-    // idDelta
     var idDelta = [];
     for (i = 0; i < segCount; ++i) {
       idDelta.push(reader.readUint16());
@@ -107,20 +87,16 @@ function readSubTable(reader, ttf, subTable, cmapOffset) {
     format4.idDelta = idDelta;
     format4.idRangeOffsetOffset = reader.offset;
 
-    // idRangeOffset
     var idRangeOffset = [];
     for (i = 0; i < segCount; ++i) {
       idRangeOffset.push(reader.readUint16());
     }
     format4.idRangeOffset = idRangeOffset;
 
-    // 总长度 - glyphIdArray起始偏移/2
     glyphCount = (format4.length - (reader.offset - startOffset)) / 2;
 
-    // 记录array offset
     format4.glyphIdArrayOffset = reader.offset;
 
-    // glyphIdArray
     glyphIdArray = [];
     for (i = 0; i < glyphCount; ++i) {
       glyphIdArray.push(reader.readUint16());
@@ -133,17 +109,14 @@ function readSubTable(reader, ttf, subTable, cmapOffset) {
     format6.firstCode = reader.readUint16();
     format6.entryCount = reader.readUint16();
 
-    // 记录array offset
     format6.glyphIdArrayOffset = reader.offset;
     var glyphIndexArray = [];
     var entryCount = format6.entryCount;
-    // 读取字符分组
     for (i = 0; i < entryCount; ++i) {
       glyphIndexArray.push(reader.readUint16());
     }
     format6.glyphIdArray = glyphIndexArray;
   }
-  // defines segments for sparse representation in 4-byte character space
   else if (subTable.format === 12) {
     var format12 = subTable;
     format12.reserved = reader.readUint16();
@@ -152,7 +125,6 @@ function readSubTable(reader, ttf, subTable, cmapOffset) {
     format12.nGroups = reader.readUint32();
     var groups = [];
     var nGroups = format12.nGroups;
-    // 读取字符分组
     for (i = 0; i < nGroups; ++i) {
       var group = {};
       group.start = reader.readUint32();
@@ -162,7 +134,6 @@ function readSubTable(reader, ttf, subTable, cmapOffset) {
     }
     format12.groups = groups;
   }
-  // format 14
   else if (subTable.format === 14) {
     var format14 = subTable;
     format14.length = reader.readUint32();
@@ -206,7 +177,6 @@ function readSubTable(reader, ttf, subTable, cmapOffset) {
 }
 function parse(reader, ttf) {
   var tcmap = {};
-  // eslint-disable-next-line no-invalid-this
   var cmapOffset = this.offset;
   reader.seek(cmapOffset);
   tcmap.version = reader.readUint16(); // 编码方式
@@ -215,7 +185,6 @@ function parse(reader, ttf) {
   var subTables = tcmap.tables = []; // 名字表
   var offset = reader.offset;
 
-  // 使用offset读取，以便于查找
   for (var i = 0, l = numberSubtables; i < l; i++) {
     var subTable = {};
     subTable.platformID = reader.readUint16(offset);

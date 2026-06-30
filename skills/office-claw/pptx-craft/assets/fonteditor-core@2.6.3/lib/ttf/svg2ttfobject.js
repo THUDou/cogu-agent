@@ -24,12 +24,6 @@ function _arrayLikeToArray(arr, len) { if (len == null || len > arr.length) len 
  * @file svg格式转ttfObject格式
  * @author mengke01(kekee000@gmail.com)
  */
-/**
- * 加载xml字符串
- *
- * @param {string} xml xml字符串
- * @return {Document}
- */
 function loadXML(xml) {
   if (_DOMParser.default) {
     try {
@@ -43,14 +37,7 @@ function loadXML(xml) {
   _error.default.raise(10004);
 }
 
-/**
- * 对xml文本进行处理
- *
- * @param  {string} svg svg文本
- * @return {string} 处理后文本
- */
 function resolveSVG(svg) {
-  // 去除xmlns，防止xmlns导致svg解析错误
   svg = svg.replace(/\s+xmlns(?::[\w-]+)?=("|')[^"']*\1/g, ' ').replace(/<defs[>\s][\s\S]+?\/defs>/g, function (text) {
     if (text.indexOf('</font>') >= 0) {
       return text;
@@ -60,11 +47,6 @@ function resolveSVG(svg) {
   return svg;
 }
 
-/**
- * 获取空的ttf格式对象
- *
- * @return {Object} ttfObject对象
- */
 function getEmptyTTF() {
   var ttf = (0, _getEmptyttfObject.default)();
   ttf.head.unitsPerEm = 0; // 去除unitsPerEm以便于重新计算
@@ -72,11 +54,6 @@ function getEmptyTTF() {
   return ttf;
 }
 
-/**
- * 获取空的对象，用来作为ttf的容器
- *
- * @return {Object} ttfObject对象
- */
 function getEmptyObject() {
   return {
     'from': 'svg',
@@ -89,15 +66,6 @@ function getEmptyObject() {
   };
 }
 
-/**
- * 根据边界获取unitsPerEm
- *
- * @param {number} xMin x最小值
- * @param {number} xMax x最大值
- * @param {number} yMin y最小值
- * @param {number} yMax y最大值
- * @return {number}
- */
 function getUnitsPerEm(xMin, xMax, yMin, yMax) {
   var seed = Math.ceil(Math.min(yMax - yMin, xMax - xMin));
   if (!seed) {
@@ -107,7 +75,6 @@ function getUnitsPerEm(xMin, xMax, yMin, yMax) {
     return seed;
   }
 
-  // 获取合适的unitsPerEm
   var unitsPerEm = 128;
   while (unitsPerEm < 16384) {
     if (seed <= 1.2 * unitsPerEm) {
@@ -118,15 +85,7 @@ function getUnitsPerEm(xMin, xMax, yMin, yMax) {
   return 1024;
 }
 
-/**
- * 对ttfObject进行处理，去除小数
- *
- * @param {Object} ttf ttfObject
- * @return {Object} ttfObject
- */
 function resolve(ttf) {
-  // 如果是svg格式字体，则去小数
-  // 由于svg格式导入时候会出现字形重复问题，这里进行优化
   if (ttf.from === 'svgfont' && ttf.head.unitsPerEm > 128) {
     ttf.glyf.forEach(function (g) {
       if (g.contours) {
@@ -135,7 +94,6 @@ function resolve(ttf) {
       }
     });
   }
-  // 否则重新计算字形大小，缩放到1024的em
   else {
     var xMin = 16384;
     var xMax = -16384;
@@ -163,13 +121,6 @@ function resolve(ttf) {
   return ttf;
 }
 
-/**
- * 解析字体信息相关节点
- *
- * @param {Document} xmlDoc XML文档对象
- * @param {Object} ttf ttf对象
- * @return {Object} ttf对象
- */
 function parseFont(xmlDoc, ttf) {
   var metaNode = xmlDoc.getElementsByTagName('metadata')[0];
   var fontNode = xmlDoc.getElementsByTagName('font')[0];
@@ -178,7 +129,6 @@ function parseFont(xmlDoc, ttf) {
     ttf.metadata = _string.default.decodeHTML(metaNode.textContent.trim());
   }
 
-  // 解析font，如果有font节点说明是svg格式字体文件
   if (fontNode) {
     ttf.id = fontNode.getAttribute('id') || '';
     ttf.hhea.advanceWidthMax = +(fontNode.getAttribute('horiz-adv-x') || 0);
@@ -190,7 +140,6 @@ function parseFont(xmlDoc, ttf) {
     OS2.usWeightClass = +(fontFaceNode.getAttribute('font-weight') || 0);
     ttf.head.unitsPerEm = +(fontFaceNode.getAttribute('units-per-em') || 0);
 
-    // 解析panose, eg: 2 0 6 3 0 0 0 0 0 0
     var panose = (fontFaceNode.getAttribute('panose-1') || '').split(' ');
     ['bFamilyType', 'bSerifStyle', 'bWeight', 'bProportion', 'bContrast', 'bStrokeVariation', 'bArmStyle', 'bLetterform', 'bMidline', 'bXHeight'].forEach(function (name, i) {
       OS2[name] = +(panose[i] || 0);
@@ -199,7 +148,6 @@ function parseFont(xmlDoc, ttf) {
     ttf.hhea.descent = +(fontFaceNode.getAttribute('descent') || 0);
     OS2.bXHeight = +(fontFaceNode.getAttribute('x-height') || 0);
 
-    // 解析bounding
     var box = (fontFaceNode.getAttribute('bbox') || '').split(' ');
     ['xMin', 'yMin', 'xMax', 'yMax'].forEach(function (name, i) {
       ttf.head[name] = +(box[i] || '');
@@ -207,7 +155,6 @@ function parseFont(xmlDoc, ttf) {
     ttf.post.underlineThickness = +(fontFaceNode.getAttribute('underline-thickness') || 0);
     ttf.post.underlinePosition = +(fontFaceNode.getAttribute('underline-position') || 0);
 
-    // unicode range
     var unicodeRange = fontFaceNode.getAttribute('unicode-range');
     if (unicodeRange) {
       unicodeRange.replace(/u\+([0-9A-Z]+)(-[0-9A-Z]+)?/i, function ($0, a, b) {
@@ -219,17 +166,9 @@ function parseFont(xmlDoc, ttf) {
   return ttf;
 }
 
-/**
- * 解析字体信息相关节点
- *
- * @param {Document} xmlDoc XML文档对象
- * @param {Object} ttf ttf对象
- * @return {Object} ttf对象
- */
 function parseGlyf(xmlDoc, ttf) {
   var missingNode = xmlDoc.getElementsByTagName('missing-glyph')[0];
 
-  // 解析glyf
   var d;
   var unicode;
   if (missingNode) {
@@ -243,7 +182,6 @@ function parseGlyf(xmlDoc, ttf) {
       missing.contours = (0, _path2contours.default)(d);
     }
 
-    // 去除默认的空字形
     if (ttf.glyf[0] && ttf.glyf[0].name === '.notdef') {
       ttf.glyf.splice(0, 1);
     }
@@ -269,7 +207,6 @@ function parseGlyf(xmlDoc, ttf) {
           totalCodePoints += 1;
         }
         if (totalCodePoints === 1) {
-          // TTF can't handle ligatures
           glyf.unicode = nextUnicode;
           if (d = node.getAttribute('d')) {
             glyf.contours = (0, _path2contours.default)(d);
@@ -282,14 +219,7 @@ function parseGlyf(xmlDoc, ttf) {
   return ttf;
 }
 
-/**
- * 解析字体信息相关节点
- *
- * @param {Document} xmlDoc XML文档对象
- * @param {Object} ttf ttf对象
- */
 function parsePath(xmlDoc, ttf) {
-  // 单个path组成一个glfy字形
   var contours;
   var glyf;
   var node;
@@ -306,7 +236,6 @@ function parsePath(xmlDoc, ttf) {
     }
   }
 
-  // 其他svg指令组成一个glyf字形
   contours = (0, _svgnode2contours.default)(Array.prototype.slice.call(xmlDoc.getElementsByTagName('*')).filter(function (node) {
     return node.tagName !== 'path';
   }));
@@ -319,21 +248,12 @@ function parsePath(xmlDoc, ttf) {
   }
 }
 
-/**
- * 解析xml文档
- *
- * @param {Document} xmlDoc XML文档对象
- * @param {Object} options 导入选项
- *
- * @return {Object} 解析后对象
- */
 function parseXML(xmlDoc, options) {
   if (!xmlDoc.getElementsByTagName('svg').length) {
     _error.default.raise(10106);
   }
   var ttf;
 
-  // 如果是svg字体格式，则解析glyf，否则解析path
   if (xmlDoc.getElementsByTagName('font')[0]) {
     ttf = getEmptyTTF();
     parseFont(xmlDoc, ttf);
@@ -349,7 +269,6 @@ function parseXML(xmlDoc, options) {
     var glyf = ttf.glyf;
     var i;
     var l;
-    // 合并导入的字形为单个字形
     if (options.combinePath) {
       var combined = [];
       for (i = 0, l = glyf.length; i < l; i++) {
@@ -362,23 +281,13 @@ function parseXML(xmlDoc, options) {
       glyf.splice(1);
     }
 
-    // 对字形进行反转
     for (i = 0, l = glyf.length; i < l; i++) {
-      // 这里为了使ai等工具里面的字形方便导入，对svg做了反向处理
       glyf[i].contours = _pathsUtil.default.flip(glyf[i].contours);
     }
   }
   return ttf;
 }
 
-/**
- * svg格式转ttfObject格式
- *
- * @param {string|Document} svg svg格式
- * @param {Object=} options 导入选项
- * @param {boolean} options.combinePath 是否合并成单个字形，仅限于普通svg导入
- * @return {Object} ttfObject
- */
 function svg2ttfObject(svg) {
   var options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {
     combinePath: false

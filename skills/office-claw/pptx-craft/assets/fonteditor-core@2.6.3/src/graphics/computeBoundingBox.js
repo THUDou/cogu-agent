@@ -1,19 +1,5 @@
-/**
- * @file 计算曲线包围盒
- * @author mengke01(kekee000@gmail.com)
- *
- * modify from:
- * zrender
- * https://github.com/ecomfe/zrender/blob/master/src/tool/computeBoundingBox.js
- */
 import pathIterator from './pathIterator';
 
-/**
- * 计算包围盒
- *
- * @param {Array} points 点集
- * @return {Object} bounding box
- */
 function computeBoundingBox(points) {
 
     if (points.length === 0) {
@@ -53,19 +39,8 @@ function computeBoundingBox(points) {
     };
 }
 
-/**
- * 计算二阶贝塞尔曲线的包围盒
- * http://pissang.net/blog/?p=91
- *
- * @param {Object} p0 p0
- * @param {Object} p1 p1
- * @param {Object} p2 p2
- * @return {Object} bound对象
- */
 function computeQuadraticBezierBoundingBox(p0, p1, p2) {
-    // Find extremities, where derivative in x dim or y dim is zero
     let tmp = (p0.x + p2.x - 2 * p1.x);
-    // p1 is center of p0 and p2 in x dim
     let t1;
     if (tmp === 0) {
         t1 = 0.5;
@@ -75,7 +50,6 @@ function computeQuadraticBezierBoundingBox(p0, p1, p2) {
     }
 
     tmp = (p0.y + p2.y - 2 * p1.y);
-    // p1 is center of p0 and p2 in y dim
     let t2;
     if (tmp === 0) {
         t2 = 0.5;
@@ -112,13 +86,6 @@ function computeQuadraticBezierBoundingBox(p0, p1, p2) {
     );
 }
 
-/**
- * 计算曲线包围盒
- *
- * @private
- * @param {...Array} args 坐标点集, 支持多个path
- * @return {Object} {x, y, width, height}
- */
 function computePathBoundingBox(...args) {
 
     const points = [];
@@ -165,13 +132,6 @@ function computePathBoundingBox(...args) {
 }
 
 
-/**
- * 计算曲线点边界
- *
- * @private
- * @param {...Array} args path对象, 支持多个path
- * @return {Object} {x, y, width, height}
- */
 export function computePathBox(...args) {
     let points = [];
     if (args.length === 1) {

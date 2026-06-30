@@ -4,32 +4,15 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = readWindowsAllCodes;
-/* eslint-disable */
 
-/**
- * @file 读取windows支持的字符集
- * @author mengke01(kekee000@gmail.com)
- *
- * @see
- * https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6cmap.html
- */
 
-/**
- * 读取ttf中windows字符表的字符
- *
- * @param {Array} tables cmap表结构
- * @param {Object} ttf ttf对象
- * @return {Object} 字符字典索引，unicode => glyf index
- */
 function readWindowsAllCodes(tables, ttf) {
   var codes = {};
 
-  // 读取windows unicode 编码段
   var format0 = tables.find(function (item) {
     return item.format === 0;
   });
 
-  // 读取windows unicode 编码段
   var format12 = tables.find(function (item) {
     return item.platformID === 3 && item.encodingID === 10 && item.format === 12;
   });
@@ -50,7 +33,6 @@ function readWindowsAllCodes(tables, ttf) {
     }
   }
 
-  // format 14 support
   if (format14) {
     for (var _i = 0, _l = format14.groups.length; _i < _l; _i++) {
       var _format14$groups$_i = format14.groups[_i],
@@ -62,7 +44,6 @@ function readWindowsAllCodes(tables, ttf) {
     }
   }
 
-  // 读取format12表
   if (format12) {
     for (var _i2 = 0, _l2 = format12.nGroups; _i2 < _l2; _i2++) {
       var group = format12.groups[_i2];
@@ -74,19 +55,14 @@ function readWindowsAllCodes(tables, ttf) {
       }
     }
   }
-  // 读取format4表
   else if (format4) {
     var segCount = format4.segCountX2 / 2;
-    // graphIdArray 和idRangeOffset的偏移量
     var graphIdArrayIndexOffset = (format4.glyphIdArrayOffset - format4.idRangeOffsetOffset) / 2;
     for (var _i3 = 0; _i3 < segCount; ++_i3) {
-      // 读取单个字符
       for (var _start = format4.startCode[_i3], _end = format4.endCode[_i3]; _start <= _end; ++_start) {
-        // range offset = 0
         if (format4.idRangeOffset[_i3] === 0) {
           codes[_start] = (_start + format4.idDelta[_i3]) % 0x10000;
         }
-        // rely on to glyphIndexArray
         else {
           var index = _i3 + format4.idRangeOffset[_i3] / 2 + (_start - format4.startCode[_i3]) - graphIdArrayIndexOffset;
           var graphId = format4.glyphIdArray[index];
@@ -100,8 +76,6 @@ function readWindowsAllCodes(tables, ttf) {
     }
     delete codes[65535];
   }
-  // 读取format2表
-  // see https://github.com/fontforge/fontforge/blob/master/fontforge/parsettf.c
   else if (format2) {
     var subHeadKeys = format2.subHeadKeys;
     var subHeads = format2.subHeads;
@@ -109,7 +83,6 @@ function readWindowsAllCodes(tables, ttf) {
     var numGlyphs = ttf.maxp.numGlyphs;
     var _index = 0;
     for (var _i4 = 0; _i4 < 256; _i4++) {
-      // 单字节编码
       if (subHeadKeys[_i4] === 0) {
         if (_i4 >= format2.maxPos) {
           _index = 0;
@@ -119,7 +92,6 @@ function readWindowsAllCodes(tables, ttf) {
           _index = _index + subHeads[0].idDelta;
         }
 
-        // 单字节解码
         if (_index !== 0 && _index < numGlyphs) {
           codes[_i4] = _index;
         }

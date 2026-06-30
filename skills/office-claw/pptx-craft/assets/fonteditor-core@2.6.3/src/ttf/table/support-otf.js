@@ -1,7 +1,3 @@
-/**
- * @file otf字体格式支持的表
- * @author mengke01(kekee000@gmail.com)
- */
 
 import head from './head';
 import maxp from './maxp';

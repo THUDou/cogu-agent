@@ -1,7 +1,3 @@
-#!/usr/bin/env python3
-"""
-Regression tests for skill packaging security behavior.
-"""
 
 import sys
 import tempfile

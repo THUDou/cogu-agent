@@ -1,15 +1,4 @@
-/**
- * @file 对路径进行四舍五入
- * @author mengke01(kekee000@gmail.com)
- */
 
-/**
- * 对path坐标进行调整
- *
- * @param {Array} contour 轮廓点数组
- * @param {number} point 四舍五入的点数
- * @return {Object} contour 坐标点
- */
 export default function pathCeil(contour, point) {
     let p;
     for (let i = 0, l = contour.length; i < l; i++) {

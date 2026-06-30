@@ -4,38 +4,17 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = sizeof;
-/**
- * @file 获取cmap表的大小
- * @author mengke01(kekee000@gmail.com)
- */
 
-/**
- * 获取format4 delta值
- * Delta is saved in signed int in cmap format 4 subtable,
- * but can be in -0xFFFF..0 interval.
- * -0x10000..-0x7FFF values are stored with offset.
- *
- * @param {number} delta delta值
- * @return {number} delta值
- */
 function encodeDelta(delta) {
   return delta > 0x7FFF ? delta - 0x10000 : delta < -0x7FFF ? delta + 0x10000 : delta;
 }
 
-/**
- * 根据bound获取glyf segment
- *
- * @param {Array} glyfUnicodes glyf编码集合
- * @param {number} bound 编码范围
- * @return {Array} 码表
- */
 function getSegments(glyfUnicodes, bound) {
   var prevGlyph = null;
   var result = [];
   var segment = {};
   glyfUnicodes.forEach(function (glyph) {
     if (bound === undefined || glyph.unicode <= bound) {
-      // 初始化编码头部，这里unicode和graph id 都必须连续
       if (prevGlyph === null || glyph.unicode !== prevGlyph.unicode + 1 || glyph.id !== prevGlyph.id + 1) {
         if (prevGlyph !== null) {
           segment.end = prevGlyph.unicode;
@@ -55,22 +34,14 @@ function getSegments(glyfUnicodes, bound) {
     }
   });
 
-  // need to finish the last segment
   if (prevGlyph !== null) {
     segment.end = prevGlyph.unicode;
     result.push(segment);
   }
 
-  // 返回编码范围
   return result;
 }
 
-/**
- * 获取format0编码集合
- *
- * @param {Array} glyfUnicodes glyf编码集合
- * @return {Array} 码表
- */
 function getFormat0Segment(glyfUnicodes) {
   var unicodes = [];
   glyfUnicodes.forEach(function (u) {
@@ -79,19 +50,12 @@ function getFormat0Segment(glyfUnicodes) {
     }
   });
 
-  // 按编码排序
   unicodes.sort(function (a, b) {
     return a[0] - b[0];
   });
   return unicodes;
 }
 
-/**
- * 对cmap数据进行预处理，获取大小
- *
- * @param  {Object} ttf ttf对象
- * @return {number} 大小
- */
 function sizeof(ttf) {
   ttf.support.cmap = {};
   var glyfUnicodes = [];
@@ -119,7 +83,6 @@ function sizeof(ttf) {
   ttf.support.cmap.format0Segments = getFormat0Segment(glyfUnicodes);
   ttf.support.cmap.format0Size = 262;
 
-  // we need subtable 12 only if found unicodes with > 2 bytes.
   var hasGLyphsOver2Bytes = unicodes2Bytes.some(function (glyph) {
     return glyph.unicode > 0xFFFF;
   });

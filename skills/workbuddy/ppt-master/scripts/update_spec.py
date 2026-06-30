@@ -1,25 +1,3 @@
-#!/usr/bin/env python3
-"""Propagate a spec_lock.md value change to both the lock file and svg_output/*.svg.
-
-Examples:
-    python3 update_spec.py <project_path> primary=#0066AA
-    python3 update_spec.py <project_path> colors.text=#111111
-    python3 update_spec.py <project_path> typography.font_family='"PingFang SC", "Microsoft YaHei", sans-serif'
-
-v2 scope:
-- `colors.*` — HEX value replacement across svg_output/*.svg (case-insensitive match).
-- `typography.font_family` — replaces the inner value of every `font-family="..."`
-  / `font-family='...'` attribute in svg_output/*.svg. This is a global replace:
-  every text element becomes the new family, regardless of role.
-
-Bare `key=value` (no dot) is treated as `colors.key=value` for backward compat.
-
-Other keys (typography sizes, per-role `typography.*_family` overrides, icons,
-images, canvas, forbidden) are intentionally NOT supported — they involve
-attribute-scoped or semantic replacements whose risk/benefit does not warrant
-bulk propagation. For per-role family changes, edit spec_lock.md and re-author
-the affected pages.
-"""
 from __future__ import annotations
 
 import argparse
@@ -32,12 +10,6 @@ FONT_FAMILY_RE = re.compile(r"""(font-family\s*=\s*)(["'])(.*?)\2""")
 
 
 def parse_lock(lock_path: Path) -> dict[str, dict[str, str]]:
-    """Return {section_name: {key: value}} parsed from spec_lock.md.
-
-    The format is:
-        ## section
-        - key: value
-    """
     sections: dict[str, dict[str, str]] = {}
     current: str | None = None
     for raw in lock_path.read_text(encoding="utf-8").splitlines():
@@ -55,7 +27,6 @@ def parse_lock(lock_path: Path) -> dict[str, dict[str, str]]:
 
 
 def rewrite_lock(lock_path: Path, section: str, key: str, new_value: str) -> None:
-    """Rewrite the single `- key: old_value` line under `## section`."""
     lines = lock_path.read_text(encoding="utf-8").splitlines(keepends=True)
     in_section = False
     for i, raw in enumerate(lines):
@@ -76,22 +47,6 @@ def rewrite_lock(lock_path: Path, section: str, key: str, new_value: str) -> Non
 def replace_color_in_svgs(
     svg_dir: Path, old_hex: str, new_hex: str, *, dry_run: bool = False
 ) -> list[tuple[Path, int]]:
-    """Replace old_hex with new_hex in every .svg under svg_dir.
-
-    Returns a list of (path, replacement_count) for each changed file. The
-    count comes straight from re.subn so callers can spot anomalies —
-    e.g. one file with 50 hits when the rest have 4-8 is likely a stray
-    HEX literal inside <text> content rather than a styling attribute.
-
-    Two-phase: plan all file updates in memory, then write to disk. If any
-    exception is raised during planning (e.g. bad HEX, read failure), no files
-    are touched. This keeps svg_output/ and the caller's spec_lock.md write
-    in a consistent pair: either everything is applied or nothing is.
-
-    When dry_run=True, the planning phase still runs (so bad HEX still raises
-    and callers see which files would change), but no disk writes happen. The
-    returned list describes the would-change files.
-    """
     if not HEX_RE.match(old_hex) or not HEX_RE.match(new_hex):
         raise ValueError(f"not a HEX color: old={old_hex!r} new={new_hex!r}")
     pattern = re.compile(re.escape(old_hex), re.IGNORECASE)
@@ -110,22 +65,6 @@ def replace_color_in_svgs(
 def replace_font_family_in_svgs(
     svg_dir: Path, new_value: str, *, dry_run: bool = False
 ) -> list[tuple[Path, int]]:
-    """Replace the inner value of every `font-family="..."` / `font-family='...'`
-    attribute in every .svg under svg_dir.
-
-    Returns a list of (path, replacement_count) for each changed file.
-
-    Preserves the outer quote character when possible; if the new value contains
-    that same quote type, switches the outer quote to the other kind.
-
-    Two-phase: plan all file updates in memory, then write to disk. The inner
-    `_sub` may raise ValueError when the new value contains both quote kinds —
-    when that happens in the planning phase, no files have been touched yet.
-
-    When dry_run=True, the planning phase still runs (so the ValueError still
-    fires and callers see which files would change), but no disk writes happen.
-    The returned list describes the would-change files.
-    """
     def _sub(m: re.Match[str]) -> str:
         prefix, quote, _inner = m.group(1), m.group(2), m.group(3)
         outer = quote
@@ -209,10 +148,6 @@ def main() -> int:
         if old_value == new_value:
             print(f"no change: colors.{key} already = {new_value}")
             return 0
-        # SVGs first (may raise on bad HEX), then lock. Writing lock last
-        # avoids a state where lock claims new_value but SVGs still hold
-        # old_value — that state silences re-runs (parse_lock would then
-        # see new_value == old_value and exit early).
         changed = replace_color_in_svgs(svg_dir, old_value, new_value, dry_run=args.dry_run)
         if not args.dry_run:
             rewrite_lock(lock, "colors", key, new_value)

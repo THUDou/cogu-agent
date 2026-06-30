@@ -1,42 +1,4 @@
-# /// script
-# requires-python = ">=3.10"
-# dependencies = ["python-docx"]
-# ///
 
-"""
-从零生成标准排版的专利 .docx 文件。
-
-用法：
-    uv run scripts/create_docx.py content.json output.docx
-
-仅当用户没有提供任何模板/原文件时使用。
-如果用户有自己的模板，应使用 docx_edit.py replace 模式。
-
-content.json 格式：
-    {
-      "claims": [
-        {"number": 1, "text": "一种……方法，其特征在于……", "dependent": false},
-        {"number": 2, "text": "根据权利要求1所述的方法，……", "dependent": true}
-      ],
-      "specification": {
-        "field": "本发明涉及XX技术领域。",
-        "background": ["段落1", "段落2"],
-        "summary": ["段落1"],
-        "drawings": ["图1为……"],
-        "detailed": ["段落1", "段落2"]
-      },
-      "abstract": "摘要内容"
-    }
-
-可以只提供部分字段，比如只给 claims 就只生成权利要求书。
-
-内置排版规范：
-    纸张: A4 (21cm × 29.7cm)    页边距: 上下左右各 25mm
-    正文: 宋体 小四号 12pt       标题: 黑体 三号/四号
-    行距: 1.5 倍                首行缩进: 两字符
-    页眉: 文件类型名称 黑体五号  页脚: "第 X 页" 居中
-    分节: 权利要求书/说明书/摘要各自独立页眉和页码
-"""
 
 import argparse
 import json

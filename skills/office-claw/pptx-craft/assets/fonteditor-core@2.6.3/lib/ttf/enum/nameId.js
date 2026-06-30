@@ -4,10 +4,6 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
-/**
- * @file ttf `name`编码表
- * @author mengke01(kekee000@gmail.com)
- */
 
 var nameId = {
   0: 'copyright',
@@ -31,7 +27,6 @@ var nameId = {
   19: 'sampleText'
 };
 
-// 反转names
 var nameIdHash = {};
 Object.keys(nameId).forEach(function (id) {
   nameIdHash[nameId[id]] = +id;

@@ -1,42 +1,8 @@
-#!/usr/bin/env python3
-"""
-PPT Master - PPTX Animation Module
-
-Provides XML generation for slide transition effects and entrance animations.
-
-Supported transition effects:
-    - fade: Fade in/out
-    - push: Push
-    - wipe: Wipe
-    - split: Split
-    - strips: Strips (diagonal wipe)
-    - cover: Cover
-    - random: Random
-
-Supported entrance animations (per-element):
-    appear, fade, fly, cut, zoom, wipe, split, blinds, checkerboard,
-    dissolve, random_bars, peek, wheel, box, circle, diamond, plus,
-    strips, wedge, stretch, expand, swivel
-
-Animation modes used by the builder:
-    - single effect name (one of the above) — apply to every element
-    - 'mixed'  — first element fades, the rest cycle through a curated visible pool
-    - 'random' — pick a random effect from the same visible pool per element
-
-Dependencies: None (pure XML generation)
-
-Usage:
-    python3 scripts/pptx_animations.py --demo
-    python3 scripts/pptx_animations.py --list
-"""
 
 import argparse
 from typing import Optional, Dict, Any
 
 
-# ============================================================================
-# Transition effect definitions
-# ============================================================================
 
 TRANSITIONS: Dict[str, Dict[str, Any]] = {
     'fade': {
@@ -81,17 +47,6 @@ def create_transition_xml(
     duration: float = 0.5,
     advance_after: Optional[float] = None
 ) -> str:
-    """
-    Generate a slide transition effect XML fragment
-
-    Args:
-        effect: Transition effect name (fade/push/wipe/split/strips/cover/random)
-        duration: Transition duration (seconds, precise to milliseconds)
-        advance_after: Auto-advance interval (seconds); None means manual advance
-
-    Returns:
-        A <p:transition> element string insertable into slide XML
-    """
     if effect not in TRANSITIONS:
         effect = 'fade'
 
@@ -99,36 +54,24 @@ def create_transition_xml(
     element_name = trans_info['element']
     attrs = trans_info['attrs']
 
-    # Build dur attribute (milliseconds, precise control via Office 2010 extension)
     dur_ms = int(duration * 1000)
     dur_attr = f' p14:dur="{dur_ms}" xmlns:p14="http://schemas.microsoft.com/office/powerpoint/2010/main"'
 
-    # Build auto-advance attribute
     adv_attr = ''
     if advance_after is not None:
         adv_tm = int(advance_after * 1000)  # Convert to milliseconds
         adv_attr = f' advTm="{adv_tm}"'
 
-    # Build effect element attributes
     effect_attrs = ' '.join(f'{k}="{v}"' for k, v in attrs.items())
     if effect_attrs:
         effect_attrs = ' ' + effect_attrs
 
-    # Generate XML
     return f'''  <p:transition{dur_attr}{adv_attr}>
     <p:{element_name}{effect_attrs}/>
   </p:transition>'''
 
 
-# ============================================================================
-# Entrance animation definitions
-# ============================================================================
 
-#
-# 'filter' values must be valid PowerPoint <p:animEffect filter=".."/> strings
-# (see ECMA-376 §19.5.10 ST_TLAnimateEffectTransition / filter dictionary).
-# Effects with filter=None render as plain "Appear" (visibility flip only).
-#
 ANIMATIONS: Dict[str, Dict[str, Any]] = {
     'appear':   {'name': 'Appear',   'filter': None, 'presetID': 1, 'presetSubtype': 0},
     'fade':     {'name': 'Fade',     'filter': 'fade', 'presetID': 10, 'presetSubtype': 0},
@@ -154,8 +97,6 @@ ANIMATIONS: Dict[str, Dict[str, Any]] = {
     'swivel':   {'name': 'Swivel',   'filter': 'wheel(1)', 'presetID': 19, 'presetSubtype': 0},
 }
 
-# Pool used by 'mixed' / 'random' modes. Excludes 'appear' because it has no
-# visible motion; mixed handles the first title-like element as fade separately.
 _MIXED_POOL = [
     'blinds', 'checkerboard', 'dissolve', 'fly', 'cut',
     'random_bars', 'box', 'split', 'strips', 'wedge', 'wheel',
@@ -169,18 +110,6 @@ def create_timing_xml(
     delay: float = 0,
     shape_id: int = 2
 ) -> str:
-    """
-    Generate an entrance animation timing XML fragment
-
-    Args:
-        animation: Animation effect name (fade/fly/zoom/appear)
-        duration: Animation duration (seconds)
-        delay: Animation delay (seconds)
-        shape_id: Target shape ID (SVG image is typically 2)
-
-    Returns:
-        A <p:timing> element string insertable into slide XML
-    """
     if animation not in ANIMATIONS:
         animation = 'fade'
 
@@ -188,9 +117,7 @@ def create_timing_xml(
     dur_ms = int(duration * 1000)
     delay_ms = int(delay * 1000)
 
-    # Generate different effect XML depending on animation type
     if anim_info['filter'] is None:
-        # appear animation: only sets visibility
         effect_xml = f'''                            <p:set>
                               <p:cBhvr>
                                 <p:cTn id="5" dur="1" fill="hold">
@@ -202,7 +129,6 @@ def create_timing_xml(
                               <p:to><p:strVal val="visible"/></p:to>
                             </p:set>'''
     else:
-        # Other animations: set visibility + animation effect
         filter_name = anim_info['filter']
         pr_attr = ''
         if 'prLst' in anim_info:
@@ -266,12 +192,6 @@ def _build_effect_xml(
     set_id: int,
     eff_id: int,
 ) -> str:
-    """Inner effect block for one target.
-
-    Entrance effects are emitted as one animation pane row per target. Plain
-    Appear uses a visibility set; motion/filter effects use animEffect directly
-    to avoid duplicate rows for the same shape in PowerPoint.
-    """
     anim_info = ANIMATIONS.get(animation, ANIMATIONS['fade'])
     set_block = f'''<p:set>
   <p:cBhvr>
@@ -299,28 +219,6 @@ def create_sequence_timing_xml(
     duration: float = 0.3,
     trigger: str = 'after-previous',
 ) -> str:
-    """Generate a multi-target entrance sequence.
-
-    Args:
-        targets: list of (shape_id, delay_ms, animation_name) or
-            (shape_id, delay_ms, animation_name, duration_seconds) tuples, in
-            the order they should play. ``delay_ms`` is the gap before
-            this element starts, measured from when the previous element
-            triggers (only used in ``after-previous`` mode; ignored in
-            the other two).
-        duration: per-element entrance duration in seconds.
-        trigger: PowerPoint-standard Start mode for each element.
-            ``'after-previous'`` — first element fires on slide entry,
-            rest chain after the previous one with ``delay_ms`` spacing
-            (default).
-            ``'on-click'`` — one presenter click per element.
-            ``'with-previous'`` — all elements start together on slide
-            entry.
-
-    Returns:
-        A ``<p:timing>`` element string. Returns an empty string when
-        ``targets`` is empty.
-    """
     if not targets:
         return ''
 
@@ -340,10 +238,6 @@ def create_sequence_timing_xml(
         return int(shape_id), int(delay_ms), str(animation), item_dur_ms
 
     if trigger == 'on-click':
-        # Each element is an independent click-driven par directly under
-        # mainSeq. Three-level nesting per element: outer cTn holds for
-        # the click via delay="indefinite", innermost cTn owns the
-        # clickEffect + animation children. Each click advances the seq.
         steps = []
         for target in targets:
             shape_id, _delay_ms, animation, item_dur_ms = _target_parts(target)
@@ -381,14 +275,6 @@ def create_sequence_timing_xml(
 </p:par>''')
         all_steps = '\n              '.join(steps)
     else:
-        # with-previous / after-previous: wrap the entire cascade in ONE
-        # par so the sequence has a real trigger anchor under mainSeq.
-        #
-        # Native PowerPoint after-previous export uses two timing layers for
-        # each animation row: an outer wrapper owns the timeline offset, while
-        # the inner effect cTn stays nodeType="afterEffect" with delay="0".
-        # This keeps the animation pane editable as standard "After Previous"
-        # rows instead of exposing synthetic per-effect cumulative delays.
         outer_id = next_id
         next_id += 1
         inner_steps = []
@@ -448,9 +334,6 @@ def create_sequence_timing_xml(
 
         inner_xml = '\n                '.join(inner_steps)
         if trigger == 'with-previous':
-            # Match PowerPoint's native "Start: With Previous" export:
-            # one delay=0 wrapper begins on slide entry, and all withEffect
-            # rows live under that wrapper so they truly start in parallel.
             inner_xml = f'''<p:par>
                       <p:cTn id="{with_wrapper_id}" fill="hold">
                         <p:stCondLst><p:cond delay="0"/></p:stCondLst>
@@ -460,8 +343,6 @@ def create_sequence_timing_xml(
                       </p:cTn>
                     </p:par>'''
         if trigger in ('with-previous', 'after-previous'):
-            # Match PowerPoint's native slide-entry export: the wrapper waits
-            # for mainSeq to begin, then child nodes resolve their Start modes.
             outer_start_conditions = (
                 '<p:cond delay="indefinite"/>'
                 '<p:cond evt="onBegin" delay="0"><p:tn val="2"/></p:cond>'
@@ -505,14 +386,6 @@ def create_sequence_timing_xml(
 
 
 def pick_animation_effect(mode: str, idx: int, offset: int = 0) -> str:
-    """Resolve a per-element effect name from a mode string.
-
-    - A specific animation name returns itself (no variation).
-    - 'mixed': first element fixed to 'fade', rest cycle through ``_MIXED_POOL``
-      plus ``offset`` (so titles stay calm while content varies across slides).
-    - 'random': uniform random choice from ``_MIXED_POOL``.
-    - Unknown mode falls back to 'fade'.
-    """
     if mode in ANIMATIONS:
         return mode
     if mode == 'mixed':
@@ -526,17 +399,14 @@ def pick_animation_effect(mode: str, idx: int, offset: int = 0) -> str:
 
 
 def get_available_transitions() -> list:
-    """Get a list of all available transition effects"""
     return list(TRANSITIONS.keys())
 
 
 def get_available_animations() -> list:
-    """Get a list of all available entrance animations"""
     return list(ANIMATIONS.keys())
 
 
 def get_transition_help() -> str:
-    """Get help text for transition effects"""
     lines = ["Available transition effects:"]
     for key, info in TRANSITIONS.items():
         lines.append(f"  {key}: {info['name']}")
@@ -544,7 +414,6 @@ def get_transition_help() -> str:
 
 
 def get_animation_help() -> str:
-    """Get help text for entrance animations"""
     lines = ["Available entrance animations:"]
     for key, info in ANIMATIONS.items():
         lines.append(f"  {key}: {info['name']}")
@@ -552,7 +421,6 @@ def get_animation_help() -> str:
 
 
 def main() -> None:
-    """Run the CLI entry point."""
     parser = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,

@@ -10,10 +10,6 @@ var _string = _interopRequireDefault(require("../util/string"));
 var _platform = _interopRequireDefault(require("../enum/platform"));
 var _encoding = require("../enum/encoding");
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-/**
- * @file name表
- * @author mengke01(kekee000@gmail.com)
- */
 var _default = exports.default = _table.default.create('name', [], {
   read: function read(reader) {
     var offset = this.offset;
@@ -38,19 +34,16 @@ var _default = exports.default = _table.default.create('name', [], {
     }
     offset += nameTbl.stringOffset;
 
-    // 读取字符名字
     for (i = 0; i < count; ++i) {
       nameRecord = nameRecordTbl[i];
       nameRecord.name = reader.readBytes(offset + nameRecord.offset, nameRecord.length);
     }
     var names = {};
 
-    // mac 下的english name
     var platform = _platform.default.Macintosh;
     var encoding = _encoding.mac.Default;
     var language = 0;
 
-    // 如果有windows 下的 english，则用windows下的 name
     if (nameRecordTbl.some(function (record) {
       return record.platform === _platform.default.Microsoft && record.encoding === _encoding.win.UCS2 && record.language === 1033;
     })) {
@@ -72,7 +65,6 @@ var _default = exports.default = _table.default.create('name', [], {
     writer.writeUint16(nameRecordTbl.length); // count
     writer.writeUint16(6 + nameRecordTbl.length * 12); // string offset
 
-    // write name tbl header
     var offset = 0;
     nameRecordTbl.forEach(function (nameRecord) {
       writer.writeUint16(nameRecord.platform);
@@ -84,7 +76,6 @@ var _default = exports.default = _table.default.create('name', [], {
       offset += nameRecord.name.length;
     });
 
-    // write name tbl strings
     nameRecordTbl.forEach(function (nameRecord) {
       writer.writeBytes(nameRecord.name);
     });
@@ -94,16 +85,12 @@ var _default = exports.default = _table.default.create('name', [], {
     var names = ttf.name;
     var nameRecordTbl = [];
 
-    // 写入name信息
-    // 这里为了简化书写，仅支持英文编码字符，
-    // 中文编码字符将被转化成url encode
     var size = 6;
     Object.keys(names).forEach(function (name) {
       var id = _nameId.default.names[name];
       var utf8Bytes = _string.default.toUTF8Bytes(names[name]);
       var usc2Bytes = _string.default.toUCS2Bytes(names[name]);
       if (undefined !== id) {
-        // mac
         nameRecordTbl.push({
           nameId: id,
           platform: 1,
@@ -112,7 +99,6 @@ var _default = exports.default = _table.default.create('name', [], {
           name: utf8Bytes
         });
 
-        // windows
         nameRecordTbl.push({
           nameId: id,
           platform: 3,
@@ -121,7 +107,6 @@ var _default = exports.default = _table.default.create('name', [], {
           name: usc2Bytes
         });
 
-        // 子表大小
         size += 12 * 2 + utf8Bytes.length + usc2Bytes.length;
       }
     });
@@ -139,7 +124,6 @@ var _default = exports.default = _table.default.create('name', [], {
       return l;
     });
 
-    // 保存预处理信息
     ttf.support.name = nameRecordTbl;
     return size;
   }

@@ -1,8 +1,3 @@
-"""AgentStudio — 可视化工作流引擎
-
-灵感来源: openJiuwen agent-studio (前端可视化 + 后端DSL编译 + 低代码工作流)
-COGU 实现: Python 工作流 DSL + REST API + 可视化节点图
-"""
 from __future__ import annotations
 
 import json
@@ -236,7 +231,6 @@ class WorkflowState:
 
 
 class NodeExecutor(ABC):
-    """节点执行器基类"""
 
     @abstractmethod
     async def execute(self, node: WorkflowNode, state: WorkflowState) -> dict[str, Any]:
@@ -300,7 +294,6 @@ from abc import ABC, abstractmethod
 
 
 class WorkflowEngine:
-    """工作流执行引擎"""
 
     def __init__(self, llm_client: Any = None):
         self._executors: dict[NodeType, NodeExecutor] = {

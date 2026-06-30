@@ -1,4 +1,3 @@
-"""Core SVG -> DrawingML dispatcher, group handling, and main entry point."""
 
 from __future__ import annotations
 
@@ -22,18 +21,9 @@ from .drawingml_elements import (
 
 
 class SvgNativeConversionError(RuntimeError):
-    """Raised when an SVG cannot be faithfully converted to native DrawingML."""
 
 
-# ---------------------------------------------------------------------------
-# Animation anchor selection
-# ---------------------------------------------------------------------------
 
-# Tokens that mark a top-level <g id="..."> as page chrome rather than animated
-# content. When any token (after splitting id on '-' and '_') matches, the group
-# is excluded from the per-element entrance animation cascade so background,
-# header/footer, decorations etc. appear together with the slide instead of
-# requiring presenter clicks.
 _CHROME_ID_TOKENS = frozenset({
     'background', 'bg',
     'decoration', 'decorations', 'decor',
@@ -53,34 +43,13 @@ def _is_chrome_id(elem_id: str | None) -> bool:
     return any(t in _CHROME_ID_TOKENS for t in tokens if t)
 
 
-# ---------------------------------------------------------------------------
-# Transform & layout helpers
-# ---------------------------------------------------------------------------
 
 def parse_transform(transform_str: str) -> tuple[float, float, float, float, float]:
-    """Parse an SVG transform list into (dx, dy, sx, sy, angle_deg).
-
-    Composes every translate/scale/rotate/matrix operation rather than picking
-    the first occurrence — needed for idioms like
-    ``translate(cx cy) scale(-1 -1) translate(-cx -cy)`` which encode a flip
-    around a non-origin pivot.
-
-    When the composed matrix has no shear and no rotation, the decomposition is
-    exact (sx/sy may be negative to represent flips). When rotation is present
-    without shear, sx/sy default to the column magnitudes and angle_deg is the
-    rotation. Shear is not representable in this 5-tuple and silently
-    collapses; callers that need exact fidelity should consume the full matrix
-    via ``parse_transform_matrix``.
-    """
     if not transform_str:
         return 0.0, 0.0, 1.0, 1.0, 0.0
 
     a, b, c, d, e, f = parse_transform_matrix(transform_str)
 
-    # No shear / rotation: direct decomposition preserves the original signs of
-    # sx / sy. ctx_x / ctx_y use the simple ``val * sx + tx`` formula, so this
-    # is the only form that survives flip-around-pivot composites without
-    # collapsing them into a rotation that the consumer can't honour.
     if abs(b) < 1e-9 and abs(c) < 1e-9:
         sx = a if a != 0 else 1.0
         sy = d if d != 0 else 1.0
@@ -97,22 +66,12 @@ def parse_transform(transform_str: str) -> tuple[float, float, float, float, flo
     return e, f, sx, sy, angle_deg
 
 
-# ``rotate(angle)`` defaults to pivot (0,0); ``rotate(angle, cx, cy)`` rotates
-# around (cx, cy). DrawingML grpSp ``rot`` always rotates around the group's
-# own bounding-box centre — we need the SVG pivot so ``convert_g`` can
-# compensate for the offset between those two centres.
 _ROTATE_RE = re.compile(
     r'rotate\(\s*([-\d.eE+]+)(?:[\s,]+([-\d.eE+]+)[\s,]+([-\d.eE+]+))?\s*\)'
 )
 
 
 def _extract_rotate_pivot(transform_str: str) -> tuple[float, float] | None:
-    """Return the (cx, cy) pivot of a sole ``rotate(...)`` in *transform_str*.
-
-    Returns ``None`` when the transform list contains anything other than one
-    rotate (other ops compose with rotate in a way the pivot-compensation
-    fallback can't express). A bare ``rotate(angle)`` returns (0, 0).
-    """
     if not transform_str:
         return None
     ops = [op for op in re.findall(r'(\w+)\s*\(', transform_str) if op]
@@ -126,19 +85,8 @@ def _extract_rotate_pivot(transform_str: str) -> tuple[float, float] | None:
     return cx, cy
 
 
-# ---------------------------------------------------------------------------
-# Group handling
-# ---------------------------------------------------------------------------
 
 def convert_g(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
-    """Convert SVG <g> to DrawingML group shape <p:grpSp>.
-
-    Preserves group structure so elements can be selected and moved together
-    in PowerPoint. Single-child groups are flattened to avoid unnecessary nesting.
-
-    Uses identity coordinate mapping (chOff/chExt == off/ext) so child shapes
-    keep their absolute slide coordinates unchanged.
-    """
     transform = elem.get('transform', '')
     dx, dy, sx, sy, angle_deg = parse_transform(transform)
 
@@ -154,14 +102,6 @@ def convert_g(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
     matrix_supported = bool(transform) and visual_children and all(
         _supports_matrix_transform(child) for child in visual_children
     )
-    # A pure ``rotate(angle [cx cy])`` falls through to the fallback path
-    # below (children are rect/text/path/etc. that don't consume a full
-    # matrix). Decomposing the matrix produces translation components
-    # (e, f) that encode the pivot — handing those to children would
-    # *double-translate* them because grpSp's own ``rot`` already
-    # rotates around the group's bounding-box centre. Skip the child
-    # translation here and apply pivot-centre compensation to ``a:off``
-    # below instead.
     rotate_pivot = _extract_rotate_pivot(transform) if not matrix_supported else None
     if matrix_supported:
         child_ctx = ctx.child(
@@ -190,14 +130,9 @@ def convert_g(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
     if not child_results:
         return None
 
-    # Single-child non-semantic groups are flattened to reduce nesting. Top-level
-    # semantic groups are preserved so animations target the group, not its
-    # individual child shapes.
     if len(child_results) == 1 and not should_animate_group:
         return child_results[0]
 
-    # Multiple children, or a top-level semantic one-child group: wrap in
-    # <p:grpSp> so PowerPoint can animate the group as one unit.
     min_x = min_y = float('inf')
     max_x = max_y = float('-inf')
 
@@ -218,13 +153,6 @@ def convert_g(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
     group_w = max(int(max_x - min_x), 1)
     group_h = max(int(max_y - min_y), 1)
 
-    # ``rotate(angle, cx, cy)`` rotates around the SVG pivot, but DrawingML
-    # grpSp ``rot`` always rotates around the group's own bbox centre. When
-    # those centres differ, the visual position drifts by exactly the
-    # translation a rotate-around-pivot equals. Compensate by offsetting the
-    # outer <a:off> only; <a:chOff> stays on the unshifted bbox so children
-    # (still at their original SVG positions because rotate_pivot suppressed
-    # the dx/dy translation above) remain aligned inside the group.
     off_x = group_x
     off_y = group_y
     if rotate_pivot is not None and angle_deg:
@@ -236,8 +164,6 @@ def convert_g(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
         theta = math.radians(angle_deg)
         cos_t = math.cos(theta)
         sin_t = math.sin(theta)
-        # Where the bbox centre lands after rotating around the pivot, minus
-        # where DrawingML's grpSp rot would leave it (i.e. unchanged).
         delta_x = (bbox_cx - pivot_ex) * cos_t - (bbox_cy - pivot_ey) * sin_t + pivot_ex - bbox_cx
         delta_y = (bbox_cx - pivot_ex) * sin_t + (bbox_cy - pivot_ey) * cos_t + pivot_ey - bbox_cy
         off_x = int(round(group_x + delta_x))
@@ -246,11 +172,6 @@ def convert_g(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
     shapes_xml = '\n'.join(result.xml for result in child_results)
     group_id = ctx.next_id()
 
-    # Record top-level semantic groups (e.g. <g id="p02-title">) so the
-    # PPTX builder can emit per-element entrance timing. Only the outermost
-    # multi-child wrapper qualifies — flattened single-child groups have no
-    # <p:grpSp> to anchor a timing target on, and nested groups are
-    # ignored to keep the animation budget at ~per-section granularity.
     if should_animate_group:
         ctx.anim_targets.append((group_id, elem_id))
 
@@ -280,15 +201,11 @@ def convert_g(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
 </p:grpSp>''', bounds_emu=(group_x, group_y, group_x + group_w, group_y + group_h))
 
 
-# ---------------------------------------------------------------------------
-# Defs collection & element dispatch
-# ---------------------------------------------------------------------------
 
 _NON_VISUAL_TAGS = frozenset(('defs', 'title', 'desc', 'metadata', 'style'))
 
 
 def _supports_matrix_transform(elem: ET.Element) -> bool:
-    """Return whether this subtree can consume a full affine matrix directly."""
     tag = elem.tag.replace(f'{{{SVG_NS}}}', '')
     if tag == 'image':
         return True
@@ -328,14 +245,12 @@ _SUPPORTED_VISUAL_CHILD_TAGS = frozenset(('tspan',))
 
 
 def collect_defs(root: ET.Element) -> dict[str, ET.Element]:
-    """Collect all <defs> children into an {id: element} dictionary."""
     defs: dict[str, ET.Element] = {}
     for defs_elem in root.iter(f'{{{SVG_NS}}}defs'):
         for child in defs_elem:
             elem_id = child.get('id')
             if elem_id:
                 defs[elem_id] = child
-    # Also check for defs without namespace
     for defs_elem in root.iter('defs'):
         for child in defs_elem:
             elem_id = child.get('id')
@@ -345,7 +260,6 @@ def collect_defs(root: ET.Element) -> dict[str, ET.Element]:
 
 
 def convert_element(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
-    """Dispatch an SVG element to the appropriate converter."""
     tag = elem.tag.replace(f'{{{SVG_NS}}}', '')
 
     converter = _CONVERTERS.get(tag)
@@ -392,30 +306,9 @@ def convert_svg_to_slide_shapes(
     slide_num: int = 1,
     verbose: bool = False,
 ) -> tuple[str, dict[str, bytes], list[dict[str, str]], list]:
-    """Convert an SVG file to a complete DrawingML slide XML.
-
-    Args:
-        svg_path: Path to the SVG file.
-        slide_num: Slide number (for naming).
-        verbose: Print progress info.
-
-    Returns:
-        (slide_xml, media_files, rel_entries, anim_targets) where:
-        - slide_xml: Complete slide XML string.
-        - media_files: Dict of {filename: bytes} for media to write.
-        - rel_entries: List of relationship entries to add.
-        - anim_targets: List of (shape_id, svg_id) tuples for top-level
-          semantic groups, in z-order; consumed by the builder's optional
-          per-element entrance timing emitter.
-    """
     tree = ET.parse(str(svg_path))
     root = tree.getroot()
 
-    # Expand <use data-icon="..."/> placeholders in-memory so this dispatcher
-    # can consume svg_output/ directly. Standard renderers and this converter
-    # both ignore data-icon, so without expansion icons would silently drop.
-    # The on-disk finalize_svg pipeline does the same expansion for svg_final/;
-    # running this here makes the two pipelines behaviourally aligned.
     icons_dir = Path(__file__).resolve().parent.parent.parent / 'templates' / 'icons'
     if icons_dir.exists():
         from .use_expander import expand_use_data_icons
@@ -423,12 +316,6 @@ def convert_svg_to_slide_shapes(
         if verbose and expanded:
             print(f'  Expanded {expanded} <use data-icon="..."/> placeholder(s)')
 
-    # Flatten positional <tspan> (those with x/y/non-zero dy) into independent
-    # <text> elements. DrawingML runs cannot reposition mid-paragraph, so a
-    # dy-stacked block of tspans would otherwise collapse onto one baseline,
-    # and an x-anchored tspan would render in the wrong column. finalize_svg
-    # does the same flattening on disk; doing it here keeps native pptx output
-    # correct when reading raw svg_output/.
     from .tspan_flattener import flatten_positional_tspans
     if flatten_positional_tspans(tree) and verbose:
         print('  Flattened positional <tspan> into independent <text>')
@@ -447,8 +334,6 @@ def convert_svg_to_slide_shapes(
     shapes: list[str] = []
     converted = 0
     skipped = 0
-    # Per-element shape ids of every top-level child, used as an animation
-    # fallback when no <g id="..."> groups are present at the root.
     fallback_targets: list = []
 
     for child in root:
@@ -466,12 +351,6 @@ def convert_svg_to_slide_shapes(
             if tag not in _NON_VISUAL_TAGS:
                 skipped += 1
 
-    # Animation target fallback. Semantic <g id="..."> groups are the
-    # preferred anchors (set inside convert_g). When the SVG has none
-    # at the root we fall back to top-level primitives, but only when
-    # the count is reasonable. Presenter-click animation should reveal
-    # semantic blocks, not atomized drawing primitives, so fallback is
-    # intentionally capped at a low count.
     _ANIM_FALLBACK_CAP = 8
     if not ctx.anim_targets and 0 < len(fallback_targets) <= _ANIM_FALLBACK_CAP:
         ctx.anim_targets = fallback_targets

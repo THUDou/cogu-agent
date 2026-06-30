@@ -1,8 +1,4 @@
 #!/usr/bin/env node
-/**
- * VLM (Visual Language Model) 分析器
- * 调用视觉大模型分析 PPT 幻灯片图片
- */
 
 const fs = require('fs');
 const path = require('path');
@@ -10,9 +6,6 @@ const https = require('https');
 const http = require('http');
 const { URL } = require('url');
 
-/**
- * 加载 VLM 配置文件
- */
 function replaceEnvPlaceholders(configContent) {
   return configContent.replace(/\$\{(\w+)\}/g, (match, envVar) => {
     return process.env[envVar] || '';
@@ -53,9 +46,6 @@ function loadConfig(configPath) {
   return config;
 }
 
-/**
- * 将图片转换为 base64
- */
 function imageToBase64(imagePath) {
   const imageBuffer = fs.readFileSync(imagePath);
   return imageBuffer.toString('base64');
@@ -68,9 +58,6 @@ function imageMediaType(imagePath) {
   return 'image/png';
 }
 
-/**
- * Anthropic API 调用
- */
 async function callAnthropicAPI(config, images, prompt) {
   const apiConfig = config.api.anthropic;
 
@@ -141,13 +128,9 @@ async function callAnthropicAPI(config, images, prompt) {
   });
 }
 
-/**
- * OpenAI API 调用
- */
 async function callOpenAIAPI(config, images, prompt) {
   const apiConfig = config.api.openai;
 
-  // 构建消息内容
   const messages = [
     {
       role: 'system',
@@ -209,15 +192,10 @@ async function callOpenAIAPI(config, images, prompt) {
   });
 }
 
-/**
- * 解析 VLM 返回的 JSON 分析结果
- */
 function parseAnalysisResult(text) {
   try {
-    // 尝试直接解析
     return JSON.parse(text);
   } catch (e) {
-    // 尝试提取 JSON 块
     const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/) ||
                      text.match(/\{[\s\S]*\}/);
 
@@ -225,7 +203,6 @@ function parseAnalysisResult(text) {
       try {
         return JSON.parse(jsonMatch[1] || jsonMatch[0]);
       } catch (e2) {
-        // 返回原始文本
         return {
           raw_text: text,
           error: '无法解析 JSON'
@@ -251,9 +228,6 @@ function firstArray(...values) {
   return [];
 }
 
-/**
- * 将新旧 VLM 返回统一为增强结构，同时保留旧字段以兼容现有聚合逻辑。
- */
 function normalizeAnalysisResult(result) {
   const data = isPlainObject(result) ? result : {};
   const enhanced = isPlainObject(data.design_analysis) ? data.design_analysis : {};
@@ -271,9 +245,6 @@ function normalizeAnalysisResult(result) {
   };
 }
 
-/**
- * VLM 分析主函数
- */
 async function analyzeWithVLM(imagePaths, configPath) {
   const config = loadConfig(configPath);
 
@@ -282,7 +253,6 @@ async function analyzeWithVLM(imagePaths, configPath) {
     return null;
   }
 
-  // 检查 API 密钥
   const provider = config.provider;
   const apiConfig = config.api?.[provider];
 
@@ -290,7 +260,6 @@ async function analyzeWithVLM(imagePaths, configPath) {
     throw new Error(`${provider} API 密钥未配置，请检查 vlm-config.json`);
   }
 
-  // 准备图片
   const maxImages = config.analysis?.maxImagesPerRequest || 5;
   const imagesToAnalyze = imagePaths.slice(0, maxImages);
 
@@ -302,11 +271,9 @@ async function analyzeWithVLM(imagePaths, configPath) {
     mediaType: imageMediaType(imgPath)
   }));
 
-  // 生成 prompt
   const analysisPrompt = (config.prompts?.analysisPrompt || '')
     .replace('{count}', String(images.length));
 
-  // 调用 API
   let resultText;
   if (provider === 'anthropic') {
     resultText = await callAnthropicAPI(config, images, analysisPrompt);
@@ -316,7 +283,6 @@ async function analyzeWithVLM(imagePaths, configPath) {
     throw new Error(`不支持的 provider: ${provider}`);
   }
 
-  // 解析结果
   const analysisResult = normalizeAnalysisResult(parseAnalysisResult(resultText));
 
   return {
@@ -328,13 +294,9 @@ async function analyzeWithVLM(imagePaths, configPath) {
   };
 }
 
-/**
- * 批量分析多个图片集
- */
 async function batchAnalyze(imageDir, configPath, outputPath) {
   const config = loadConfig(configPath);
 
-  // 查找所有图片
   const imageFiles = fs.readdirSync(imageDir)
     .filter(f => /\.(png|jpg|jpeg)$/i.test(f))
     .sort()
@@ -349,7 +311,6 @@ async function batchAnalyze(imageDir, configPath, outputPath) {
   const concurrency = config.analysis?.concurrency || 3;
   const results = [];
 
-  // 建批
   const batches = [];
   for (let i = 0; i < imageFiles.length; i += maxImages) {
     batches.push(imageFiles.slice(i, i + maxImages));
@@ -357,7 +318,6 @@ async function batchAnalyze(imageDir, configPath, outputPath) {
 
   console.log(`共 ${batches.length} 个批次，并发数: ${concurrency}`);
 
-  // 分组并发执行
   for (let i = 0; i < batches.length; i += concurrency) {
     const chunk = batches.slice(i, i + concurrency);
     console.log(`\n并发执行批次 ${i + 1} - ${i + chunk.length} / ${batches.length}`);
@@ -380,14 +340,12 @@ async function batchAnalyze(imageDir, configPath, outputPath) {
     }
   }
 
-  // 合并结果
   const mergedResult = {
     totalImages: imageFiles.length,
     batches: results.length,
     analyses: results.map(r => r.analysis)
   };
 
-  // 保存结果
   if (outputPath) {
     fs.writeFileSync(outputPath, JSON.stringify(mergedResult, null, 2), 'utf-8');
     console.log(`\n分析结果已保存到: ${outputPath}`);
@@ -396,9 +354,6 @@ async function batchAnalyze(imageDir, configPath, outputPath) {
   return mergedResult;
 }
 
-/**
- * 测试 API 连接
- */
 async function testConnection(configPath) {
   const config = loadConfig(configPath);
 
@@ -419,7 +374,6 @@ async function testConnection(configPath) {
     return false;
   }
 
-  // 测试调用（使用空图片列表，只测试连接）
   try {
     const testPrompt = '请回复 "API 连接测试成功"';
     if (provider === 'anthropic') {
@@ -435,7 +389,6 @@ async function testConnection(configPath) {
   }
 }
 
-// CLI 入口
 async function main() {
   const args = process.argv.slice(2);
 
@@ -455,7 +408,6 @@ async function main() {
     process.exit(0);
   }
 
-  // 解析选项
   let configPath = path.join(__dirname, '..', 'vlm-config.json');
   let outputPath = null;
   let imageDir = null;
@@ -494,7 +446,6 @@ async function main() {
   }
 }
 
-// 导出
 module.exports = {
   loadConfig,
   parseAnalysisResult,

@@ -1,29 +1,3 @@
-"""DrawingML <p:pic> -> SVG <image> conversion.
-
-Reverse of svg_to_pptx convert_image.
-
-DrawingML structure:
-    <p:pic>
-        <p:blipFill>
-            <a:blip r:embed="rIdN"/>
-            <a:srcRect l/t/r/b="1/100000"/>      (optional crop)
-            <a:stretch><a:fillRect/></a:stretch> (default: fill the shape)
-        </p:blipFill>
-        <p:spPr>
-            <a:xfrm/>
-            <a:prstGeom prst="rect"/>            (usually rect; can be other)
-        </p:spPr>
-    </p:pic>
-
-Strategy:
-- Default (no srcRect, plain stretch) -> a single <image> filling the box,
-  preserveAspectRatio="none".
-- With srcRect -> wrap the <image> in a nested <svg viewBox> in the unit
-  rectangle [0,1] x [0,1], so cropping is expressed as the visible viewBox
-  region. preserveAspectRatio="none" both inside and outside.
-- Image bytes are written through the result; the slide assembler decides
-  the href format (external file vs base64).
-"""
 
 from __future__ import annotations
 
@@ -50,16 +24,12 @@ from .ooxml_loader import OoxmlPackage, PartRef
 
 @dataclass
 class PictureResult:
-    """Resolved picture: SVG element string + extracted media bytes."""
 
     svg: str = ""
-    # Map of {filename: bytes} that the assembler should emit alongside
-    # the SVG. Filename is the basename inside the package's media dir.
     media: dict[str, bytes] = field(default_factory=dict)
 
 
 class MediaResolutionError(RuntimeError):
-    """Raised when a PPTX media relationship cannot be reproduced as SVG."""
 
 
 def convert_blip_fill(
@@ -72,12 +42,6 @@ def convert_blip_fill(
     embed_inline: bool = False,
     asset_name_map: dict[str, str] | None = None,
 ) -> PictureResult:
-    """Convert an <a:blipFill> element to SVG <image>.
-
-    Handles image fill for both:
-    - <p:pic><p:blipFill> (standard picture elements)
-    - <p:sp><p:spPr><a:blipFill> (shape with image fill, e.g. Canva exports)
-    """
     blip = blip_fill_elem.find("a:blip", NS)
     if blip is None:
         return PictureResult()
@@ -95,7 +59,6 @@ def convert_blip_fill(
     if not target:
         raise MediaResolutionError(f"Image relationship {rid} cannot be resolved in {slide_part.path}")
 
-    # Read the bytes
     img_bytes = pkg.read_media(target)
     if img_bytes is None:
         raise MediaResolutionError(f"Embedded image part is missing: {target}")
@@ -105,25 +68,20 @@ def convert_blip_fill(
     filename, img_bytes = _apply_blip_image_effects(filename, img_bytes, blip)
     href = _build_href(filename, img_bytes, media_subdir, embed_inline)
 
-    # srcRect: l/t/r/b in 1/100000ths (so 50000 = 50%).
     src_rect = blip_fill_elem.find("a:srcRect", NS)
     crop = _parse_src_rect(src_rect)
 
-    # stretch / tile: default stretch+fillRect means "fill, ignore aspect ratio".
     has_stretch = blip_fill_elem.find("a:stretch") is not None
     if not has_stretch:
-        # tile mode is rare; for v1 fall back to plain image.
         pass
 
     if crop is None:
-        # Plain unclipped image
         svg = (
             f'<image href="{href}" x="{fmt_num(xfrm.x)}" y="{fmt_num(xfrm.y)}" '
             f'width="{fmt_num(xfrm.w)}" height="{fmt_num(xfrm.h)}" '
             f'preserveAspectRatio="none"/>'
         )
     else:
-        # Crop expressed as a unit-rectangle viewBox on a nested <svg>.
         vb_l, vb_t, vb_w, vb_h = crop
         svg = (
             f'<svg x="{fmt_num(xfrm.x)}" y="{fmt_num(xfrm.y)}" '
@@ -152,7 +110,6 @@ def convert_picture(
     embed_inline: bool = False,
     asset_name_map: dict[str, str] | None = None,
 ) -> PictureResult:
-    """Translate <p:pic> to SVG <image> (or nested <svg>+<image> for cropping)."""
     blip_fill = pic_elem.find("p:blipFill", NS)
     if blip_fill is None:
         return PictureResult()
@@ -165,20 +122,11 @@ def convert_picture(
     )
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 _OFFICE_VECTOR_EXTS = {".emf", ".wmf"}
 
 
 def _normalize_office_media(filename: str, img_bytes: bytes) -> tuple[str, bytes]:
-    """Convert Office-only vector image formats to browser-renderable PNG.
-
-    PPTX can contain EMF/WMF assets that PowerPoint renders natively but SVG
-    viewers generally do not. Keep the original asset in the manifest layer;
-    the SVG view uses a PNG preview when the local system can make one.
-    """
     suffix = Path(filename).suffix.lower()
     if suffix not in _OFFICE_VECTOR_EXTS:
         return filename, img_bytes
@@ -214,7 +162,6 @@ def _convert_office_vector_to_png(filename: str, img_bytes: bytes) -> bytes | No
         return dst.read_bytes()
 
 def _parse_src_rect(elem: ET.Element | None) -> tuple[float, float, float, float] | None:
-    """Convert <a:srcRect l t r b="1/100000"/> to (x, y, w, h) in unit space."""
     if elem is None:
         return None
     if not (elem.attrib.keys() & {"l", "t", "r", "b"}):
@@ -223,7 +170,6 @@ def _parse_src_rect(elem: ET.Element | None) -> tuple[float, float, float, float
     t = _pct_attr(elem, "t")
     r = _pct_attr(elem, "r")
     b = _pct_attr(elem, "b")
-    # All zero -> equivalent to no crop
     if l == 0 and t == 0 and r == 0 and b == 0:
         return None
     vb_x = l
@@ -240,11 +186,6 @@ def _apply_blip_image_effects(
     img_bytes: bytes,
     blip: ET.Element,
 ) -> tuple[str, bytes]:
-    """Bake supported DrawingML blip effects into extracted image bytes.
-
-    Keeping the SVG as a plain <image> avoids introducing CSS filters that the
-    downstream native PPTX converter cannot reliably map back to DrawingML.
-    """
     lum = blip.find("a:lum", NS)
     if lum is None:
         return filename, img_bytes
@@ -321,12 +262,6 @@ def _pct_attr(elem: ET.Element, name: str) -> float:
 
 
 def _build_href(filename: str, img_bytes: bytes, subdir: str, embed: bool) -> str:
-    """Build an <image href=...> value (relative path or data URI).
-
-    The path is relative to the SVG file's location. The slide assembler writes
-    SVGs to <output>/svg/, so media files in <output>/<subdir>/ resolve via
-    a leading "../".
-    """
     if embed:
         mime = (
             mimetypes.guess_type(filename)[0]
@@ -340,7 +275,6 @@ def _build_href(filename: str, img_bytes: bytes, subdir: str, embed: bool) -> st
 
 
 def _sniff_mime(data: bytes) -> str | None:
-    """Best-effort MIME sniffing for embedded images."""
     if data.startswith(b"\x89PNG\r\n\x1a\n"):
         return "image/png"
     if data.startswith(b"\xff\xd8\xff"):

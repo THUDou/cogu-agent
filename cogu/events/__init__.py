@@ -1,7 +1,3 @@
-"""COGU Events — 事件驱动基础设施
-基于源码: AgentScope 2.0 Event System + Multi-Tenant
-增强: Topic订阅 + 优先级队列 + 事件追踪 + 过滤器
-"""
 from __future__ import annotations
 
 import asyncio

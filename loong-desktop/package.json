@@ -1,6 +1,6 @@
 {
   "name": "cogu-loong-desktop",
-  "version": "1.4.0",
+  "version": "2.0.0",
   "description": "COGU Loong - 国产原创全栈AI Agent桌面客户端",
   "main": "dist/main/main.js",
   "scripts": {

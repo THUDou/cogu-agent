@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-"""Preview the first N rows of an Excel sheet for header inspection."""
 
 import argparse
 import json

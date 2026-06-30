@@ -1,14 +1,7 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-PDF 页面类型检测原子工具。
-返回每页的类型 + 详细特征，让 AI 可以看到类型判断结果并决定编辑策略。
-"""
 
 import os
 import sys
 
-# smart_edit 辅助函数从 lite 包导入
 from pdfkit.commands.smart_edit import _detect_page_types
 
 COMMAND = "detect_type"
@@ -21,7 +14,6 @@ PARAMS = [
 
 
 def _get_edit_recommendation(page_type):
-    """根据页面类型给出编辑策略建议。"""
     recommendations = {
         "text": "文字层 PDF，推荐使用 pdf_smart_edit 或 pdf_edit_text（search_for + redact 方案）",
         "scanned": "纯扫描件，推荐使用 pdf_smart_edit（OCR + 图片处理方案）",
@@ -34,14 +26,6 @@ def _get_edit_recommendation(page_type):
 
 
 def handler(params):
-    """检测 PDF 每页的类型和详细特征。
-
-    Args:
-        params: {
-            "input": PDF 文件路径,
-            "pages": 目标页码列表（可选，默认全部页）,
-        }
-    """
     import fitz
 
     input_path = params["input"]
@@ -50,7 +34,6 @@ def handler(params):
     doc = fitz.open(input_path)
     total_pages = len(doc)
 
-    # 使用改进后的类型检测
     page_types = _detect_page_types(doc)
 
     if pages is None:
@@ -64,7 +47,6 @@ def handler(params):
         text = page.get_text("text").strip()
         images = page.get_images()
 
-        # 计算图片覆盖率
         max_coverage = 0.0
         for img_info in images:
             xref = img_info[0]

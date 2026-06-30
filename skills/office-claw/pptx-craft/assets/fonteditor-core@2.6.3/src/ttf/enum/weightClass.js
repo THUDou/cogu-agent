@@ -1,7 +1,3 @@
-/**
- * @file 字体粗细度量
- * @author mengke01(kekee000@gmail.com)
- */
 
 export default {
     100: 'Ultra-light',

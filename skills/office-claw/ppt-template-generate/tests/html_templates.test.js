@@ -4,7 +4,6 @@ const os = require('os');
 const path = require('path');
 const { generateHtmlTemplates, validateTemplatePackage } = require('../scripts/generate-html-templates.js');
 
-// ── 基础 spec，有背景图 + 一个 style-asset + decoration-map ─────────────────
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ppt-base-'));
 fs.mkdirSync(path.join(root, 'images', 'bg_images'), { recursive: true });
 fs.mkdirSync(path.join(root, 'images', 'assets'), { recursive: true });
@@ -12,7 +11,6 @@ fs.writeFileSync(path.join(root, 'images', 'bg_images', 'bg.png'), 'same-backgro
 fs.writeFileSync(path.join(root, 'images', 'assets', 'bg-copy.png'), 'same-background-bytes');
 fs.writeFileSync(path.join(root, 'images', 'assets', 'cloud.png'), 'cloud-bytes');
 
-// 写 decoration-map 到 temp/
 const decorTempDir = path.join(root, 'temp');
 fs.mkdirSync(decorTempDir, { recursive: true });
 fs.writeFileSync(path.join(decorTempDir, 'decoration-map.json'), JSON.stringify({
@@ -74,7 +72,6 @@ const spec = {
 
 const manifest = generateHtmlTemplates(spec, root);
 
-// ── v2 manifest 结构 ───────────────────────────────────────────────────────
 assert.strictEqual(manifest.schema_version, 'ppt-template-manifest-v2', 'v2 schema_version');
 assert.strictEqual(manifest.mode, 'base', 'mode: base');
 assert.ok(Array.isArray(manifest.bases), 'bases is array');
@@ -83,7 +80,6 @@ assert.ok(manifest.bases.some(b => b.page_role === 'section'), 'has section base
 assert.ok(manifest.bases.some(b => b.page_role === 'content'), 'has content base');
 assert.ok(manifest.bases.some(b => b.page_role === 'closing'), 'has closing base');
 
-// ── 生成 base HTML 文件，不再生成 v1 骨架 ─────────────────────────────────
 assert.ok(fs.existsSync(path.join(root, 'html-templates', 'cover-base.html')), 'cover-base.html exists');
 assert.ok(fs.existsSync(path.join(root, 'html-templates', 'section-base.html')), 'section-base.html exists');
 assert.ok(fs.existsSync(path.join(root, 'html-templates', 'content-base.html')), 'content-base.html exists');
@@ -92,7 +88,6 @@ assert.ok(!fs.existsSync(path.join(root, 'html-templates', 'layout-01.html')), '
 assert.ok(!fs.existsSync(path.join(root, 'html-templates', 'cover.html')), 'no old cover.html');
 assert.ok(!fs.existsSync(path.join(root, 'html-templates', 'content-default.html')), 'no content-default.html');
 
-// ── cover-base.html 内容验证 ───────────────────────────────────────────────
 const coverHtml = fs.readFileSync(path.join(root, 'html-templates', 'cover-base.html'), 'utf-8');
 assert.ok(coverHtml.includes('content="cover-base"'), 'cover-base meta template-id');
 assert.ok(coverHtml.includes('data-page-role="cover"'), 'cover-base data-page-role');
@@ -103,15 +98,12 @@ assert.ok(!coverHtml.includes('data-slot='), 'no data-slot in cover-base');
 assert.ok(coverHtml.includes('../images/bg_images/bg.png'), 'cover-base has background image');
 assert.ok(coverHtml.includes('template-bg-image'), 'cover-base has template-bg-image class');
 
-// CSS 变量含 px ──────────────────────────────────────────────────────────────
 assert.ok(coverHtml.includes('--font-size-title-px: 59px'), 'title px (44pt→59px)');
 assert.ok(coverHtml.includes('--font-size-body-px: 37px'), 'body px (28pt→37px)');
 assert.ok(coverHtml.includes('--font-size-title: 44pt'), 'title pt retained');
 
-// decoration-map 注入 cover ──────────────────────────────────────────────────
 assert.ok(coverHtml.includes('decor-wave'), 'cover has decor-wave from decoration-map');
 
-// ── content-base.html：style-asset 注入（有 placement + page_roles: content）
 const contentHtml = fs.readFileSync(path.join(root, 'html-templates', 'content-base.html'), 'utf-8');
 assert.ok(!contentHtml.includes('../images/assets/bg-copy.png'), 'duplicate background asset NOT injected in content-base');
 assert.ok(!contentHtml.includes('style-asset-bg-copy'), 'duplicate background class NOT in content-base');
@@ -120,14 +112,11 @@ assert.ok(contentHtml.includes('style-asset-cloud'), 'style-asset class in conte
 assert.ok(contentHtml.includes('left:80%'), 'placement left in content-base');
 assert.ok(contentHtml.includes('top:8%'), 'placement top in content-base');
 
-// style-asset 不应出现在 cover（page_roles 仅 content）──────────────────────
 assert.ok(!coverHtml.includes('../images/assets/cloud.png'), 'cloud NOT in cover-base');
 
-// ── validateTemplatePackage v2 通过 ────────────────────────────────────────
 const pkgResult = validateTemplatePackage(root);
 assert.ok(pkgResult.ok, `validateTemplatePackage v2 pass: ${pkgResult.errors.join('; ')}`);
 
-// ── validateTemplatePackage v2 失败：HTML 文件缺失 ─────────────────────────
 const brokenRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ppt-broken-'));
 fs.mkdirSync(path.join(brokenRoot, 'html-templates'), { recursive: true });
 fs.writeFileSync(path.join(brokenRoot, 'template-manifest.json'), JSON.stringify({
@@ -139,7 +128,6 @@ const brokenResult = validateTemplatePackage(brokenRoot);
 assert.strictEqual(brokenResult.ok, false, 'should fail when HTML missing');
 assert.ok(brokenResult.errors.some(e => e.includes('cover')), `expected cover error, got: ${brokenResult.errors}`);
 
-// ── toc page_type → section base ────────────────────────────────────────────
 const tocRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ppt-toc-'));
 const tocManifest = generateHtmlTemplates({
   schema_version: 'ppt-template-spec-v1',
@@ -154,7 +142,6 @@ const tocManifest = generateHtmlTemplates({
 }, tocRoot);
 assert.ok(tocManifest.bases.some(b => b.page_role === 'section'), 'toc → section base');
 
-// ── typography_tokens 优先于 font_scale ──────────────────────────────────────
 const tokRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ppt-tok-'));
 generateHtmlTemplates({
   schema_version: 'ppt-template-spec-v1',

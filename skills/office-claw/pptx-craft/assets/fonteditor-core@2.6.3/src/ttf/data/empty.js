@@ -1,9 +1,4 @@
-/**
- * @file 空的ttf格式json对象
- * @author mengke01(kekee000@gmail.com)
- */
 
-/* eslint-disable  */
 export default {
     "version": 1,
     "numTables": 10,

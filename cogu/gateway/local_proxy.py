@@ -1,8 +1,3 @@
-"""Local Proxy — 本地代理 + Failover
-
-基于源码: cc-switch proxy/ (电路断路器 + 自动切换)
-COGU 实现: 本地 HTTP 代理 + Provider 路由
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -32,7 +27,6 @@ class ProviderEndpoint:
 
 
 class CircuitBreaker:
-    """电路断路器 — 失败计数 + 自动恢复"""
 
     def __init__(self, failure_threshold: int = 3, recovery_timeout: float = 60.0):
         self._failure_threshold = failure_threshold
@@ -65,7 +59,6 @@ import time
 
 
 class LocalProxy:
-    """本地代理 — Provider 路由 + 电路断路器"""
 
     def __init__(self):
         self._providers: list[ProviderEndpoint] = []

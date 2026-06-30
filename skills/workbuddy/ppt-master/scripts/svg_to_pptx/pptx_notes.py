@@ -1,4 +1,3 @@
-"""Markdown to plain text conversion and notes slide XML generation."""
 
 from __future__ import annotations
 
@@ -6,14 +5,6 @@ import re
 
 
 def markdown_to_plain_text(md_content: str) -> str:
-    """Convert Markdown notes to plain text for PPTX notes.
-
-    Args:
-        md_content: Markdown formatted notes content.
-
-    Returns:
-        Plain text content.
-    """
     def strip_inline_bold(text: str) -> str:
         text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
         text = re.sub(r'__(.+?)__', r'\1', text)
@@ -37,7 +28,6 @@ def markdown_to_plain_text(md_content: str) -> str:
         else:
             lines.append('')
 
-    # Merge consecutive empty lines
     result: list[str] = []
     is_prev_empty = False
     for line in lines:
@@ -53,15 +43,6 @@ def markdown_to_plain_text(md_content: str) -> str:
 
 
 def create_notes_slide_xml(slide_num: int, notes_text: str) -> str:
-    """Create notes slide XML.
-
-    Args:
-        slide_num: Slide number.
-        notes_text: Notes text in plain text format.
-
-    Returns:
-        Notes slide XML string.
-    """
     notes_text = (notes_text
                   .replace('&', '&amp;')
                   .replace('<', '&lt;')
@@ -142,14 +123,6 @@ def create_notes_slide_xml(slide_num: int, notes_text: str) -> str:
 
 
 def create_notes_slide_rels_xml(slide_num: int) -> str:
-    """Create notes slide relationship file XML.
-
-    Args:
-        slide_num: Slide number.
-
-    Returns:
-        Relationship file XML string.
-    """
     return f'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesMaster" Target="../notesMasters/notesMaster1.xml"/>

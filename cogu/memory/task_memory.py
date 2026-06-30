@@ -1,8 +1,3 @@
-"""Task Memory — 任务级经验检索与存储
-
-灵感来源: jiuwenswarm TaskMemoryService + task_add/task_retrieve 工具
-COGU 实现: 独立模块，JSON 持久化，支持按标签/工具/时间检索
-"""
 from __future__ import annotations
 
 import json
@@ -71,11 +66,6 @@ class TaskMemoryResult:
 
 
 class TaskMemoryService:
-    """任务级经验知识库
-
-    存储格式: task-data.json (JSON lines)
-    检索方式: 关键词匹配 + 标签过滤 + 时间衰减
-    """
 
     def __init__(self, workspace_dir: str | Path = "."):
         self.workspace = Path(workspace_dir)

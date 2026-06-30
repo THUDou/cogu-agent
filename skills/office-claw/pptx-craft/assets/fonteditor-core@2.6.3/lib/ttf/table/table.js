@@ -16,13 +16,6 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
  * @file ttf表基类
  * @author mengke01(kekee000@gmail.com)
  */
-/* eslint-disable no-invalid-this */
-/**
- * 读取表结构
- *
- * @param {Reader} reader reader对象
- * @return {Object} 当前对象
- */
 function read(reader) {
   var offset = this.offset;
   if (undefined !== offset) {
@@ -65,14 +58,6 @@ function read(reader) {
   return this.valueOf();
 }
 
-/**
- * 写表结构
- *
- * @param {Object} writer writer对象
- * @param {Object} ttf 已解析的ttf对象
- *
- * @return {Writer} 返回writer对象
- */
 function write(writer, ttf) {
   var table = ttf[this.name];
   if (!table) {
@@ -114,12 +99,6 @@ function write(writer, ttf) {
   return writer;
 }
 
-/**
- * 获取ttf表的size大小
- *
- * @param {string} name 表名
- * @return {number} 表大小
- */
 function size() {
   var sz = 0;
   this.struct.forEach(function (item) {
@@ -157,11 +136,6 @@ function size() {
   return sz;
 }
 
-/**
- * 获取对象的值
- *
- * @return {*} 当前对象的值
- */
 function valueOf() {
   var val = {};
   var me = this;
@@ -175,14 +149,6 @@ var _default = exports.default = {
   write: write,
   size: size,
   valueOf: valueOf,
-  /**
-   * 创建一个表结构
-   *
-   * @param {string} name 表名
-   * @param {Array<[string, number]>} struct 表结构
-   * @param {Object} proto 原型
-   * @return {Function} 表构造函数
-   */
   create: function create(name, struct, proto) {
     var Table = /*#__PURE__*/_createClass(function Table(offset) {
       _classCallCheck(this, Table);

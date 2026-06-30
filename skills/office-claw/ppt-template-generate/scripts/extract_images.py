@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-"""
-PPTX 图片资产提取脚本
-提取所有幻灯片中的图片（p:pic 和 p:sp+blipFill），输出 images/ 文件夹和 image-map.json/md。
-用法:
-  python extract_images.py --input=<pptx路径> --output=<输出目录>
-退出码: 0=成功, 1=失败
-"""
 import sys
 import os
 import re
@@ -22,16 +14,10 @@ NS_R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
 NS_PKG = 'http://schemas.openxmlformats.org/package/2006/relationships'
 EMU_PER_CM = 360000
 
-# 形状背景检测阈值：覆盖率 > 90% 且 z_order 不超过此值才视为背景图片
-# 真正的背景图片位于 z-stack 底部（低 z_order），装饰性叠加图在高 z_order
 BG_MAX_Z_ORDER = 3
-# 同一图片出现在至少此数量的幻灯片上，才视为重复性装饰元素
 DECOR_REPEAT_MIN_SLIDES = 3
-# 判断装饰元素"位置稳定"的位置偏差容差（CM），超出则视为不同位置
 DECOR_STABLE_POS_TOLERANCE_CM = 0.35
-# 小型装饰的最大面积占比，超过此值则不再视为小型装饰
 SMALL_DECOR_MAX_AREA_RATIO = 0.08
-# 纹理背景的最小面积占比，低于此值不提取为纹理
 TEXTURE_MIN_AREA_RATIO = 0.25
 
 RENDERABLE_TAGS = {
@@ -135,11 +121,6 @@ def _summarize_slides(usages: List[Dict[str, Any]]) -> str:
 
 
 def classify_image_assets(image_map_data: Dict[str, Any]) -> Dict[str, Any]:
-    """Conservative, source-only classification of reusable style assets.
-
-    Only high-confidence structural signals are classified as migrate_required.
-    Ambiguous one-off/content-like images remain unknown.
-    """
     slide_count = image_map_data.get('slide_count', 0) or 0
     slide_w = image_map_data.get('slide_width_cm', 0.0) or 0.0
     slide_h = image_map_data.get('slide_height_cm', 0.0) or 0.0
@@ -163,8 +144,6 @@ def classify_image_assets(image_map_data: Dict[str, Any]) -> Dict[str, Any]:
         })
 
     for orig_name, info in image_map_data.get('images', {}).items():
-        # Shape backgrounds are also saved under assets/ for traceability.
-        # Keep the canonical migrate-required entry in bg_images/ only.
         if orig_name in bg_originals:
             continue
         usages = info.get('usages', [])
@@ -240,7 +219,6 @@ def classify_image_assets(image_map_data: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def extract_bg_images(pptx_path: str, output_dir: str) -> Dict[str, Any]:
-    """提取母版/版式/幻灯片的背景图片到 bg_images/ 子目录"""
     bg_dir = os.path.join(output_dir, 'bg_images')
     bg_map: Dict[str, Any] = {}
     saved_media: Dict[str, str] = {}  # media_path -> saved filename
@@ -300,7 +278,6 @@ def extract_bg_images(pptx_path: str, output_dir: str) -> Dict[str, Any]:
                 }
             bg_map[out_name]['sources'].append(source)
 
-        # 母版背景
         master_files = sorted(
             [f for f in all_files if re.match(r'ppt/slideMasters/slideMaster\d+\.xml$', f)],
             key=lambda x: int(re.search(r'\d+', os.path.basename(x)).group())
@@ -313,7 +290,6 @@ def extract_bg_images(pptx_path: str, output_dir: str) -> Dict[str, Any]:
                 if name:
                     _register(name, media, {'type': 'master', 'index': i})
 
-        # 版式背景
         layout_files = sorted(
             [f for f in all_files if re.match(r'ppt/slideLayouts/slideLayout\d+\.xml$', f)],
             key=lambda x: int(re.search(r'\d+', os.path.basename(x)).group())
@@ -326,7 +302,6 @@ def extract_bg_images(pptx_path: str, output_dir: str) -> Dict[str, Any]:
                 if name:
                     _register(name, media, {'type': 'layout', 'index': i})
 
-        # 幻灯片背景
         slide_files = sorted(
             [f for f in all_files if re.match(r'ppt/slides/slide\d+\.xml$', f)],
             key=lambda x: int(re.search(r'\d+', x).group())
@@ -391,12 +366,10 @@ def extract_images(pptx_path: str, output_dir: str) -> Dict[str, Any]:
             rels_path: str,
             slide_no: int,
         ) -> None:
-            """提取单个形状的图片，grpSp 则递归处理。"""
             tag = child.tag
             current_z = z_counter[0]
             z_counter[0] += 1
 
-            # 递归进入组合形状
             if tag == f'{{{NS_P_MAIN}}}grpSp':
                 for sub in child:
                     sub_tag = sub.tag
@@ -436,7 +409,6 @@ def extract_images(pptx_path: str, output_dir: str) -> Dict[str, Any]:
             geo = _parse_xfrm(child)
             shape_name = _get_shape_name(child, elem_type)
 
-            # 形状背景检测：覆盖率 > 90% 且在 z-stack 底部（z_order ≤ BG_MAX_Z_ORDER）才视为背景图片
             if slide_w_cm > 0 and slide_h_cm > 0:
                 coverage = (geo['cx_cm'] * geo['cy_cm']) / (slide_w_cm * slide_h_cm)
                 if coverage > 0.9 and current_z <= BG_MAX_Z_ORDER:
@@ -487,7 +459,6 @@ def extract_images(pptx_path: str, output_dir: str) -> Dict[str, Any]:
                 if child.tag in RENDERABLE_TAGS:
                     _process_shape(child, z_counter, rels_path, slide_no)
 
-    # 将覆盖率 > 90% 的形状背景图片保存到 bg_images/
     shape_bg_map: Dict[str, Any] = {}
     if shape_bg_raw:
         bg_dir_shape = os.path.join(output_dir, 'bg_images')
@@ -551,7 +522,6 @@ def generate_md(image_map_data: Dict[str, Any]) -> str:
 
     type_label = {'pic': '独立图片', 'sp_fill': '形状填充'}
 
-    # 高置信度风格迁移资产
     lines.append('## 一、风格迁移图片资产（高置信，生成模板时必须引用）\n')
     if roles:
         bg_roles = roles.get('background', [])
@@ -586,7 +556,6 @@ def generate_md(image_map_data: Dict[str, Any]) -> str:
     else:
         lines.append('_未生成资产角色分类。_\n')
 
-    # 内嵌图片（assets/）
     lines.append('## 二、内嵌图片资产（assets/）\n')
     for orig_name, info in image_map_data.get('images', {}).items():
         usages = info['usages']
@@ -608,7 +577,6 @@ def generate_md(image_map_data: Dict[str, Any]) -> str:
             )
         lines.append('')
 
-    # 背景图片（bg_images/）
     lines.append('## 三、背景图片（bg_images/）\n')
     if bg:
         source_label = {'master': '母版', 'layout': '版式', 'slide': '幻灯片'}

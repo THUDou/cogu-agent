@@ -178,9 +178,6 @@ assert.ok(!spec.reusable_style_assets.some(asset => asset.path.includes('content
 assert.ok(!spec.reusable_style_assets.some(asset => asset.path.includes('rejected-decision')));
 assert.ok(spec.hard_constraints.some(rule => rule.includes('slides/')));
 
-// typography_tokens
-// spec uses font_sizes.free_shape: dominant_pt=24, common_sizes_pt=[24,32,138]
-// → allSizesPt=[24,32,138], headingPt=138, notePt=24, bodyPt=32 (middle, no body role)
 assert.ok(spec.typography_tokens != null, 'typography_tokens should exist');
 assert.strictEqual(spec.typography_tokens.heading_pt, 138);
 assert.strictEqual(spec.typography_tokens.note_pt, 24);
@@ -234,11 +231,9 @@ assert.deepStrictEqual(nullFontSizeSpec.font_scale[0], {
   dominant_font: '',
 });
 
-// typography_tokens is null when font_scale is empty
 assert.strictEqual(deriveTypographyTokens([]), null, 'empty font_scale yields null tokens');
 assert.strictEqual(deriveTypographyTokens(null), null, 'null font_scale yields null tokens');
 
-// body_pt role-matching branch
 const withBodyRole = deriveTypographyTokens([
   { role: 'title', dominant_pt: 40 },
   { role: 'body', dominant_pt: 20 },

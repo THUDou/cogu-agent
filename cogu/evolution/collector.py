@@ -1,8 +1,3 @@
-"""Trace Collector — 轨迹收集器
-
-灵感来源: EvoMaster evomaster/evolution/collector.py
-COGU 实现: 从执行轨迹中提取 TraceDigest，支持正则问题检测
-"""
 from __future__ import annotations
 
 import json
@@ -18,7 +13,6 @@ _ISSUE_PATTERNS = [
 
 
 class TraceCollector:
-    """从运行目录收集 TraceDigest"""
 
     def __init__(self, run_dir: str | Path):
         self.run_dir = Path(run_dir)

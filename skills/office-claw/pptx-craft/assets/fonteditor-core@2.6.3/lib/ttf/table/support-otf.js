@@ -16,10 +16,6 @@ var _CFF = _interopRequireDefault(require("./CFF"));
 var _GPOS = _interopRequireDefault(require("./GPOS"));
 var _kern = _interopRequireDefault(require("./kern"));
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-/**
- * @file otf字体格式支持的表
- * @author mengke01(kekee000@gmail.com)
- */
 var _default = exports.default = {
   head: _head.default,
   maxp: _maxp.default,

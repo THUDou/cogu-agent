@@ -1,17 +1,3 @@
-"""DrawingML <a:effectLst> -> SVG <filter> conversion.
-
-Reverse of svg_to_pptx/drawingml_styles.build_effect_xml.
-
-Covers the most common DrawingML effects:
-- <a:outerShdw>  -> feDropShadow (or feGaussianBlur+feOffset+feFlood)
-- <a:innerShdw>  -> approximated via inverted SourceAlpha pipeline
-- <a:glow>       -> outer glow (no offset, uses flood color)
-- <a:blur>       -> feGaussianBlur on whole shape
-- <a:softEdge>   -> feGaussianBlur (approximation; SVG has no direct match)
-
-Output: each call returns (filter_id, defs_xml). Caller adds filter="url(#id)"
-to the shape and accumulates defs_xml into the slide's <defs>.
-"""
 
 from __future__ import annotations
 
@@ -29,11 +15,6 @@ def convert_effects(
     id_prefix: str = "fx",
     id_seq: list[int] | None = None,
 ) -> tuple[str | None, list[str]]:
-    """Inspect <p:spPr> for <a:effectLst> and return (filter_id, defs_xml).
-
-    If no effect is present returns (None, []). Multiple effects are layered
-    inside one <filter> using SVG primitive results.
-    """
     if sp_pr is None:
         return None, []
     effect_lst = sp_pr.find("a:effectLst", NS)
@@ -49,8 +30,6 @@ def convert_effects(
 
     primitives: list[str] = []
     last_result = "SourceGraphic"
-    # Filter region needs to extend beyond the bounding box to render shadows
-    # and glows; choose generous defaults.
     filter_x = "-25%"
     filter_y = "-25%"
     filter_w = "150%"
@@ -76,19 +55,12 @@ def convert_effects(
     return filter_id, [defs_xml]
 
 
-# ---------------------------------------------------------------------------
-# Per-effect conversion
-# ---------------------------------------------------------------------------
 
 def _convert_one_effect(
     elem: ET.Element,
     last_result: str,
     palette: ColorPalette | None,
 ) -> tuple[str, str]:
-    """Convert one effect to SVG filter primitives.
-
-    Returns (primitives_xml, new_last_result_name).
-    """
     local = elem.tag.split("}", 1)[-1]
     if local == "outerShdw":
         return _outer_shadow(elem, last_result, palette)
@@ -101,7 +73,6 @@ def _convert_one_effect(
     if local == "softEdge":
         return _soft_edge(elem, last_result)
     if local == "reflection":
-        # v1 approximation: skip (would require feImage + feFlood + transform)
         return "", last_result
     return "", last_result
 
@@ -113,7 +84,6 @@ def _color_alpha(elem: ET.Element, palette: ColorPalette | None) -> tuple[str, f
 
 
 def _direction_offset(elem: ET.Element) -> tuple[float, float]:
-    """Read dir / dist into (dx, dy) px."""
     try:
         direction_units = float(elem.attrib.get("dir", "0"))
         dist_emu = float(elem.attrib.get("dist", "0"))
@@ -138,9 +108,7 @@ def _outer_shadow(elem: ET.Element, last_result: str,
     dx, dy = _direction_offset(elem)
     blur = _blur_radius(elem, "blurRad")
     color, alpha = _color_alpha(elem, palette)
-    # std deviation ~= blur radius / 2 (rough; PowerPoint shadows are larger)
     std = max(blur / 2.0, 0.1)
-    # Use feDropShadow for compactness — it's well-supported in modern browsers.
     return (
         f'<feDropShadow dx="{fmt_num(dx)}" dy="{fmt_num(dy)}" '
         f'stdDeviation="{fmt_num(std)}" '
@@ -151,17 +119,10 @@ def _outer_shadow(elem: ET.Element, last_result: str,
 
 def _inner_shadow(elem: ET.Element, last_result: str,
                   palette: ColorPalette | None) -> tuple[str, str]:
-    """Inner shadow via inverted alpha + offset + blur + composite-in.
-
-    Approximation: produces a darkened inner edge similar to PowerPoint.
-    """
     dx, dy = _direction_offset(elem)
     blur = _blur_radius(elem, "blurRad")
     color, alpha = _color_alpha(elem, palette)
     std = max(blur / 2.0, 0.1)
-    # Pipeline:
-    #   feFlood (color) -> compose with inverted alpha -> blur -> offset ->
-    #   composite-in original alpha
     return (
         f'<feFlood flood-color="{color}" flood-opacity="{fmt_num(alpha, 4)}" result="flood"/>'
         f'<feComposite in="flood" in2="SourceAlpha" operator="out" result="inverted"/>'
@@ -199,8 +160,6 @@ def _blur(elem: ET.Element, last_result: str) -> tuple[str, str]:
 
 
 def _soft_edge(elem: ET.Element, last_result: str) -> tuple[str, str]:
-    # softEdge fades the edges; approximate with an alpha-only Gaussian blur
-    # then composite-in. v1 just outputs a gentle blur.
     rad = _blur_radius(elem, "rad")
     std = max(rad / 4.0, 0.1)
     return (

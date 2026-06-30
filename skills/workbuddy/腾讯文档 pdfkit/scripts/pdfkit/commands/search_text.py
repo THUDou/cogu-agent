@@ -1,10 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-PDF 文本搜索原子工具。
-支持多引擎搜索：pymupdf / pdfplumber / fuzzy / ocr。
-返回精确坐标 + 上下文 + 匹配方法，让 AI 可以看到匹配结果并决定后续策略。
-"""
 
 import os
 import sys
@@ -22,47 +15,25 @@ PARAMS = [
 
 
 def _ocr_search(doc, page, pg, input_path, find_text, lang="eng+chi_sim", ocr_engine="auto"):
-    """使用 OCR 引擎在扫描件页面中搜索文本。
-
-    将 OCR 识别的像素坐标转换为 PDF 坐标系，使结果可直接传给 pdf_overlay_text。
-
-    Args:
-        doc: fitz.Document 对象
-        page: fitz.Page 对象
-        pg: 页码
-        input_path: PDF 文件路径
-        find_text: 要查找的文本
-        lang: OCR 语言
-        ocr_engine: OCR 引擎 ("auto" / "paddleocr" / "tesseract")
-
-    Returns:
-        list: 匹配结果列表
-    """
     import fitz
     from pdfkit.commands.smart_edit import _is_cjk, _check_tesseract_langs, _get_page_ocr, _merge_ocr_texts
 
     matches = []
     try:
-        # 自动推断 OCR 语言
         effective_lang = lang
         if any(_is_cjk(c) for c in find_text):
             if 'chi' not in lang:
                 effective_lang = lang + '+chi_sim'
 
-        # 预检测语言包
         _check_tesseract_langs(effective_lang)
 
-        # 获取 OCR 结果（带缓存，支持多引擎）
         img, ocr_data = _get_page_ocr(doc, page, pg, input_path, effective_lang, ocr_engine=ocr_engine)
 
-        # 合并匹配
         found_regions = _merge_ocr_texts(ocr_data, find_text)
 
         if not found_regions:
             return matches
 
-        # 像素坐标 → PDF 坐标转换
-        # OCR 使用 300 DPI 渲染，zoom = 300 / 72 ≈ 4.1667
         zoom = 300.0 / 72.0
         page_height = page.rect.height
 
@@ -72,15 +43,11 @@ def _ocr_search(doc, page, pg, input_path, find_text, lang="eng+chi_sim", ocr_en
             px_w = region['w']
             px_h = region['h']
 
-            # 像素坐标转 PDF 坐标
-            # PDF 坐标系：原点在左下角，y 轴向上
-            # 但 PyMuPDF 的 Rect 使用的是 (x0, y0, x1, y1)，y0 < y1，y0 在上方
             pdf_x0 = px_x / zoom
             pdf_y0 = px_y / zoom
             pdf_x1 = (px_x + px_w) / zoom
             pdf_y1 = (px_y + px_h) / zoom
 
-            # 计算置信度（取涉及字符的平均置信度）
             confidence = 0.0
             conf_count = 0
             for blk in region.get('char_boxes', []):
@@ -115,16 +82,6 @@ def _ocr_search(doc, page, pg, input_path, find_text, lang="eng+chi_sim", ocr_en
 
 
 def handler(params):
-    """在 PDF 中搜索文本，返回精确坐标和上下文。
-
-    Args:
-        params: {
-            "input": PDF 文件路径,
-            "find": 要查找的文本,
-            "page": 目标页码（从 0 开始，-1=全部页），默认 -1,
-            "engine": 搜索引擎（pymupdf / pdfplumber / fuzzy / ocr / auto），默认 auto,
-        }
-    """
     import fitz
     from pdfkit.commands.smart_edit import _fuzzy_search
 
@@ -151,7 +108,6 @@ def handler(params):
 
         matches = []
 
-        # 文字层搜索引擎
         if engine in ("pymupdf", "auto"):
             instances = page.search_for(find_text)
             for rect in instances:
@@ -199,18 +155,15 @@ def handler(params):
             except Exception as e:
                 print(f"[WARN] pdfplumber search failed: {e}", file=sys.stderr)
 
-        # OCR 引擎：对纯扫描件或文字层搜索无结果时使用
         if engine == "ocr" or (engine == "auto" and not matches):
             ocr_matches = _ocr_search(doc, page, pg, input_path, find_text, ocr_engine=ocr_engine)
             if ocr_matches:
                 matches.extend(ocr_matches)
 
-        # 获取上下文（文字层引擎）
         if matches:
             page_text = page.get_text("text")
             for m in matches:
                 if m.get("engine") == "ocr":
-                    # OCR 引擎的上下文使用 ocr_text 字段
                     if "ocr_text" not in m:
                         m["context"] = find_text
                     else:

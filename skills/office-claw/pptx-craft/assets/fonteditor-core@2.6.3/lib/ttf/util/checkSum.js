@@ -4,10 +4,6 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = checkSum;
-/**
- * @file ttf table校验函数
- * @author mengke01(kekee000@gmail.com)
- */
 
 function checkSumArrayBuffer(buffer) {
   var offset = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 0;
@@ -59,15 +55,6 @@ function checkSumArray(buffer) {
   return sum % 0x100000000;
 }
 
-/**
- * table校验
- *
- * @param {ArrayBuffer|Array} buffer 表数据
- * @param {number=} offset 偏移量
- * @param {number=} length 长度
- *
- * @return {number} 校验和
- */
 function checkSum(buffer, offset, length) {
   if (buffer instanceof ArrayBuffer) {
     return checkSumArrayBuffer(buffer, offset, length);

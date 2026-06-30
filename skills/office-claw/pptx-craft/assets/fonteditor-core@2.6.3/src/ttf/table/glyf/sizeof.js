@@ -1,25 +1,11 @@
-/**
- * @file 获取glyf的大小，同时对glyf写入进行预处理
- * @author mengke01(kekee000@gmail.com)
- */
 
 import glyFlag from '../../enum/glyFlag';
 
-/**
- * 获取glyf的大小
- *
- * @param {Object} glyf glyf对象
- * @param {Object} glyfSupport glyf相关统计
- * @param {boolean} hinting 是否保留hints
- * @param {boolean} writeZeroContoursGlyfData 是否写空轮廓 glyph
- * @return {number} size大小
- */
 function sizeofSimple(glyf, glyfSupport, hinting, writeZeroContoursGlyfData) {
     if (!writeZeroContoursGlyfData && (!glyf.contours || !glyf.contours.length)) {
         return 0;
     }
 
-    // fixed header + endPtsOfContours
     let result = 12
         + (glyf.contours || []).length * 2
         + (glyfSupport.flags || []).length;
@@ -35,24 +21,13 @@ function sizeofSimple(glyf, glyfSupport, hinting, writeZeroContoursGlyfData) {
     return result + (hinting && glyf.instructions ? glyf.instructions.length : 0);
 }
 
-/**
- * 复合图元size
- *
- * @param {Object} glyf glyf对象
- * @param {boolean} hinting 是否保留hints, compound 图元暂时不做hinting
- * @return {number} size大小
- */
-// eslint-disable-next-line no-unused-vars
 function sizeofCompound(glyf, hinting) {
     let size = 10;
     let transform;
     glyf.glyfs.forEach((g) => {
         transform = g.transform;
-        // flags + glyfIndex
         size += 4;
 
-        // a, b, c, d, e
-        // xy values or points
         if (transform.e < 0 || transform.e > 0x7F || transform.f < 0 || transform.f > 0x7F) {
             size += 4;
         }
@@ -60,11 +35,9 @@ function sizeofCompound(glyf, hinting) {
             size += 2;
         }
 
-        // 01 , 10
         if (transform.b || transform.c) {
             size += 8;
         }
-        // scale
         else if (transform.a !== 1 || transform.d !== 1) {
             size += transform.a === transform.d ? 2 : 4;
         }
@@ -74,13 +47,6 @@ function sizeofCompound(glyf, hinting) {
     return size;
 }
 
-/**
- * 获取flags
- *
- * @param {Object} glyf glyf对象
- * @param {Object} glyfSupport glyf相关统计
- * @return {Array}
- */
 function getFlags(glyf, glyfSupport) {
 
     if (!glyf.contours || 0 === glyf.contours.length) {
@@ -116,7 +82,6 @@ function getFlags(glyf, glyfSupport) {
         }
     }
 
-    // compress
     const flagsC = [];
     const xCoordC = [];
     const yCoordC = [];
@@ -130,7 +95,6 @@ function getFlags(glyf, glyfSupport) {
         x = xCoord[index];
         y = yCoord[index];
 
-        // 第一个
         if (index === 0) {
 
             if (-0xFF <= x && x <= 0xFF) {
@@ -155,7 +119,6 @@ function getFlags(glyf, glyfSupport) {
             xCoordC.push(x);
             yCoordC.push(y);
         }
-        // 后续
         else {
 
             if (x === 0) {
@@ -188,9 +151,7 @@ function getFlags(glyf, glyfSupport) {
                 yCoordC.push(y);
             }
 
-            // repeat
             if (flag === prevFlag) {
-                // 记录重复个数
                 if (-1 === repeatPoint) {
                     repeatPoint = flagsC.length - 1;
                     flagsC[repeatPoint] |= glyFlag.REPEAT;
@@ -215,12 +176,6 @@ function getFlags(glyf, glyfSupport) {
     return glyfSupport;
 }
 
-/**
- * 对glyf数据进行预处理，获取大小
- *
- * @param  {Object} ttf ttf对象
- * @return {number} 大小
- */
 export default function sizeof(ttf) {
     ttf.support.glyf = [];
     let tableSize = 0;
@@ -235,7 +190,6 @@ export default function sizeof(ttf) {
             : sizeofSimple(glyf, glyfSupport, hinting, writeZeroContoursGlyfData);
         let size = glyfSize;
 
-        // 4字节对齐
         if (size % 4) {
             size += 4 - size % 4;
         }
@@ -250,7 +204,6 @@ export default function sizeof(ttf) {
 
     ttf.support.glyf.tableSize = tableSize;
 
-    // 写header的indexToLocFormat
     ttf.head.indexToLocFormat = tableSize > 65536 ? 1 : 0;
 
     return ttf.support.glyf.tableSize;

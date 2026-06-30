@@ -8,18 +8,15 @@ function buildSections(recipe, contentData, pageConfig) {
   const contentSections = contentData.sections || [];
   const recipeSections = recipe.sections || [];
 
-  // Determine which sections to include
   const hasCover = recipeSections.includes('cover') && !contentData.noCover;
   const hasToc = recipeSections.includes('toc') && !contentData.noToc;
   const hasExecSummary = recipeSections.includes('executive_summary');
 
-  // Cover section
   if (hasCover) {
     const coverContent = _findSectionContent(contentSections, 'cover');
     sections.push(_buildCoverSection(recipe, coverContent, pageConfig));
   }
 
-  // TOC + executive summary section
   if (hasToc || hasExecSummary) {
     const tocChildren = [];
     if (hasExecSummary) {
@@ -27,7 +24,6 @@ function buildSections(recipe, contentData, pageConfig) {
       tocChildren.push(..._buildExecSummary(summaryContent));
     }
     if (hasToc) {
-      // Infer TOC depth from recipe.extendedStyles.toc.levels
       const tocLevels = recipe.extendedStyles?.toc?.levels || [];
       const maxTocLevel = tocLevels.length > 0
         ? Math.max(...tocLevels.map(l => l.level || 1))
@@ -57,7 +53,6 @@ function buildSections(recipe, contentData, pageConfig) {
     });
   }
 
-  // Body sections
   const bodyContent = _findSectionContent(contentSections, 'body');
   if (bodyContent.length > 0) {
     sections.push({
@@ -70,7 +65,6 @@ function buildSections(recipe, contentData, pageConfig) {
     });
   }
 
-  // If no sections were built, create a default one
   if (sections.length === 0) {
     sections.push({
       properties: { page: pageConfig },
@@ -91,17 +85,14 @@ function _findSectionContent(contentSections, type) {
 function _buildCoverSection(recipe, coverContent, pageConfig) {
   const children = [];
 
-  // Add spacing before title
   children.push(new Paragraph({ spacing: { before: 4000 } }));
 
   if (coverContent.length > 0) {
-    // Use user-provided cover content
     const contentMapper = require('./content_mapper');
     coverContent.forEach(item => {
       children.push(contentMapper.mapItem(item));
     });
   } else {
-    // Default cover
     children.push(
       new Paragraph({
         alignment: 'center',
@@ -181,7 +172,6 @@ function _buildFooter(recipe, isFirstSection) {
     };
   }
 
-  // Default: simple page number
   return {
     default: new Footer({
       children: [

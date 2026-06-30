@@ -1,10 +1,3 @@
-#!/usr/bin/env python3
-"""Improve a skill description based on eval results.
-
-Takes eval results (from run_eval.py) and generates an improved description
-by calling `claude -p` as a subprocess (same auth pattern as run_eval.py —
-uses the session's Claude Code auth, no separate ANTHROPIC_API_KEY needed).
-"""
 
 import argparse
 import json
@@ -18,18 +11,10 @@ from scripts.utils import parse_skill_md
 
 
 def _call_claude(prompt: str, model: str | None, timeout: int = 300) -> str:
-    """Run `claude -p` with the prompt on stdin and return the text response.
-
-    Prompt goes over stdin (not argv) because it embeds the full SKILL.md
-    body and can easily exceed comfortable argv length.
-    """
     cmd = ["claude", "-p", "--output-format", "text"]
     if model:
         cmd.extend(["--model", model])
 
-    # Remove CLAUDECODE env var to allow nesting claude -p inside a
-    # Claude Code session. The guard is for interactive terminal conflicts;
-    # programmatic subprocess usage is safe. Same pattern as run_eval.py.
     env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
 
     result = subprocess.run(
@@ -58,7 +43,6 @@ def improve_description(
     log_dir: Path | None = None,
     iteration: int | None = None,
 ) -> str:
-    """Call Claude to improve the description based on eval results."""
     failed_triggers = [
         r for r in eval_results["results"]
         if r["should_trigger"] and not r["pass"]
@@ -68,7 +52,6 @@ def improve_description(
         if not r["should_trigger"] and not r["pass"]
     ]
 
-    # Build scores summary
     train_score = f"{eval_results['summary']['passed']}/{eval_results['summary']['total']}"
     if test_results:
         test_score = f"{test_results['summary']['passed']}/{test_results['summary']['total']}"
@@ -87,37 +70,6 @@ Here's the current description:
 
 Current scores ({scores_summary}):
 <scores_summary>
-"""
-    if failed_triggers:
-        prompt += "FAILED TO TRIGGER (should have triggered but didn't):\n"
-        for r in failed_triggers:
-            prompt += f'  - "{r["query"]}" (triggered {r["triggers"]}/{r["runs"]} times)\n'
-        prompt += "\n"
-
-    if false_triggers:
-        prompt += "FALSE TRIGGERS (triggered but shouldn't have):\n"
-        for r in false_triggers:
-            prompt += f'  - "{r["query"]}" (triggered {r["triggers"]}/{r["runs"]} times)\n'
-        prompt += "\n"
-
-    if history:
-        prompt += "PREVIOUS ATTEMPTS (do NOT repeat these — try something structurally different):\n\n"
-        for h in history:
-            train_s = f"{h.get('train_passed', h.get('passed', 0))}/{h.get('train_total', h.get('total', 0))}"
-            test_s = f"{h.get('test_passed', '?')}/{h.get('test_total', '?')}" if h.get('test_passed') is not None else None
-            score_str = f"train={train_s}" + (f", test={test_s}" if test_s else "")
-            prompt += f'<attempt {score_str}>\n'
-            prompt += f'Description: "{h["description"]}"\n'
-            if "results" in h:
-                prompt += "Train results:\n"
-                for r in h["results"]:
-                    status = "PASS" if r["pass"] else "FAIL"
-                    prompt += f'  [{status}] "{r["query"][:80]}" (triggered {r["triggers"]}/{r["runs"]})\n'
-            if h.get("note"):
-                prompt += f'Note: {h["note"]}\n'
-            prompt += "</attempt>\n\n"
-
-    prompt += f"""</scores_summary>
 
 Skill content (for context on what the skill does):
 <skill_content>
@@ -155,11 +107,6 @@ Please respond with only the new description text in <new_description> tags, not
         "over_limit": len(description) > 1024,
     }
 
-    # Safety net: the prompt already states the 1024-char hard limit, but if
-    # the model blew past it anyway, make one fresh single-turn call that
-    # quotes the too-long version and asks for a shorter rewrite. (The old
-    # SDK path did this as a true multi-turn; `claude -p` is one-shot, so we
-    # inline the prior output into the new prompt instead.)
     if len(description) > 1024:
         shorten_prompt = (
             f"{prompt}\n\n"
@@ -229,7 +176,6 @@ def main():
     if args.verbose:
         print(f"Improved: {new_description}", file=sys.stderr)
 
-    # Output as JSON with both the new description and updated history
     output = {
         "description": new_description,
         "history": history + [{

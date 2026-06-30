@@ -1,12 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""PDF 阅读顺序检测脚本。
-
-检测 PDF 页面中文本块的正确阅读顺序，
-特别适用于多栏排版的文档。
-
-依赖：PyMuPDF (fitz)
-"""
 
 import os
 
@@ -20,17 +11,11 @@ PARAMS = [
 
 
 def _detect_columns(blocks, page_width, threshold=0.15):
-    """检测文本块的栏布局。
-
-    通过分析文本块的水平位置分布来判断栏数。
-    """
     if not blocks:
         return [[]]
 
-    # 按 center_x 排序
     sorted_blocks = sorted(blocks, key=lambda b: b["center_x"])
 
-    # 使用间隙检测法
     columns = [[sorted_blocks[0]]]
     gap_threshold = page_width * threshold
 
@@ -38,19 +23,16 @@ def _detect_columns(blocks, page_width, threshold=0.15):
         block = sorted_blocks[i]
         prev_block = sorted_blocks[i - 1]
 
-        # 检查是否有明显的水平间隙
         gap = block["bbox"][0] - prev_block["bbox"][2]
         if gap > gap_threshold:
             columns.append([block])
         else:
-            # 判断是否属于同一栏
             current_col_center = sum(b["center_x"] for b in columns[-1]) / len(columns[-1])
             if abs(block["center_x"] - current_col_center) < page_width * 0.3:
                 columns[-1].append(block)
             else:
                 columns.append([block])
 
-    # 过滤掉只有一个小块的"栏"
     columns = [col for col in columns if len(col) > 1 or
                (len(col) == 1 and col[0]["height"] > 50)]
 
@@ -58,14 +40,6 @@ def _detect_columns(blocks, page_width, threshold=0.15):
 
 
 def handler(params):
-    """检测 PDF 页面的阅读顺序。
-
-    Args:
-        params: {
-            "input": PDF 文件路径,
-            "pages": 页码列表，None 表示全部页
-        }
-    """
     import fitz
 
     input_path = params["input"]
@@ -86,7 +60,6 @@ def handler(params):
         page_width = page.rect.width
         page_height = page.rect.height
 
-        # 获取文本块
         blocks = page.get_text("dict")["blocks"]
         text_blocks = []
 
@@ -113,18 +86,14 @@ def handler(params):
                 "height": bbox[3] - bbox[1]
             })
 
-        # 检测栏数
         columns = _detect_columns(text_blocks, page_width)
         num_columns = len(columns)
 
-        # 按阅读顺序排序
         ordered_blocks = []
         if num_columns <= 1:
-            # 单栏：从上到下
             ordered_blocks = sorted(text_blocks, key=lambda b: b["center_y"])
             layout_type = "single_column"
         else:
-            # 多栏：先按栏排序，栏内从上到下
             for col_idx, col_blocks in enumerate(columns):
                 col_sorted = sorted(col_blocks, key=lambda b: b["center_y"])
                 for b in col_sorted:
@@ -132,7 +101,6 @@ def handler(params):
                     ordered_blocks.append(b)
             layout_type = f"{num_columns}_columns"
 
-        # 添加阅读顺序索引
         for i, block in enumerate(ordered_blocks):
             block["reading_order"] = i
 

@@ -1,15 +1,3 @@
-#!/usr/bin/env python3
-"""
-PowerPoint to Markdown Converter
-
-Extracts slide text, tables, speaker notes, and embedded pictures from
-Open XML PowerPoint files into Markdown.
-
-Primary use case: PPTX source decks -> Markdown for PPT generation input.
-
-Dependency:
-    pip install python-pptx
-"""
 
 from __future__ import annotations
 
@@ -56,7 +44,6 @@ SUPPORTED_FORMATS = {
 
 @dataclass
 class LeafShape:
-    """Flattened leaf shape with stable position ordering."""
 
     shape: object
     top: int
@@ -65,7 +52,6 @@ class LeafShape:
 
 @dataclass
 class SavedPicture:
-    """Extracted image asset plus manifest metadata."""
 
     filename: str
     manifest_entry: dict[str, object]
@@ -73,7 +59,6 @@ class SavedPicture:
 
 
 def normalize_text(value: str) -> str:
-    """Collapse whitespace while preserving paragraph boundaries elsewhere."""
     value = value.replace("\r\n", "\n").replace("\r", "\n")
     lines = [re.sub(r"\s+", " ", line).strip() for line in value.split("\n")]
     lines = [line for line in lines if line]
@@ -81,7 +66,6 @@ def normalize_text(value: str) -> str:
 
 
 def normalize_ext(ext: str | None, content_type: str | None = None) -> str:
-    """Return a lowercase extension without a leading dot."""
     if ext:
         ext = ext.lower().lstrip(".")
         if ext == "jpeg":
@@ -93,18 +77,15 @@ def normalize_ext(ext: str | None, content_type: str | None = None) -> str:
 
 
 def sanitize_filename(value: str) -> str:
-    """Return a filesystem-safe basename."""
     value = re.sub(r"[^\w.\-]+", "_", value, flags=re.UNICODE)
     return value.strip("._") or "asset"
 
 
 def escape_table_cell(value: str) -> str:
-    """Escape Markdown table syntax inside a cell."""
     return normalize_text(value).replace("|", r"\|") or " "
 
 
 def iter_leaf_shapes(shapes: object) -> list[LeafShape]:
-    """Return a flattened, reading-order list of shapes."""
     items: list[LeafShape] = []
     for shape in shapes:
         if shape.shape_type == MSO_SHAPE_TYPE.GROUP:
@@ -122,7 +103,6 @@ def iter_leaf_shapes(shapes: object) -> list[LeafShape]:
 
 
 def text_frame_to_markdown(text_frame: object) -> str:
-    """Convert a PowerPoint text frame into Markdown."""
     paragraphs = []
     visible_paragraphs = [
         paragraph for paragraph in text_frame.paragraphs
@@ -151,7 +131,6 @@ def text_frame_to_markdown(text_frame: object) -> str:
 
 
 def table_to_markdown(table: object) -> str:
-    """Convert a PowerPoint table to a Markdown table."""
     rows = []
     for row in table.rows:
         cells = [escape_table_cell(cell.text) for cell in row.cells]
@@ -176,7 +155,6 @@ def table_to_markdown(table: object) -> str:
 
 
 def _image_part_for_shape(shape: object) -> object | None:
-    """Return the first embedded image part referenced by a shape."""
     element = getattr(shape, "element", None)
     part = getattr(shape, "part", None)
     if element is None or part is None:
@@ -199,7 +177,6 @@ def _image_part_for_shape(shape: object) -> object | None:
 
 
 def _image_size_from_bytes(blob: bytes) -> tuple[int | None, int | None]:
-    """Return bitmap dimensions when Pillow can decode the bytes."""
     try:
         from PIL import Image
     except ImportError:
@@ -220,7 +197,6 @@ def _shape_occurrence(
     shape: object,
     slide_index: int,
 ) -> dict[str, object]:
-    """Return slide-specific image placement metadata."""
     display_width_emu = _shape_emu(shape, "width")
     display_height_emu = _shape_emu(shape, "height")
     display_ratio = (
@@ -242,7 +218,6 @@ def _shape_occurrence(
 
 
 def _update_manifest_usage(entry: dict[str, object]) -> None:
-    """Refresh aggregate fields after adding an occurrence."""
     occurrences = entry.get("occurrences")
     if not isinstance(occurrences, list):
         occurrences = []
@@ -268,7 +243,6 @@ def _manifest_entry(
     blob: bytes,
     occurrence: dict[str, object],
 ) -> dict[str, object]:
-    """Build image_manifest.json metadata for one unique PowerPoint media part."""
     pixel_width, pixel_height = _image_size_from_bytes(blob)
     pixel_ratio = (
         pixel_width / pixel_height
@@ -309,7 +283,6 @@ def _manifest_entry(
 
 
 def _asset_cache_key(image_part: object, blob: bytes) -> str:
-    """Return a stable key for deduplicating repeated PPTX media references."""
     partname = str(getattr(image_part, "partname", ""))
     if partname:
         return partname
@@ -322,7 +295,6 @@ def _asset_filename(
     asset_index: int,
     used_filenames: set[str],
 ) -> str:
-    """Return a unique asset filename, preferring the PPTX media basename."""
     partname = str(getattr(image_part, "partname", ""))
     base = sanitize_filename(Path(partname).name) if partname else f"image_{asset_index:03d}.{ext}"
     if "." not in base:
@@ -351,7 +323,6 @@ def save_picture(
     asset_cache: dict[str, SavedPicture],
     used_filenames: set[str],
 ) -> SavedPicture | None:
-    """Persist a shape image to the output asset directory."""
     image_part = _image_part_for_shape(shape)
     if image_part is None:
         return None
@@ -397,7 +368,6 @@ def save_picture(
 
 
 def _reset_generated_asset_dir(asset_dir: Path) -> None:
-    """Remove a previously generated asset directory."""
     if not asset_dir.exists():
         return
     if not (asset_dir / "image_manifest.json").is_file():
@@ -409,7 +379,6 @@ def _reset_generated_asset_dir(asset_dir: Path) -> None:
 
 
 def extract_notes(slide: object) -> str:
-    """Extract speaker notes text from a slide, if available."""
     try:
         notes_slide = slide.notes_slide
     except Exception:
@@ -431,7 +400,6 @@ def convert_presentation_to_markdown(
     input_path: str,
     output_path: str | None = None,
 ) -> str:
-    """Convert a supported PowerPoint file to Markdown."""
     input_file = Path(input_path)
     if not input_file.exists():
         print(f"[ERROR] File not found: {input_path}")
@@ -568,7 +536,6 @@ def convert_presentation_to_markdown(
 
 
 def process_directory(input_dir: str, output_dir: str | None = None) -> None:
-    """Convert all supported PowerPoint files in a directory to Markdown."""
     input_path = Path(input_dir)
 
     if output_dir:
@@ -592,7 +559,6 @@ def process_directory(input_dir: str, output_dir: str | None = None) -> None:
 
 
 def main() -> None:
-    """Run the CLI entry point."""
     parser = argparse.ArgumentParser(
         description="Convert PowerPoint files to Markdown",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -608,25 +574,3 @@ Supported formats:
   .pptx  .pptm  .ppsx  .ppsm  .potx  .potm
 
 Legacy .ppt is not parsed directly. Resave it as .pptx or export it to PDF first.
-        """,
-    )
-    parser.add_argument("input", help="Input PowerPoint file or directory")
-    parser.add_argument("-o", "--output", help="Output Markdown file or directory path")
-
-    args = parser.parse_args()
-    input_path = Path(args.input)
-
-    if input_path.is_file():
-        output = args.output or str(input_path.with_suffix(".md"))
-        result = convert_presentation_to_markdown(str(input_path), output)
-        sys.exit(0 if result else 1)
-    if input_path.is_dir():
-        process_directory(str(input_path), args.output)
-        sys.exit(0)
-
-    print(f"Error: File or directory not found: {args.input}")
-    sys.exit(1)
-
-
-if __name__ == "__main__":
-    main()

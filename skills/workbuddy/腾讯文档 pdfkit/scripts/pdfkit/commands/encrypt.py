@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""PDF 加密。"""
 
 import os
 
@@ -20,19 +17,6 @@ PARAMS = [
 
 
 def handler(params):
-    """加密 PDF 文件。
-
-    Args:
-        params: {
-            "input": PDF 路径,
-            "output": 输出 PDF 路径,
-            "user_password": 用户密码（打开文档）,
-            "owner_password": 所有者密码（可选，默认与用户密码相同）,
-            "allow_print": 是否允许打印（可选，默认 True）,
-            "allow_modify": 是否允许修改（可选，默认 False）,
-            "allow_copy": 是否允许复制（可选，默认 False）
-        }
-    """
     from pypdf import PdfReader, PdfWriter
     from pypdf.constants import UserAccessPermissions
 
@@ -47,7 +31,6 @@ def handler(params):
     if not os.path.exists(input_path):
         raise FileNotFoundError(f"文件不存在: {input_path}")
 
-    # 确保输出目录存在
     output_dir = os.path.dirname(output_path)
     if output_dir and not os.path.exists(output_dir):
         os.makedirs(output_dir, exist_ok=True)
@@ -58,11 +41,9 @@ def handler(params):
     for page in reader.pages:
         writer.add_page(page)
 
-    # 复制元数据
     if reader.metadata:
         writer.add_metadata(reader.metadata)
 
-    # 构建权限标志
     permissions = UserAccessPermissions(0)
     if allow_print:
         permissions |= UserAccessPermissions.PRINT | UserAccessPermissions.PRINT_TO_REPRESENTATION
@@ -71,7 +52,6 @@ def handler(params):
     if allow_copy:
         permissions |= UserAccessPermissions.EXTRACT | UserAccessPermissions.EXTRACT_TEXT_AND_GRAPHICS
 
-    # 加密
     writer.encrypt(
         user_password=user_password,
         owner_password=owner_password,

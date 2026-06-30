@@ -1,12 +1,7 @@
-/**
- * @file 语言字符串管理
- * @author mengke01(kekee000@gmail.com)
- */
 
 import I18n from '../common/I18n';
 
 const zh = {
-    // error define
     10001: '超出读取范围：${0}, ${1}',
     10002: '超出写入范围：${0}, ${1}',
     10003: '未知数据类型：${0}, ${1}',
@@ -40,7 +35,6 @@ const zh = {
 
 
 const en = {
-    // error define
     10001: 'Reading index out of range: ${0}, ${1}',
     10002: 'Writing index out of range: ${0}, ${1}',
     10003: 'Unknown datatype: ${0}, ${1}',

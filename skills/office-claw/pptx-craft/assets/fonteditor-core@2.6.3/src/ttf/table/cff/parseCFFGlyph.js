@@ -1,16 +1,4 @@
-/**
- * @file 解析cff字形
- * @author mengke01(kekee000@gmail.com)
- */
 
-/**
- * 解析cff字形，返回直线和三次bezier曲线点数组
- *
- * @param  {Array} code  操作码
- * @param  {Object} font  相关联的font对象
- * @param  {number} index glyf索引
- * @return {Object}       glyf对象
- */
 export default function parseCFFCharstring(code, font, index) {
     let c1x;
     let c1y;
@@ -62,8 +50,6 @@ export default function parseCFFCharstring(code, font, index) {
     }
 
     function parseStems() {
-        // The number of stem operators on the stack is always even.
-        // If the value is uneven, that means a width is specified.
         const hasWidthArg = stack.length % 2 !== 0;
         if (hasWidthArg && !haveWidth) {
             width = stack.shift() + font.nominalWidthX;
@@ -169,7 +155,6 @@ export default function parseCFFCharstring(code, font, index) {
                 i += 1;
                 switch (v) {
                 case 35: // flex
-                    // |- dx1 dy1 dx2 dy2 dx3 dy3 dx4 dy4 dx5 dy5 dx6 dy6 fd flex (12 35) |-
                     c1x = x + stack.shift(); // dx1
                     c1y = y + stack.shift(); // dy1
                     c2x = c1x + stack.shift(); // dx2
@@ -187,7 +172,6 @@ export default function parseCFFCharstring(code, font, index) {
                     curveTo(c3x, c3y, c4x, c4y, x, y);
                     break;
                 case 34: // hflex
-                    // |- dx1 dx2 dy2 dx3 dx4 dx5 dx6 hflex (12 34) |-
                     c1x = x + stack.shift(); // dx1
                     c1y = y; // dy1
                     c2x = c1x + stack.shift(); // dx2
@@ -203,7 +187,6 @@ export default function parseCFFCharstring(code, font, index) {
                     curveTo(c3x, c3y, c4x, c4y, x, y);
                     break;
                 case 36: // hflex1
-                    // |- dx1 dy1 dx2 dy2 dx3 dx4 dx5 dy5 dx6 hflex1 (12 36) |-
                     c1x = x + stack.shift(); // dx1
                     c1y = y + stack.shift(); // dy1
                     c2x = c1x + stack.shift(); // dx2
@@ -219,7 +202,6 @@ export default function parseCFFCharstring(code, font, index) {
                     curveTo(c3x, c3y, c4x, c4y, x, y);
                     break;
                 case 37: // flex1
-                    // |- dx1 dy1 dx2 dy2 dx3 dy3 dx4 dy4 dx5 dy5 d6 flex1 (12 37) |-
                     c1x = x + stack.shift(); // dx1
                     c1y = y + stack.shift(); // dy1
                     c2x = c1x + stack.shift(); // dx2
@@ -470,7 +452,6 @@ export default function parseCFFCharstring(code, font, index) {
 
     const glyf = {
 
-        // 移除重复的起点和终点
         contours: contours.map(contour => {
             const last = contour.length - 1;
             if (contour[0].x === contour[last].x && contour[0].y === contour[last].y) {

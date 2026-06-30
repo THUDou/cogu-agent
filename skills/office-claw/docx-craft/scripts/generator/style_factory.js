@@ -160,7 +160,6 @@ function buildStyles(recipe) {
     ],
   };
 
-  // CJK font fallback for body
   if (bodyFont.eastAsia) {
     styles.default.document.run.font = {
       ascii: bodyFont.ascii || 'Calibri',
@@ -169,7 +168,6 @@ function buildStyles(recipe) {
     };
   }
 
-  // CJK font fallback for heading styles
   if (headingFont.eastAsia) {
     styles.paragraphStyles.forEach(ps => {
       if (ps.id.startsWith('Heading') || ps.id === 'Title') {
@@ -183,10 +181,8 @@ function buildStyles(recipe) {
     });
   }
 
-  // ── extendedStyles ─────────────────────────────
   const ext = recipe.extendedStyles || {};
 
-  // TOC styles (TOC1, TOC2, TOC3, ...)
   if (ext.toc?.levels && Array.isArray(ext.toc.levels)) {
     ext.toc.levels.forEach(tocLevel => {
       const lvl = tocLevel.level || 1;
@@ -209,7 +205,6 @@ function buildStyles(recipe) {
     });
   }
 
-  // Quote / IntenseQuote
   if (ext.quote?.normal) {
     const qn = ext.quote.normal;
     styles.paragraphStyles.push({
@@ -264,7 +259,6 @@ function buildStyles(recipe) {
     styles.paragraphStyles.push(intenseStyle);
   }
 
-  // Comment styles
   if (ext.comment) {
     styles.paragraphStyles.push({
       id: 'CommentText',

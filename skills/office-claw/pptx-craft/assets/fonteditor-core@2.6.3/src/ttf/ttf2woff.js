@@ -1,15 +1,3 @@
-/**
- * @file ttf转换为woff
- * @author mengke01(kekee000@gmail.com)
- *
- * woff format:
- * http://www.w3.org/TR/2012/REC-WOFF-20121213/
- *
- * references:
- * https://github.com/fontello/ttf2woff
- * https://github.com/nodeca/pako
- */
-/* eslint-disable no-multi-spaces */
 import Reader from './reader';
 import Writer from './writer';
 import string from '../common/string';
@@ -17,40 +5,6 @@ import utilString from './util/string';
 import error from './error';
 import config from './data/default';
 
-/**
- * metadata 转换成XML
- *
- * @param {Object} metadata metadata
- *
- * @example
- * metadata json:
- *
- *    {
- *        "uniqueid": "",
- *        "vendor": {
- *            "name": "",
- *            "url": ""
- *        },
- *        "credit": [
- *            {
- *                "name": "",
- *                "url": "",
- *                "role": ""
- *            }
- *        ],
- *        "description": "",
- *        "license": {
- *            "id": "",
- *            "url": "",
- *            "text": ""
- *        },
- *        "copyright": "",
- *        "trademark": "",
- *        "licensee": ""
- *    }
- *
- * @return {string} xml字符串
- */
 function metadata2xml(metadata) {
     let xml = ''
         + '<?xml version="1.0" encoding="UTF-8"?>'
@@ -112,19 +66,8 @@ function metadata2xml(metadata) {
 }
 
 
-/**
- * ttf格式转换成woff字体格式
- *
- * @param {ArrayBuffer} ttfBuffer ttf缓冲数组
- * @param {Object} options 选项
- * @param {Object} options.metadata 字体相关的信息
- * @param {Object} options.deflate 压缩相关函数
- *
- * @return {ArrayBuffer} woff格式byte流
- */
 export default function ttf2woff(ttfBuffer, options = {}) {
 
-    // woff 头部结构
     const woffHeader = {
         signature: 0x774F4646, // for woff
         flavor: 0x10000, // for ttf
@@ -153,7 +96,6 @@ export default function ttf2woff(ttfBuffer, options = {}) {
         error.raise(10101);
     }
 
-    // 读取ttf表索引信息
     ttfReader.seek(12);
 
     for (i = 0; i < numTables; ++i) {
@@ -168,19 +110,15 @@ export default function ttf2woff(ttfBuffer, options = {}) {
         const entryOffset = ttfReader.offset;
 
         if (tableEntry.tag === 'head') {
-            // 读取font revision
             woffHeader.majorVersion = ttfReader.readUint16(tableEntry.offset + 4);
             woffHeader.minorVersion = ttfReader.readUint16(tableEntry.offset + 6);
         }
 
-        // ttf 表数据
         const sfntData = ttfReader.readBytes(tableEntry.offset, tableEntry.length);
 
-        // 对数据进行压缩
         if (options.deflate) {
             deflatedData = options.deflate(sfntData);
 
-            // 这里需要判断是否压缩后数据小于原始数据
             if (deflatedData.length < sfntData.length) {
                 tableEntry.data = deflatedData;
                 tableEntry.deflated = true;
@@ -202,22 +140,18 @@ export default function ttf2woff(ttfBuffer, options = {}) {
         error.raise(10204);
     }
 
-    // 对table进行排序
     tableEntries = tableEntries.sort((a, b) => a.tag === b.tag ? 0 : a.tag < b.tag ? -1 : 1);
 
-    // 计算offset和 woff size
     let woffSize = 44 + 20 * numTables; // header size + table entries
     let ttfSize = 12 + 16 * numTables;
 
     for (i = 0, l = tableEntries.length; i < l; ++i) {
         tableEntry = tableEntries[i];
         tableEntry.offset = woffSize;
-        // 4字节对齐
         woffSize += tableEntry.compLength + (tableEntry.compLength % 4 ? 4 - tableEntry.compLength % 4 : 0);
         ttfSize += tableEntry.length + (tableEntry.length % 4 ? 4 - tableEntry.length % 4 : 0);
     }
 
-    // 计算metaData
     let metadata = null;
     if (options.metadata) {
         const xml = utilString.toUTF8Bytes(metadata2xml(options.metadata));
@@ -238,7 +172,6 @@ export default function ttf2woff(ttfBuffer, options = {}) {
         woffHeader.metaLength = metadata.length;
         woffHeader.metaOrigLength = xml.length;
         woffHeader.metaOffset = woffSize;
-        // metadata header + length
         woffSize += woffHeader.metaLength + (woffHeader.metaLength % 4 ? 4 - woffHeader.metaLength % 4 : 0);
     }
 
@@ -246,10 +179,8 @@ export default function ttf2woff(ttfBuffer, options = {}) {
     woffHeader.length = woffSize;
     woffHeader.totalSfntSize = ttfSize;
 
-    // 写woff数据
     const woffWriter = new Writer(new ArrayBuffer(woffSize));
 
-    // 写woff头部
     woffWriter.writeUint32(woffHeader.signature);
     woffWriter.writeUint32(woffHeader.flavor);
     woffWriter.writeUint32(woffHeader.length);
@@ -265,7 +196,6 @@ export default function ttf2woff(ttfBuffer, options = {}) {
     woffWriter.writeUint32(woffHeader.privLength);
 
 
-    // 写woff表索引
     for (i = 0, l = tableEntries.length; i < l; ++i) {
         tableEntry = tableEntries[i];
         woffWriter.writeString(tableEntry.tag);
@@ -275,7 +205,6 @@ export default function ttf2woff(ttfBuffer, options = {}) {
         woffWriter.writeUint32(tableEntry.checkSum);
     }
 
-    // 写表数据
     for (i = 0, l = tableEntries.length; i < l; ++i) {
         tableEntry = tableEntries[i];
         woffWriter.writeBytes(tableEntry.data);
@@ -285,7 +214,6 @@ export default function ttf2woff(ttfBuffer, options = {}) {
         }
     }
 
-    // 写metadata
     if (metadata) {
         woffWriter.writeBytes(metadata);
         if (woffHeader.metaLength % 4) {

@@ -1,15 +1,3 @@
-"""DrawingML <a:prstGeom> -> SVG geometry conversion.
-
-svg_to_pptx only emits 4 prstGeom presets (rect / roundRect / ellipse / line);
-everything else goes through custGeom. So the reverse pipeline only needs
-strong support for those four to handle round-tripped decks. We additionally
-include an extended preset map covering the most common PowerPoint-authored
-shapes (triangle, diamond, hexagon, parallelogram, arrow, star, etc.) so
-hand-built decks like muban.pptx don't fall through to a placeholder.
-
-Each handler returns a SHAPE_TAG + attribute dict that the slide assembler
-wraps with fill/stroke/effect attributes plus the absolute (x, y) translation.
-"""
 
 from __future__ import annotations
 
@@ -20,39 +8,19 @@ from xml.etree import ElementTree as ET
 from .emu_units import NS, Xfrm, fmt_num
 
 
-# ---------------------------------------------------------------------------
-# GeomResult
-# ---------------------------------------------------------------------------
 
 @dataclass
 class GeomResult:
-    """Result of converting a prst preset to SVG.
-
-    `tag` is the SVG element tag (rect / ellipse / line / polygon / path /
-    polyline). `attrs` are absolute SVG coordinates already in slide space.
-    `path_d` (when tag == 'path') is the d attribute. The slide assembler
-    merges fill/stroke attrs from fill_to_svg/ln_to_svg.
-    """
 
     tag: str
     attrs: dict[str, str] = field(default_factory=dict)
-    # When tag == 'path' use path_d for the d attribute.
     path_d: str | None = None
-    # When tag == 'polygon' / 'polyline' use points for the points attribute.
     points: str | None = None
 
 
-# ---------------------------------------------------------------------------
-# Adjustment helper
-# ---------------------------------------------------------------------------
 
 def _adj_value(sp_pr: ET.Element | None, adj_name: str = "adj",
                default_pct: float = 0.0) -> float:
-    """Read an adjustment value from <a:avLst><a:gd name="..." fmla="val N"/>.
-
-    Returns the value as a fraction in [0, 1] of the relevant dimension. If
-    the gd is absent or the formula is unparseable, returns default_pct.
-    """
     if sp_pr is None:
         return default_pct
     av_lst = sp_pr.find(".//a:avLst", NS)
@@ -71,7 +39,6 @@ def _adj_value(sp_pr: ET.Element | None, adj_name: str = "adj",
 
 def _adj_int_value(sp_pr: ET.Element | None, adj_name: str,
                    default: int) -> int:
-    """Read an adjustment value as the original DrawingML integer."""
     if sp_pr is None:
         return default
     av_lst = sp_pr.find(".//a:avLst", NS)
@@ -88,21 +55,12 @@ def _adj_int_value(sp_pr: ET.Element | None, adj_name: str,
     return default
 
 
-# ---------------------------------------------------------------------------
-# Dispatch
-# ---------------------------------------------------------------------------
 
 def convert_prst_geom(
     prst: str,
     xfrm: Xfrm,
     sp_pr: ET.Element | None,
 ) -> GeomResult | None:
-    """Convert <a:prstGeom prst="..."> to a GeomResult.
-
-    Returns None if the preset has no v1 mapping; the caller can then choose
-    to render a fallback rect.
-    """
-    # Line-style presets accept zero width OR zero height (axis-aligned lines).
     if prst in ("line", "straightConnector1"):
         if xfrm.w == 0 and xfrm.h == 0:
             return None
@@ -115,9 +73,6 @@ def convert_prst_geom(
     return handler(xfrm, sp_pr)
 
 
-# ---------------------------------------------------------------------------
-# Per-preset handlers
-# ---------------------------------------------------------------------------
 
 def _rect(xfrm: Xfrm, _sp_pr) -> GeomResult:
     return GeomResult(
@@ -132,16 +87,9 @@ def _rect(xfrm: Xfrm, _sp_pr) -> GeomResult:
 
 
 def _round_rect(xfrm: Xfrm, sp_pr) -> GeomResult:
-    """roundRect adj = ratio of corner radius to half of shorter side.
-
-    DrawingML default adj = 16667 (16.667%) when avLst is absent.
-    """
     adj = _adj_value(sp_pr, "adj", default_pct=0.16667)
     short = min(xfrm.w, xfrm.h)
     radius = adj * short / 2.0  # adj is fraction of "half shorter side"
-    # Actually DrawingML "adj" for roundRect is fraction of the shorter side
-    # itself (i.e. up to 50000 = half side = capsule). svg_to_pptx writes
-    # adj = radius / shorterSide * 100000, so we invert: radius = adj * shorter.
     radius = adj * short
     radius = min(radius, short / 2.0)
     return GeomResult(
@@ -158,12 +106,6 @@ def _round_rect(xfrm: Xfrm, sp_pr) -> GeomResult:
 
 
 def _round_2_diag_rect(xfrm: Xfrm, sp_pr) -> GeomResult:
-    """Rectangle with two diagonal rounded corners.
-
-    DrawingML's round2DiagRect rounds the top-left and bottom-right corners.
-    SVG has no direct primitive for per-corner radii, so emit a native-friendly
-    path with quadratic curves.
-    """
     adj = _adj_value(sp_pr, "adj", default_pct=0.16667)
     r = min(adj * min(xfrm.w, xfrm.h), min(xfrm.w, xfrm.h) / 2.0)
     x, y, w, h = xfrm.x, xfrm.y, xfrm.w, xfrm.h
@@ -180,12 +122,6 @@ def _round_2_diag_rect(xfrm: Xfrm, sp_pr) -> GeomResult:
 
 
 def _round_2_same_rect(xfrm: Xfrm, sp_pr) -> GeomResult:
-    """Rectangle with top and bottom same-side corner adjustments.
-
-    Mirrors the OOXML preset definition: adj1 controls the top pair of corners,
-    adj2 controls the bottom pair. A common title-tab setting is adj1=0 and
-    adj2=50000, yielding square top corners and a capsule-like bottom edge.
-    """
     x, y, w, h = xfrm.x, xfrm.y, xfrm.w, xfrm.h
     ss = min(w, h)
     adj1 = _adj_int_value(sp_pr, "adj1", 16667)
@@ -250,8 +186,6 @@ def _ellipse(xfrm: Xfrm, _sp_pr) -> GeomResult:
 
 
 def _line(xfrm: Xfrm, _sp_pr) -> GeomResult:
-    # cxnSp line endpoints: x1,y1 = (x, y); x2,y2 = (x+w, y+h). flipH/flipV
-    # already baked into the xfrm via to_svg_transform.
     return GeomResult(
         tag="line",
         attrs={
@@ -261,7 +195,6 @@ def _line(xfrm: Xfrm, _sp_pr) -> GeomResult:
     )
 
 
-# ---------- Polygon-based shapes ----------
 
 def _polygon(points: list[tuple[float, float]]) -> GeomResult:
     pts = " ".join(f"{fmt_num(x)},{fmt_num(y)}" for x, y in points)
@@ -269,7 +202,6 @@ def _polygon(points: list[tuple[float, float]]) -> GeomResult:
 
 
 def _triangle(xfrm: Xfrm, sp_pr) -> GeomResult:
-    """Isoceles triangle. adj controls apex x position (default 50%)."""
     adj = _adj_value(sp_pr, "adj", default_pct=0.5)
     apex_x = xfrm.x + adj * xfrm.w
     return _polygon([
@@ -299,7 +231,6 @@ def _diamond(xfrm: Xfrm, _sp_pr) -> GeomResult:
 
 
 def _parallelogram(xfrm: Xfrm, sp_pr) -> GeomResult:
-    """adj = horizontal skew offset as fraction of width (default 25%)."""
     adj = _adj_value(sp_pr, "adj", default_pct=0.25)
     skew = adj * xfrm.w
     return _polygon([
@@ -311,10 +242,6 @@ def _parallelogram(xfrm: Xfrm, sp_pr) -> GeomResult:
 
 
 def _trapezoid(xfrm: Xfrm, sp_pr) -> GeomResult:
-    """OOXML trapezoid: x1 = ss * adj / 200000 (ss = min(w, h)).
-
-    adj default 25000; maxAdj caps at 50000 * w / ss so the top can't invert.
-    """
     adj = _adj_int_value(sp_pr, "adj", 25000)
     ss = min(xfrm.w, xfrm.h)
     if ss <= 0:
@@ -331,11 +258,6 @@ def _trapezoid(xfrm: Xfrm, sp_pr) -> GeomResult:
 
 
 def _chevron(xfrm: Xfrm, sp_pr) -> GeomResult:
-    """OOXML chevron: dx = ss * adj / 100000 (ss = min(w, h)), default adj=50000.
-
-    Both the right-pointing tip length and the left back-notch depth equal dx,
-    which is what lets a series of chevrons tile flush.
-    """
     adj = _adj_int_value(sp_pr, "adj", 50000)
     x, y, w, h = xfrm.x, xfrm.y, xfrm.w, xfrm.h
     ss = min(w, h)
@@ -356,10 +278,6 @@ def _chevron(xfrm: Xfrm, sp_pr) -> GeomResult:
 
 
 def _home_plate(xfrm: Xfrm, sp_pr) -> GeomResult:
-    """OOXML homePlate: tip length = ss * adj / 100000; body fills 0..(w - tip).
-
-    Same dx as chevron so a homePlate→chevron series tiles seamlessly.
-    """
     adj = _adj_int_value(sp_pr, "adj", 50000)
     x, y, w, h = xfrm.x, xfrm.y, xfrm.w, xfrm.h
     ss = min(w, h)
@@ -380,7 +298,6 @@ def _home_plate(xfrm: Xfrm, sp_pr) -> GeomResult:
 
 
 def _flow_chart_extract(xfrm: Xfrm, _sp_pr) -> GeomResult:
-    """Flowchart "Extract": upward-pointing isoceles triangle."""
     return _polygon([
         (xfrm.x + xfrm.w / 2.0, xfrm.y),
         (xfrm.x + xfrm.w, xfrm.y + xfrm.h),
@@ -389,7 +306,6 @@ def _flow_chart_extract(xfrm: Xfrm, _sp_pr) -> GeomResult:
 
 
 def _flow_chart_merge(xfrm: Xfrm, _sp_pr) -> GeomResult:
-    """Flowchart "Merge": downward-pointing isoceles triangle."""
     return _polygon([
         (xfrm.x, xfrm.y),
         (xfrm.x + xfrm.w, xfrm.y),
@@ -398,7 +314,6 @@ def _flow_chart_merge(xfrm: Xfrm, _sp_pr) -> GeomResult:
 
 
 def _regular_polygon(xfrm: Xfrm, n_sides: int, *, rot_deg: float = -90.0) -> GeomResult:
-    """Regular polygon inscribed in the bounding box."""
     cx = xfrm.x + xfrm.w / 2.0
     cy = xfrm.y + xfrm.h / 2.0
     rx = xfrm.w / 2.0
@@ -440,7 +355,6 @@ def _star(n_points: int):
         cy = xfrm.y + xfrm.h / 2.0
         r_outer_x = xfrm.w / 2.0
         r_outer_y = xfrm.h / 2.0
-        # Inner radius: classic 5-pointed star uses ~0.382 of outer.
         inner_ratio = 0.382 if n_points == 5 else 0.5
         r_inner_x = r_outer_x * inner_ratio
         r_inner_y = r_outer_y * inner_ratio
@@ -454,11 +368,8 @@ def _star(n_points: int):
     return handler
 
 
-# ---------- Arrow shapes ----------
 
 def _right_arrow(xfrm: Xfrm, sp_pr) -> GeomResult:
-    """Right-pointing block arrow. adj1 = head width / shape height (50%);
-    adj2 = head length / shape width (50%)."""
     adj1 = _adj_value(sp_pr, "adj1", default_pct=0.5)
     adj2 = _adj_value(sp_pr, "adj2", default_pct=0.5)
     head_h = xfrm.h * adj1
@@ -534,10 +445,8 @@ def _up_arrow(xfrm: Xfrm, sp_pr) -> GeomResult:
     ])
 
 
-# ---------- Decorative shapes ----------
 
 def _plaque(xfrm: Xfrm, sp_pr) -> GeomResult:
-    """Approximate DrawingML plaque with concave curved corner cuts."""
     adj = _adj_value(sp_pr, "adj", default_pct=0.16667)
     r = min(adj * min(xfrm.w, xfrm.h), min(xfrm.w, xfrm.h) / 2.0)
     x, y, w, h = xfrm.x, xfrm.y, xfrm.w, xfrm.h
@@ -555,13 +464,10 @@ def _plaque(xfrm: Xfrm, sp_pr) -> GeomResult:
     return GeomResult(tag="path", path_d=d)
 
 
-# ---------- Pie / chord / arc (path-based) ----------
 
 def _pie(xfrm: Xfrm, sp_pr) -> GeomResult:
-    """Pie slice. adj1 = start angle, adj2 = end angle (1/60000 deg)."""
     adj1 = _adj_value(sp_pr, "adj1", default_pct=0.0)  # default 0°
     adj2 = _adj_value(sp_pr, "adj2", default_pct=270.0 / 360.0)  # default 270°
-    # adj is in 100000ths of percent → degrees by * 360
     start_deg = adj1 * 360.0
     end_deg = adj2 * 360.0
     return _arc_path(xfrm, start_deg, end_deg, mode="pie")
@@ -590,7 +496,6 @@ def _arc_path(xfrm: Xfrm, start_deg: float, end_deg: float, *, mode: str) -> Geo
     sy = cy + ry * math.sin(sa)
     ex = cx + rx * math.cos(ea)
     ey = cy + ry * math.sin(ea)
-    # Sweep direction: PowerPoint draws clockwise; SVG arc sweep_flag = 1 = clockwise.
     delta = (end_deg - start_deg) % 360.0
     large_arc = 1 if delta > 180 else 0
     sweep = 1
@@ -604,23 +509,16 @@ def _arc_path(xfrm: Xfrm, start_deg: float, end_deg: float, *, mode: str) -> Geo
     return GeomResult(tag="path", path_d=" ".join(parts))
 
 
-# ---------------------------------------------------------------------------
-# Preset table
-# ---------------------------------------------------------------------------
 
 _PRESET_HANDLERS = {
-    # Core 4 (svg_to_pptx round-trip)
     "rect": _rect,
     "roundRect": _round_rect,
     "round2DiagRect": _round_2_diag_rect,
     "round2SameRect": _round_2_same_rect,
     "ellipse": _ellipse,
     "line": _line,
-    # Straight connector: same geometry as a `line` preset; head/tail markers
-    # come from <a:ln>.
     "straightConnector1": _line,
 
-    # Polygons
     "triangle": _triangle,
     "rtTriangle": _rt_triangle,
     "diamond": _diamond,
@@ -637,7 +535,6 @@ _PRESET_HANDLERS = {
     "decagon": _decagon,
     "dodecagon": _dodecagon,
 
-    # Stars
     "star4": _star(4),
     "star5": _star(5),
     "star6": _star(6),
@@ -649,16 +546,13 @@ _PRESET_HANDLERS = {
     "star24": _star(24),
     "star32": _star(32),
 
-    # Arrows
     "rightArrow": _right_arrow,
     "leftArrow": _left_arrow,
     "downArrow": _down_arrow,
     "upArrow": _up_arrow,
 
-    # Decorative
     "plaque": _plaque,
 
-    # Pie / chord / arc
     "pie": _pie,
     "chord": _chord,
     "arc": _arc,
@@ -666,5 +560,4 @@ _PRESET_HANDLERS = {
 
 
 def supported_presets() -> set[str]:
-    """Return the set of recognized prst values for diagnostics."""
     return set(_PRESET_HANDLERS.keys())

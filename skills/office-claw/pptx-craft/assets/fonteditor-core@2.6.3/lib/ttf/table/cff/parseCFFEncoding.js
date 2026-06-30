@@ -4,19 +4,7 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = parseCFFEncoding;
-/**
- * @file 解析cff编码
- * @author mengke01(kekee000@gmail.com)
- */
 
-/**
- * 解析cff encoding数据
- * See Adobe TN #5176 chapter 12, "Encodings".
- *
- * @param  {Reader} reader 读取器
- * @param  {number=} start  偏移
- * @return {Object}        编码表
- */
 function parseCFFEncoding(reader, start) {
   if (null != start) {
     reader.seek(start);

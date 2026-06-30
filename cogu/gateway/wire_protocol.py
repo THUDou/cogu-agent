@@ -1,23 +1,3 @@
-"""COGU Wire Protocol — JSONRPC2 over stdio / WebSocket.
-
-Inspired by Kimi Agent SDK Wire Protocol (go/wire/message.go).
-Defines event types for real-time Agent–Client communication.
-
-Protocol modes
-==============
-1. stdio  : JSONRPC2 over stdin/stdout (for CLI / desktop embedding)
-2. WS+SSE : WebSocket for bidirectional + SSE for downstream fallback
-3. HTTP   : legacy REST (backward-compatible)
-
-Message envelope
-================
-{
-  "jsonrpc": "2.0",
-  "method":  "<event_type>",
-  "params": { ... },
-  "id":  "<optional-request-id>"
-}
-"""
 
 from __future__ import annotations
 
@@ -28,50 +8,37 @@ from enum import Enum
 from typing import Any, Optional
 
 
-# ---------------------------------------------------------------------------
-# Event type constants (match Kimi wire protocol where semantically equivalent)
-# ---------------------------------------------------------------------------
 
 class WireEvent(str, Enum):
-    # -- Session lifecycle --
     SESSION_HELLO = "session.hello"
     SESSION_READY = "session.ready"
 
-    # -- Turn (one full agent response cycle) --
     TURN_BEGIN  = "turn.begin"
     TURN_END    = "turn.end"
 
-    # -- Step (one LLM call inside a turn) --
     STEP_BEGIN   = "step.begin"
     STEP_END     = "step.end"
 
-    # -- Content streaming --
     CONTENT_PART = "content.part"   # text / thinking delta
     TEXT_DELTA   = "text.delta"
     THINKING_DELTA = "thinking.delta"
 
-    # -- Tool execution --
     TOOL_CALL_START = "tool_call.start"
     TOOL_CALL_ARGS = "tool_call.args"
     TOOL_CALL_END   = "tool_call.end"
     TOOL_RESULT     = "tool.result"
 
-    # -- Display blocks (rich UI rendering) --
     DISPLAY_BLOCK = "display.block"  # diff / todo / shell / brief
 
-    # -- Approval (human-in-the-loop) --
     APPROVAL_REQUEST  = "approval.request"
     APPROVAL_RESPONSE = "approval.response"
 
-    # -- Context compaction --
     COMPACTION_BEGIN = "compaction.begin"
     COMPACTION_END   = "compaction.end"
 
-    # -- Status --
     STATUS_UPDATE = "status.update"
     ERROR          = "error"
 
-    # -- Run lifecycle (Gateway-level) --
     RUN_STARTED  = "run.started"
     RUN_PROGRESS = "run.progress"
     RUN_COMPLETED = "run.completed"
@@ -79,9 +46,6 @@ class WireEvent(str, Enum):
     RUN_ERROR     = "run.error"
 
 
-# ---------------------------------------------------------------------------
-# Dataclass definitions
-# ---------------------------------------------------------------------------
 
 @dataclass
 class WireMessage:
@@ -107,7 +71,6 @@ class WireMessage:
 
 @dataclass
 class SessionHello:
-    """Client → Server.  Initialise session, negotiate version."""
     client_version: str = "1.0"
     capabilities: list[str] = field(default_factory=lambda: ["streaming", "cancel"])
     session_id: str = ""
@@ -126,7 +89,6 @@ class SessionHello:
 
 @dataclass
 class SessionReady:
-    """Server → Client.  Session created, capabilities confirmed."""
     server_version: str = "0.4.0"
     session_id: str = ""
     server_capabilities: list[str] = field(default_factory=lambda: [
@@ -262,7 +224,6 @@ class ToolResult:
 
 @dataclass
 class DisplayBlock:
-    """Rich UI block — diff / todo / shell / brief (Kimi-inspired)."""
     block_type: str = "brief"   # "diff" | "todo" | "shell" | "brief"
     content: str = ""
     language: str = ""
@@ -347,32 +308,15 @@ class ErrorMessage:
         return WireMessage(method=WireEvent.ERROR, params=params)
 
 
-# ---------------------------------------------------------------------------
-# SSE helper — convert WireMessage to SSE event (backward-compatible with existing Gateway)
-# ---------------------------------------------------------------------------
 
 def wire_to_sse(msg: WireMessage) -> str:
-    """Convert a WireMessage to SSE event string.
-
-    Existing Gateway SSE consumers expect::
-
-        event: <event_type>
-        data: <json>
-
-    This function preserves that format while enriching ``data`` with
-    Wire Protocol-compliant ``params``.
-    """
     import json
     payload = json.dumps(msg.params, ensure_ascii=False)
     return f"event: {msg.method}\ndata: {payload}\n\n"
 
 
-# ---------------------------------------------------------------------------
-# Parse incoming stdio JSONRPC2 line → WireMessage
-# ---------------------------------------------------------------------------
 
 def parse_wire_line(line: str) -> Optional[WireMessage]:
-    """Parse one JSONRPC2 line from stdio into WireMessage."""
     import json
     try:
         obj = json.loads(line.strip())

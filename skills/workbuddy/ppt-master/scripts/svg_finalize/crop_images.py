@@ -1,19 +1,3 @@
-#!/usr/bin/env python3
-"""
-PPT Master - Smart Image Cropping Tool
-
-Smartly crops images based on the preserveAspectRatio attribute of <image> elements in SVG:
-- slice: Crop to fill (similar to CSS object-fit: cover)
-- meet: Display fully without cropping (similar to CSS object-fit: contain)
-
-Supports 9 alignment modes:
-- xMinYMin / xMidYMin / xMaxYMin (top alignment)
-- xMinYMid / xMidYMid / xMaxYMid (vertical center)
-- xMinYMax / xMidYMax / xMaxYMax (bottom alignment)
-
-Usage:
-    python3 scripts/svg_finalize/crop_images.py <SVG file or directory> [--dry-run]
-"""
 
 import os
 import re
@@ -32,13 +16,6 @@ except ImportError:
 
 
 def parse_preserve_aspect_ratio(attr: str) -> tuple[str, str]:
-    """
-    Parse the preserveAspectRatio attribute.
-
-    Returns: (align, meet_or_slice)
-        align: e.g. 'xMidYMid'
-        meet_or_slice: 'meet' or 'slice'
-    """
     if not attr:
         return ('xMidYMid', 'meet')  # Default value
     
@@ -50,13 +27,6 @@ def parse_preserve_aspect_ratio(attr: str) -> tuple[str, str]:
 
 
 def get_crop_anchor(align: str) -> tuple[float, float]:
-    """
-    Return the crop anchor point based on the align value.
-
-    Returns: (x_anchor, y_anchor)
-        x_anchor: 0.0 (left), 0.5 (center), 1.0 (right)
-        y_anchor: 0.0 (top), 0.5 (center), 1.0 (bottom)
-    """
     x_map = {'xMin': 0.0, 'xMid': 0.5, 'xMax': 1.0}
     y_map = {'YMin': 0.0, 'YMid': 0.5, 'YMax': 1.0}
     
@@ -83,39 +53,18 @@ def crop_image_to_size(
     x_anchor: float = 0.5,
     y_anchor: float = 0.5,
 ) -> Image.Image:
-    """
-    Crop an image to the target aspect ratio, preserving original resolution (no scaling).
-
-    New logic: Only crops the original image to the target aspect ratio without any scaling,
-    thus preserving the original resolution and clarity.
-
-    Args:
-        img: PIL Image object
-        target_width: Target width (used to calculate ratio)
-        target_height: Target height (used to calculate ratio)
-        x_anchor: Horizontal anchor (0=left, 0.5=center, 1=right)
-        y_anchor: Vertical anchor (0=top, 0.5=center, 1=bottom)
-
-    Returns:
-        Cropped PIL Image object (preserving original resolution)
-    """
     img_width, img_height = img.size
     
-    # Calculate target aspect ratio
     target_ratio = target_width / target_height
     img_ratio = img_width / img_height
     
-    # Calculate crop region on the original image based on ratio (no scaling)
     if img_ratio > target_ratio:
-        # Original image is wider; crop left and right sides
         crop_height = img_height
         crop_width = int(img_height * target_ratio)
     else:
-        # Original image is taller; crop top and bottom sides
         crop_width = img_width
         crop_height = int(img_width / target_ratio)
     
-    # Calculate crop position based on anchor point
     extra_width = img_width - crop_width
     extra_height = img_height - crop_height
     
@@ -124,7 +73,6 @@ def crop_image_to_size(
     right = left + crop_width
     bottom = top + crop_height
     
-    # Crop only, no scaling
     return img.crop((left, top, right, bottom))
 
 
@@ -134,31 +82,15 @@ def process_svg_images(
     dry_run: bool = False,
     verbose: bool = True,
 ) -> tuple[int, int]:
-    """
-    Process images in an SVG file, cropping based on the preserveAspectRatio attribute.
-
-    Args:
-        svg_file: SVG file path
-        output_dir: Output directory for cropped images (default: images/cropped/)
-        dry_run: Preview only, no actual processing
-        verbose: Verbose output
-
-    Returns:
-        (processed_count, error_count)
-    """
     svg_path = Path(svg_file)
     svg_dir = svg_path.parent
     
-    # Default output directory
     if output_dir is None:
-        # Find the project's images directory
-        # Parent directory of svg_output or svg_final, under images
         project_dir = svg_dir.parent
         output_dir = project_dir / 'images' / 'cropped'
     else:
         output_dir = Path(output_dir)
     
-    # Parse SVG
     try:
         ET.register_namespace('', 'http://www.w3.org/2000/svg')
         ET.register_namespace('xlink', 'http://www.w3.org/1999/xlink')
@@ -175,26 +107,20 @@ def process_svg_images(
     error_count = 0
     modified = False
     
-    # Find all image elements
     for image in root.iter('{http://www.w3.org/2000/svg}image'):
-        # Get href attribute
         href = image.get('{http://www.w3.org/1999/xlink}href') or image.get('href')
         if not href:
             continue
         
-        # Skip Base64 inline images
         if href.startswith('data:'):
             continue
         
-        # Get preserveAspectRatio attribute
         par = image.get('preserveAspectRatio', '')
         align, mode = parse_preserve_aspect_ratio(par)
         
-        # Only process slice mode
         if mode != 'slice':
             continue
         
-        # Get target dimensions
         try:
             target_width = int(float(image.get('width', 0)))
             target_height = int(float(image.get('height', 0)))
@@ -204,7 +130,6 @@ def process_svg_images(
         if target_width <= 0 or target_height <= 0:
             continue
         
-        # Parse image path
         href_decoded = unquote(href)
         if href_decoded.startswith('../'):
             img_path = (svg_dir / href_decoded).resolve()
@@ -216,7 +141,6 @@ def process_svg_images(
                 print(f"    [SKIP] Image not found: {href}")
             continue
         
-        # Get crop anchor point
         x_anchor, y_anchor = get_crop_anchor(align)
         
         if dry_run:
@@ -226,15 +150,12 @@ def process_svg_images(
             processed_count += 1
             continue
         
-        # Create output directory
         output_dir.mkdir(parents=True, exist_ok=True)
         
         try:
-            # Open and process image
             img = Image.open(img_path)
             output_is_png = img_path.suffix.lower() == '.png'
 
-            # Preserve alpha for PNG assets such as translucent overlays.
             if output_is_png:
                 if img.mode == 'P':
                     img = img.convert('RGBA')
@@ -251,14 +172,11 @@ def process_svg_images(
                 elif img.mode not in ('RGB', 'L'):
                     img = img.convert('RGB')
             
-            # Crop
             cropped = crop_image_to_size(img, target_width, target_height, x_anchor, y_anchor)
             
-            # Generate output filename (keep original name, place in cropped directory)
             output_filename = img_path.name
             output_path = output_dir / output_filename
             
-            # Save
             if output_is_png:
                 cropped.save(output_path, 'PNG', optimize=True)
             else:
@@ -268,14 +186,12 @@ def process_svg_images(
                 print(f"    [OK] {img_path.name}: {img.size} -> {target_width}x{target_height} "
                       f"({align})")
             
-            # Update image path in SVG
             new_href = f"../images/cropped/{output_filename}"
             if image.get('{http://www.w3.org/1999/xlink}href'):
                 image.set('{http://www.w3.org/1999/xlink}href', new_href)
             else:
                 image.set('href', new_href)
             
-            # Remove preserveAspectRatio (image is now correctly sized)
             if 'preserveAspectRatio' in image.attrib:
                 del image.attrib['preserveAspectRatio']
             
@@ -287,7 +203,6 @@ def process_svg_images(
                 print(f"    [ERROR] {img_path.name}: {e}")
             error_count += 1
     
-    # Save modified SVG
     if modified and not dry_run:
         tree.write(str(svg_path), encoding='unicode', xml_declaration=False)
     
@@ -295,7 +210,6 @@ def process_svg_images(
 
 
 def process_directory(directory: str, dry_run: bool = False, verbose: bool = True) -> tuple[int, int]:
-    """Process all SVG files in a directory."""
     directory_path = Path(directory)
     total_processed = 0
     total_errors = 0
@@ -311,7 +225,6 @@ def process_directory(directory: str, dry_run: bool = False, verbose: bool = Tru
 
 
 def main() -> None:
-    """Run the CLI entry point."""
     parser = argparse.ArgumentParser(
         description='PPT Master - Smart Image Cropping Tool',
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -327,32 +240,3 @@ preserveAspectRatio usage:
   xMinYMid slice   Keep left
   xMaxYMid slice   Keep right
   xMidYMid meet    Display fully, no cropping
-        '''
-    )
-    
-    parser.add_argument('path', type=Path, help='SVG file or directory')
-    parser.add_argument('--dry-run', '-n', action='store_true', help='Preview only, no actual processing')
-    parser.add_argument('--quiet', '-q', action='store_true', help='Quiet mode')
-    
-    args = parser.parse_args()
-    
-    if not args.path.exists():
-        print(f"[ERROR] Path not found: {args.path}")
-        sys.exit(1)
-
-    print("PPT Master - Smart Image Cropping")
-    print("=" * 50)
-    
-    if args.path.is_file():
-        processed, errors = process_svg_images(str(args.path), dry_run=args.dry_run, 
-                                                verbose=not args.quiet)
-    else:
-        processed, errors = process_directory(str(args.path), dry_run=args.dry_run,
-                                               verbose=not args.quiet)
-    
-    print()
-    print(f"Done: {processed} image(s) cropped, {errors} error(s)")
-
-
-if __name__ == '__main__':
-    main()

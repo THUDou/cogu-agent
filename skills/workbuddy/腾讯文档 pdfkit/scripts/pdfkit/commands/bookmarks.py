@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""PDF 书签/目录编辑脚本。
-
-支持读取、添加、修改和删除 PDF 书签（大纲/目录）。
-
-依赖：PyMuPDF (fitz)
-"""
 
 import os
 
@@ -22,7 +14,6 @@ PARAMS = [
 
 
 def get_bookmarks(input_path):
-    """读取 PDF 书签/目录。"""
     import fitz  # PyMuPDF
 
     doc = fitz.open(input_path)
@@ -42,25 +33,15 @@ def get_bookmarks(input_path):
 
 
 def set_bookmarks(input_path, output_path, bookmarks, mode="replace"):
-    """设置 PDF 书签/目录。
-
-    Args:
-        input_path: 输入 PDF 路径
-        output_path: 输出 PDF 路径
-        bookmarks: 书签列表，每项包含 level, title, page
-        mode: "replace"(替换全部), "append"(追加)
-    """
     import fitz  # PyMuPDF
 
     doc = fitz.open(input_path)
 
     if mode == "append":
-        # 追加模式：获取现有书签
         existing_toc = doc.get_toc()
     else:
         existing_toc = []
 
-    # 构建 TOC 列表
     new_toc = list(existing_toc)
     for bm in bookmarks:
         level = bm.get("level", 1)
@@ -69,7 +50,6 @@ def set_bookmarks(input_path, output_path, bookmarks, mode="replace"):
         if title:
             new_toc.append([level, title, page])
 
-    # 设置书签
     doc.set_toc(new_toc)
     doc.save(output_path)
     file_size = os.path.getsize(output_path)
@@ -85,7 +65,6 @@ def set_bookmarks(input_path, output_path, bookmarks, mode="replace"):
 
 
 def handler(params):
-    """处理 PDF 书签操作请求。"""
     action = params.get("action", "get")
     input_path = params.get("input", "")
 

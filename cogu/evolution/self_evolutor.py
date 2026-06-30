@@ -1,8 +1,3 @@
-"""Self Evolutor — 零数据自进化
-
-基于源码: Agent0 zero-data self-evolution + Yantu-Agent training-free GRPO
-COGU 实现: 从使用模式自动优化 Prompt/Tool/记忆
-"""
 from __future__ import annotations
 
 import json
@@ -32,7 +27,6 @@ class EvolutionResult:
 
 
 class SelfEvolutor:
-    """零数据自进化 — 从使用模式自动优化"""
 
     def __init__(self, workspace: str | Path = ".cogu/evolution", llm_client: Any = None):
         self._path = Path(workspace)

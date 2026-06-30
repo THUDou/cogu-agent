@@ -1,30 +1,19 @@
 #!/usr/bin/env node
-/**
- * PPT 模板规范生成 - 主入口脚本
- * 协调工具提取、视觉分析、聚合生成等流程
- */
 
 const fs = require('fs');
 const path = require('path');
 const { execSync, spawn } = require('child_process');
 
-// 强制所有 Python 子进程使用 UTF-8 输出（修复 Windows 控制台乱码）
 process.env.PYTHONUTF8 = '1';
 
-// 获取脚本目录
 const SCRIPTS_DIR = __dirname;
 const SKILL_DIR = path.dirname(SCRIPTS_DIR);
 const PROJECT_ROOT = path.resolve(SKILL_DIR, '..', '..');
 
-// 默认输出根目录（可通过 --output-dir 覆盖）
 const DEFAULT_HUB_DIR = path.join(PROJECT_ROOT, 'ppt-template-hub');
 
 const { findPythonCmd, pptxDirToImages } = require('./convert_to_images.js');
 
-/**
- * 生成时间戳字符串（用于区分并行任务）
- * 格式: YYYYMMDD_HHMMSS_xxx (xxx 为随机 3 位数)
- */
 function generateTimestamp() {
   const now = new Date();
   const date = now.toISOString().slice(0, 10).replace(/-/g, '');
@@ -61,10 +50,6 @@ function resolveVlmAvailability({ skipVlm, strictVlm, vlmApiOk, failureReason })
   return { skipVlm: true, fallbackReason: reason };
 }
 
-/**
- * 检测运行时依赖：Node.js 版本、Python、python-pptx、lxml、Pillow
- * 返回各依赖的状态对象
- */
 function checkRuntimeDeps() {
   const results = {
     nodejs: { ok: false, detail: '' },
@@ -72,13 +57,11 @@ function checkRuntimeDeps() {
     python_pptx: { ok: false, detail: '' },
   };
 
-  // Node.js ≥ 18
   const nodeVer = process.version;
   const major = parseInt(nodeVer.slice(1), 10);
   results.nodejs.ok = major >= 18;
   results.nodejs.detail = results.nodejs.ok ? `${nodeVer} (≥18)` : `${nodeVer} (需要 ≥18)`;
 
-  // Python：优先 venv，回退系统 python
   const pythonCmd = findPythonCmd();
   results.python.cmd = pythonCmd;
 
@@ -91,7 +74,6 @@ function checkRuntimeDeps() {
     results.python.detail = `未找到 (${pythonCmd})`;
   }
 
-  // Python 包检测（仅当 Python 可用时）
   if (results.python.ok) {
     const checkPkg = (importName) => {
       try {
@@ -111,9 +93,6 @@ function checkRuntimeDeps() {
   return results;
 }
 
-/**
- * 打印完整环境检测报告（运行时 + 图片转换）
- */
 function printEnvReport(runtimeDeps, imageDeps, imageChecked) {
   const mark = (ok) => ok ? '✓' : '✗';
   console.log('环境检测结果:');
@@ -127,9 +106,6 @@ function printEnvReport(runtimeDeps, imageDeps, imageChecked) {
   }
 }
 
-/**
- * 执行 Python 结构提取
- */
 function extractStructure(pptxPath, outputPath) {
   const scriptPath = path.join(SCRIPTS_DIR, 'extract_structure.py');
   const pythonCmd = findPythonCmd();
@@ -145,9 +121,6 @@ function extractStructure(pptxPath, outputPath) {
   }
 }
 
-/**
- * 执行图片资产提取
- */
 function extractImages(pptxPath, outputDir) {
   const scriptPath = path.join(SCRIPTS_DIR, 'extract_images.py');
   const pythonCmd = findPythonCmd();
@@ -163,9 +136,6 @@ function extractImages(pptxPath, outputDir) {
   }
 }
 
-/**
- * 调用 split_pptx.py，将 PPTX 拆分为单页临时文件
- */
 function splitPptx(pptxPath, outputDir, options = {}) {
   const { maxSlides = 0 } = options;
   const scriptPath = path.join(SCRIPTS_DIR, 'split_pptx.py');
@@ -190,18 +160,12 @@ function splitPptx(pptxPath, outputDir, options = {}) {
   return files.length;
 }
 
-/**
- * 执行图片转换（Spire.Presentation.Free）
- */
 async function convertToImages(pptxPath, outputDir, options = {}) {
   const { pptxToImages } = require('./convert_to_images.js');
   console.log('执行 PPT 转图片...');
   return pptxToImages(pptxPath, outputDir, options);
 }
 
-/**
- * 执行 VLM 视觉分析（必需，失败则抛出错误）
- */
 async function runVLMAnalysis(slidesDir, configPath) {
   const { batchAnalyze, testConnection } = require('./vlm-analyzer.js');
 
@@ -215,9 +179,6 @@ async function runVLMAnalysis(slidesDir, configPath) {
   return result;
 }
 
-/**
- * 执行聚合生成
- */
 function aggregate(structurePath, outputPath, options) {
   const scriptPath = path.join(SCRIPTS_DIR, 'aggregate.js');
   let cmd = `node "${scriptPath}" "${structurePath}" "${outputPath}"`;
@@ -251,9 +212,6 @@ function aggregate(structurePath, outputPath, options) {
   }
 }
 
-/**
- * hex -> HSL（h: 0-360, s: 0-1, l: 0-1）
- */
 function hexToHsl(hex) {
   if (!hex || hex.length < 7) return { h: 0, s: 0, l: 0 };
   const r = parseInt(hex.slice(1, 3), 16) / 255;
@@ -271,10 +229,6 @@ function hexToHsl(hex) {
   return { h: h * 360, s, l };
 }
 
-/**
- * 将 hex 颜色映射到中文色彩名（用于风格命名）
- * 返回 null 表示颜色不具备命名价值
- */
 function colorToChineseName(hex) {
   if (!hex || !hex.startsWith('#') || hex.length < 7) return null;
   const { h, s, l } = hexToHsl(hex);
@@ -507,10 +461,6 @@ function selectInitialStyleName({ pptxPath, explicitName }) {
   return explicitName || path.basename(pptxPath, '.pptx');
 }
 
-/**
- * 解析最终风格目录（处理重名冲突）
- * 规则：中国风 → 中国风_01 → 中国风_02 ...
- */
 function resolveStyleDir(styleName, hubDir) {
   if (!fs.existsSync(hubDir)) {
     fs.mkdirSync(hubDir, { recursive: true });
@@ -532,9 +482,6 @@ function resolveStyleDir(styleName, hubDir) {
   }
 }
 
-/**
- * 主流程
- */
 async function main(options) {
   const {
     pptxPath,
@@ -550,12 +497,10 @@ async function main(options) {
   let effectiveSkipVlm = skipVlm;
   let vlmFallbackReason = null;
 
-  // 验证输入文件
   if (!fs.existsSync(pptxPath)) {
     throw new Error(`PPTX 文件不存在: ${pptxPath}`);
   }
 
-  // VLM + --skip-convert 组合检查
   if (!effectiveSkipVlm && skipConvert) {
     const availability = resolveVlmAvailability({
       skipVlm: effectiveSkipVlm,
@@ -570,10 +515,8 @@ async function main(options) {
     }
   }
 
-  // 运行时依赖检测（Node.js、Python、python-pptx）
   const runtimeDeps = checkRuntimeDeps();
 
-  // 图片转换依赖检测（仅在启用转换或VLM时才检测，避免无谓的Python子进程调用）
   let imageDeps = { spire: false };
   const imageChecked = !skipConvert || !effectiveSkipVlm;
   if (imageChecked) {
@@ -581,10 +524,8 @@ async function main(options) {
     imageDeps = checkDependencies();
   }
 
-  // 统一输出环境报告
   printEnvReport(runtimeDeps, imageDeps, imageChecked);
 
-  // 关键依赖缺失时抛出错误
   if (!runtimeDeps.nodejs.ok) {
     throw new Error(`Node.js 版本不满足: ${runtimeDeps.nodejs.detail}，需要 ≥18`);
   }
@@ -601,7 +542,6 @@ async function main(options) {
     );
   }
 
-  // 图片转换依赖校验（仅在启用转换时）
   if (!skipConvert) {
     if (!imageDeps.spire) {
       throw new Error(
@@ -634,10 +574,8 @@ async function main(options) {
     }
   }
 
-  // 生成时间戳（用于临时工作目录，避免并行任务冲突）
   const timestamp = generateTimestamp();
 
-  // 创建临时工作目录（以 .tmp_ 开头，稍后重命名为风格名）
   const tmpWorkDir = path.join(effectiveHubDir, `.tmp_${timestamp}`);
   const tempDir = path.join(tmpWorkDir, 'temp');
   if (!fs.existsSync(tempDir)) {
@@ -663,28 +601,23 @@ async function main(options) {
   }
   console.log('');
 
-  // Step 1: 结构提取
   console.log(`[Step 1/${totalSteps}] 结构提取`);
   const structureOk = extractStructure(pptxPath, structurePath);
   if (!structureOk) {
     console.warn('结构提取失败，使用空数据继续');
   }
 
-  // Step 1.5: 图片资产提取
   console.log(`\n[图片提取] 提取所有幻灯片图片资产...`);
   extractImages(pptxPath, imagesDir);
 
-  // Step 2: PPT 拆分 + 转图片
   console.log(`\n[Step 2/${totalSteps}] PPT 转图片`);
   let slideImages = [];
   if (!skipConvert) {
     const singlePptDir = path.join(tempDir, 'single_ppt');
 
-    // Step 2a: 拆分为单页文件
     console.log('[Step 2a] 拆分 PPTX 为单页文件...');
     const splitCount = splitPptx(pptxPath, singlePptDir, { maxSlides: options.maxSlides ?? 10 });
 
-    // Step 2b: 逐个转换为图片
     console.log('[Step 2b] 逐页转换图片...');
     slideImages = await pptxDirToImages(singlePptDir, slidesDir);
     if (slideImages.length === 0) {
@@ -695,7 +628,6 @@ async function main(options) {
     console.log('已跳过 PPT 转图片');
   }
 
-  // Step 3: VLM 分析（默认启用，可用 --skip-vlm 跳过）
   let vlmResultPath = null;
 
   if (!effectiveSkipVlm) {
@@ -721,8 +653,6 @@ async function main(options) {
     console.log(`\n[Step 3/${totalSteps}] VLM 视觉分析（已跳过）`);
   }
 
-  // 确定初始目录名称：用户指定则直接使用；否则以文件名作为临时目录名，
-  // agent 在读取 NAMING_HINT 后负责重命名。VLM 只增强模板内容，不参与命名。
   let finalStyleName = selectInitialStyleName({
     pptxPath,
     explicitName: options.name || null,
@@ -731,17 +661,14 @@ async function main(options) {
     console.log(`临时目录名（待 agent 重命名）: ${finalStyleName}`);
   }
 
-  // 解析最终输出目录，处理重名冲突（中国风 → 中国风_01 → 中国风_02）
   const { dirName: finalDirName, dirPath: finalTaskDir } = resolveStyleDir(finalStyleName, effectiveHubDir);
   if (finalDirName !== finalStyleName) {
     console.log(`风格名 "${finalStyleName}" 已存在，使用目录名: ${finalDirName}`);
     finalStyleName = finalDirName;
   }
 
-  // 将临时工作目录重命名为最终目录
   fs.renameSync(tmpWorkDir, finalTaskDir);
 
-  // 更新路径（基于重命名后的目录）
   const finalTempDir = path.join(finalTaskDir, 'temp');
   const finalStructurePath = path.join(finalTempDir, 'template_data.json');
   const finalVlmResultPath = path.join(finalTempDir, 'vlm_analysis.json');
@@ -762,7 +689,6 @@ async function main(options) {
   console.log(`风格名称: ${finalStyleName}`);
   console.log('');
 
-  // Step 最后: 聚合生成
   console.log(`\n[Step ${totalSteps}/${totalSteps}] 聚合生成`);
   const imageMapPath = path.join(finalTaskDir, 'images', 'image-map.json');
   if (!effectiveSkipVlm && fs.existsSync(finalVlmResultPath)) {
@@ -820,7 +746,6 @@ async function main(options) {
     reusableStyleAssets,
   });
 
-  // 未指定名称时始终输出配色分析，供 agent 自主命名并重命名目录。
   if (!options.name) {
     const namingHintPath = path.join(finalTempDir, 'naming-hint.json');
     const imageMapData = fs.existsSync(imageMapPath)
@@ -851,8 +776,6 @@ async function main(options) {
     console.log(`图片资产地图: ${imageMapPath}`);
   }
 
-  // 保留 temp 目录，便于复查 template_data.json 与 vlm_analysis.json。
-  // 这些文件不包含 API Key，可用于定位 VLM 是否按增强结构返回了固定构图等字段。
 
   return {
     timestamp,
@@ -868,7 +791,6 @@ async function main(options) {
   };
 }
 
-// CLI 入口
 function parseCliOptions(args) {
   const pptxPath = args[0];
 
@@ -941,7 +863,6 @@ async function cli() {
     process.exit(0);
   }
 
-  // 检查测试模式
   if (args.includes('--test-vlm')) {
     const configPath = args.find(a => a.startsWith('--config='))?.slice('--config='.length)
       || path.join(SKILL_DIR, 'vlm-config.json');
@@ -961,7 +882,6 @@ async function cli() {
   }
 }
 
-// 导出
 module.exports = {
   main,
   parseCliOptions,

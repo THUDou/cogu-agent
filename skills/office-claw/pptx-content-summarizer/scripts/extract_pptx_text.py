@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-"""Extract slide-level text, tables, notes, and basic shape metadata from PPTX."""
 
 from __future__ import annotations
 
@@ -272,7 +270,6 @@ def extract_pptx(input_path: str) -> Dict[str, Any]:
 
 
 def compact_for_summary(data: Dict[str, Any]) -> Dict[str, Any]:
-    """Return the small payload that downstream summary writing should read."""
     slides = []
     for slide in data.get("slides", []):
         content = "\n".join(text_value_to_lines(slide.get("full_text", "")))
@@ -317,7 +314,6 @@ def compact_for_summary(data: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def write_slide_inputs(summary_data: Dict[str, Any], output_dir: Path) -> None:
-    """Write one input JSON file per slide for low-context-pressure page card generation."""
     output_dir.mkdir(parents=True, exist_ok=True)
     doc_props = summary_data.get("document_properties", {})
     slide_count = summary_data.get("slide_count", 0)

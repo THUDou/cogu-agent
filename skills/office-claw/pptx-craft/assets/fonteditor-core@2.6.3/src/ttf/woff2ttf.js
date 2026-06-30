@@ -1,21 +1,8 @@
-/**
- * @file woff转换ttf
- * @author mengke01(kekee000@gmail.com)
- */
 
 import Reader from './reader';
 import Writer from './writer';
 import error from './error';
 
-/**
- * woff格式转换成ttf字体格式
- *
- * @param {ArrayBuffer} woffBuffer woff缓冲数组
- * @param {Object} options 选项
- * @param {Object} options.inflate 解压相关函数
- *
- * @return {ArrayBuffer} ttf格式byte流
- */
 export default function woff2ttf(woffBuffer, options = {}) {
     const reader = new Reader(woffBuffer);
     const signature = reader.readUint32(0);
@@ -33,7 +20,6 @@ export default function woff2ttf(woffBuffer, options = {}) {
     let i;
     let l;
 
-    // 读取woff表索引信息
     for (i = 0; i < numTables; ++i) {
         reader.seek(44 + i * 20);
         tableEntry = {
@@ -44,9 +30,7 @@ export default function woff2ttf(woffBuffer, options = {}) {
             checkSum: reader.readUint32()
         };
 
-        // ttf 表数据
         const deflateData = reader.readBytes(tableEntry.offset, tableEntry.compLength);
-        // 需要解压
         if (deflateData.length < tableEntry.length) {
 
             if (!options.inflate) {
@@ -66,7 +50,6 @@ export default function woff2ttf(woffBuffer, options = {}) {
 
 
     const writer = new Writer(new ArrayBuffer(ttfSize));
-    // 写头部
     const entrySelector = Math.floor(Math.log(numTables) / Math.LN2);
     const searchRange = Math.pow(2, entrySelector) * 16;
     const rangeShift = numTables * 16 - searchRange;
@@ -77,7 +60,6 @@ export default function woff2ttf(woffBuffer, options = {}) {
     writer.writeUint16(entrySelector);
     writer.writeUint16(rangeShift);
 
-    // 写ttf表索引
     let tblOffset = 12 + 16 * tableEntries.length;
     for (i = 0, l = tableEntries.length; i < l; ++i) {
         tableEntry = tableEntries[i];
@@ -89,7 +71,6 @@ export default function woff2ttf(woffBuffer, options = {}) {
             + (tableEntry.length % 4 ? 4 - tableEntry.length % 4 : 0);
     }
 
-    // 写ttf表数据
     for (i = 0, l = tableEntries.length; i < l; ++i) {
         tableEntry = tableEntries[i];
         writer.writeBytes(tableEntry.data);

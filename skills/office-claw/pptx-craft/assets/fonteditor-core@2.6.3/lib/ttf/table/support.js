@@ -22,10 +22,6 @@ var _GPOS = _interopRequireDefault(require("./GPOS"));
 var _kern = _interopRequireDefault(require("./kern"));
 var _kerx = _interopRequireDefault(require("./kerx"));
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-/**
- * @file ttf读取和写入支持的表
- * @author mengke01(kekee000@gmail.com)
- */
 var _default = exports.default = {
   head: _head.default,
   maxp: _maxp.default,

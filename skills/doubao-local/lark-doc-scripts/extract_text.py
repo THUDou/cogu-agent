@@ -1,22 +1,4 @@
-# /// script
-# requires-python = ">=3.10"
-# dependencies = ["python-docx"]
-# ///
 
-"""
-从各种格式文件中提取纯文本。
-
-用法：
-    uv run scripts/extract_text.py 技术交底书.docx
-    uv run scripts/extract_text.py 审查意见.pdf -o content.txt
-
-支持格式：.docx、.doc、.pdf、.txt、.md、.html
-    - .docx: pandoc 优先，python-docx 备选，XML 正则兜底
-    - .doc:  LibreOffice 转 .docx 再提取
-    - .pdf:  pdftotext 或 pandoc
-    - .txt/.md: 直接读取，自动检测编码（UTF-8/GBK 等）
-    - .html: pandoc 或正则去标签
-"""
 
 import argparse
 import re

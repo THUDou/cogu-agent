@@ -1,12 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""Schema-based 结构化提取脚本。
-
-根据用户定义的 JSON Schema 从 PDF 中提取结构化数据。
-支持提取文本字段、表格、列表等结构化信息。
-
-依赖：PyMuPDF (fitz), pdfplumber (可选)
-"""
 
 import json
 import sys
@@ -29,20 +20,12 @@ PARAMS = [
 
 
 def extract_by_schema(input_path, schema, pages=None):
-    """根据 JSON Schema 从 PDF 中提取结构化数据。
-
-    Args:
-        input_path: PDF 文件路径
-        schema: JSON Schema 定义，描述要提取的字段
-        pages: 指定页码列表（从 0 开始），None 表示全部页
-    """
     doc = fitz.open(input_path)
     total_pages = len(doc)
 
     if pages is None:
         pages = list(range(total_pages))
 
-    # 提取全文（按页）
     all_text = ""
     page_texts = {}
     for p_idx in pages:
@@ -53,7 +36,6 @@ def extract_by_schema(input_path, schema, pages=None):
         page_texts[p_idx] = text
         all_text += text + "\n\n"
 
-    # 根据 Schema 提取数据
     result = {}
     properties = schema.get("properties", {})
 
@@ -64,7 +46,6 @@ def extract_by_schema(input_path, schema, pages=None):
         extract_method = field_def.get("extract_method", "regex")
 
         if extract_method == "regex" and pattern:
-            # 正则表达式提取
             matches = re.findall(pattern, all_text)
             if field_type == "array":
                 result[field_name] = matches
@@ -74,12 +55,9 @@ def extract_by_schema(input_path, schema, pages=None):
                 result[field_name] = None
 
         elif extract_method == "keyword" or (extract_method == "regex" and not pattern):
-            # 关键词定位提取（查找关键词后面的内容）
-            # 当没有指定 pattern 时，自动使用 description 或 field_name 作为关键词
             keyword = field_def.get("keyword", description if description else field_name)
             for line in all_text.split("\n"):
                 if keyword in line:
-                    # 提取关键词后面的内容
                     idx = line.index(keyword) + len(keyword)
                     value = line[idx:].strip().lstrip(":：").strip()
                     if value:
@@ -89,7 +67,6 @@ def extract_by_schema(input_path, schema, pages=None):
                 result[field_name] = None
 
         elif extract_method == "page_range":
-            # 按页码范围提取
             start = field_def.get("page_start", 0)
             end = field_def.get("page_end", total_pages - 1)
             texts = []
@@ -99,7 +76,6 @@ def extract_by_schema(input_path, schema, pages=None):
             result[field_name] = "\n".join(texts) if texts else None
 
         elif extract_method == "table":
-            # 表格提取（简单实现）
             try:
                 import pdfplumber
                 with pdfplumber.open(input_path) as pdf:
@@ -110,7 +86,6 @@ def extract_by_schema(input_path, schema, pages=None):
                             page_tables = pdf.pages[p_idx].extract_tables()
                             for t in page_tables:
                                 if t:
-                                    # 第一行作为表头
                                     headers = t[0] if t else []
                                     rows = t[1:] if len(t) > 1 else []
                                     tables.append({
@@ -123,7 +98,6 @@ def extract_by_schema(input_path, schema, pages=None):
                 result[field_name] = None
 
         else:
-            # 默认：全文搜索
             result[field_name] = None
 
     doc.close()
@@ -142,7 +116,6 @@ def extract_by_schema(input_path, schema, pages=None):
 
 
 def _cast_value(value, field_type):
-    """将字符串值转换为指定类型。"""
     try:
         if field_type == "integer":
             return int(re.sub(r'[^\d]', '', value))
@@ -157,15 +130,6 @@ def _cast_value(value, field_type):
 
 
 def handler(params):
-    """Schema-based 结构化提取入口。
-
-    Args:
-        params: {
-            "input": PDF 文件路径,
-            "schema": JSON Schema 定义,
-            "pages": 指定页码列表（可选）
-        }
-    """
     if fitz is None:
         raise ImportError("需要安装 PyMuPDF: pip install PyMuPDF")
 

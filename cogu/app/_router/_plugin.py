@@ -1,4 +1,3 @@
-"""Plugin System REST API — OpenAPI插件管理"""
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException

@@ -17,14 +17,6 @@ function _arrayLikeToArray(arr, len) { if (len == null || len > arr.length) len 
  * @file 路径组变化函数
  * @author mengke01(kekee000@gmail.com)
  */
-/**
- * 翻转路径
- *
- * @param {Array} paths 路径数组
- * @param {number} xScale x翻转
- * @param {number} yScale y翻转
- * @return {Array} 变换后的路径
- */
 function mirrorPaths(paths, xScale, yScale) {
   var _computePath = _computeBoundingBox.computePath.apply(void 0, _toConsumableArray(paths)),
     x = _computePath.x,
@@ -48,13 +40,6 @@ function mirrorPaths(paths, xScale, yScale) {
   return paths;
 }
 var _default = exports.default = {
-  /**
-   * 旋转路径
-   *
-   * @param {Array} paths 路径数组
-   * @param {number} angle 弧度
-   * @return {Array} 变换后的路径
-   */
   rotate: function rotate(paths, angle) {
     if (!angle) {
       return paths;
@@ -67,14 +52,6 @@ var _default = exports.default = {
     });
     return paths;
   },
-  /**
-   * 路径组变换
-   *
-   * @param {Array} paths 路径数组
-   * @param {number} x x 方向缩放
-   * @param {number} y y 方向缩放
-   * @return {Array} 变换后的路径
-   */
   move: function move(paths, x, y) {
     var bound = _computeBoundingBox.computePath.apply(void 0, _toConsumableArray(paths));
     paths.forEach(function (path) {

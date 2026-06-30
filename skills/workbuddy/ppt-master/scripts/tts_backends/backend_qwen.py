@@ -1,4 +1,3 @@
-"""Alibaba Qwen TTS backend for narration audio generation."""
 
 from __future__ import annotations
 
@@ -72,4 +71,3 @@ def print_voices() -> None:
     print("Qwen TTS voices are selected by voice.")
     print("Use a system voice name or a cloned voice from Qwen voice cloning.")
     print("Example system voice from Alibaba Cloud docs: Cherry")
-

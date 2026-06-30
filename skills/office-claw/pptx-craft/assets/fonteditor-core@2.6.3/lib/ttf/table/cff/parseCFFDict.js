@@ -6,10 +6,6 @@ Object.defineProperty(exports, "__esModule", {
 exports.default = void 0;
 var _getCFFString = _interopRequireDefault(require("./getCFFString"));
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-/**
- * @file 解析cffdict数据
- * @author mengke01(kekee000@gmail.com)
- */
 
 var TOP_DICT_META = [{
   name: 'version',
@@ -140,7 +136,6 @@ function entriesToObject(entries) {
   return hash;
 }
 
-/* eslint-disable no-constant-condition */
 function parseFloatOperand(reader) {
   var s = '';
   var eof = 15;
@@ -160,15 +155,7 @@ function parseFloatOperand(reader) {
   }
   return parseFloat(s);
 }
-/* eslint-enable no-constant-condition */
 
-/**
- * 解析cff字典数据
- *
- * @param  {Reader} reader 读取器
- * @param  {number} b0     操作码
- * @return {number}        数据
- */
 function parseOperand(reader, b0) {
   var b1;
   var b2;
@@ -203,19 +190,9 @@ function parseOperand(reader, b0) {
   throw new Error('invalid b0 ' + b0 + ',at:' + reader.offset);
 }
 
-/**
- * 解析字典值
- *
- * @param  {Object} dict    字典数据
- * @param  {Array} meta    元数据
- * @param  {Object} strings cff字符串字典
- * @return {Object}         解析后数据
- */
 function interpretDict(dict, meta, strings) {
   var newDict = {};
 
-  // Because we also want to include missing values, we start out from the meta list
-  // and lookup values in the dict.
   for (var i = 0, l = meta.length; i < l; i++) {
     var m = meta[i];
     var value = dict[m.op];
@@ -230,14 +207,6 @@ function interpretDict(dict, meta, strings) {
   return newDict;
 }
 
-/**
- * 解析cff dict字典
- *
- * @param  {Reader} reader 读取器
- * @param  {number} offset  起始偏移
- * @param  {number} length   大小
- * @return {Object}        配置
- */
 function parseCFFDict(reader, offset, length) {
   if (null != offset) {
     reader.seek(offset);
@@ -248,47 +217,24 @@ function parseCFFDict(reader, offset, length) {
   while (reader.offset < lastOffset) {
     var op = reader.readUint8();
 
-    // The first byte for each dict item distinguishes between operator (key) and operand (value).
-    // Values <= 21 are operators.
     if (op <= 21) {
-      // Two-byte operators have an initial escape byte of 12.
       if (op === 12) {
         op = 1200 + reader.readUint8();
       }
       entries.push([op, operands]);
       operands = [];
     } else {
-      // Since the operands (values) come before the operators (keys), we store all operands in a list
-      // until we encounter an operator.
       operands.push(parseOperand(reader, op));
     }
   }
   return entriesToObject(entries);
 }
 
-/**
- * 解析cff top字典
- *
- * @param  {Reader} reader  读取器
- * @param  {number} start 开始offset
- * @param  {number} length 大小
- * @param  {Object} strings 字符串集合
- * @return {Object}         字典数据
- */
 function parseTopDict(reader, start, length, strings) {
   var dict = parseCFFDict(reader, start || 0, length || reader.length);
   return interpretDict(dict, TOP_DICT_META, strings);
 }
 
-/**
- * 解析cff私有字典
- *
- * @param  {Reader} reader  读取器
- * @param  {number} start 开始offset
- * @param  {number} length 大小
- * @param  {Object} strings 字符串集合
- * @return {Object}         字典数据
- */
 function parsePrivateDict(reader, start, length, strings) {
   var dict = parseCFFDict(reader, start || 0, length || reader.length);
   return interpretDict(dict, PRIVATE_DICT_META, strings);

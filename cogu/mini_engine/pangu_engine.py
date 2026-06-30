@@ -1,12 +1,3 @@
-"""
-openPangu-Embedded-1B 本地推理引擎
-
-支持两种推理后端:
-1. transformers + PyTorch (CPU/GPU) — 直接加载 safetensors
-2. llama-cpp-python (GGUF) — 加载量化后的 GGUF 格式 (需预先转换)
-
-提供 OpenAI 兼容 API 接口，可无缝接入 COGU Agent 的 MultiProviderClient。
-"""
 
 import json
 import logging
@@ -110,7 +101,6 @@ class PanguEngineConfig:
 
 
 class PanguTransformersBackend:
-    """基于 transformers 4.53.2 + PyTorch 的推理后端（通过独立venv子进程）"""
 
     def __init__(self, config: PanguEngineConfig):
         self.config = config
@@ -193,7 +183,6 @@ class PanguTransformersBackend:
 
 
 class PanguGGUFBackend:
-    """基于 llama-cpp-python (GGUF) 的推理后端"""
 
     def __init__(self, config: PanguEngineConfig):
         self.config = config
@@ -271,19 +260,6 @@ class PanguGGUFBackend:
 
 
 class PanguEngine:
-    """
-    openPangu-Embedded-1B 推理引擎
-
-    自动选择可用的后端:
-    - 优先 GGUF (llama-cpp-python) 如果 GGUF 文件存在
-    - 否则使用 transformers + PyTorch
-
-    用法:
-        engine = PanguEngine()
-        result = engine.generate("你好", system="你是一个助手")
-        for chunk in engine.generate_stream("你好"):
-            print(chunk, end="")
-    """
 
     def __init__(self, config: PanguEngineConfig = None):
         self.config = config or PanguEngineConfig()

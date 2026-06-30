@@ -4,18 +4,7 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = contour2svg;
-/**
- * @file 将ttf路径转换为svg路径`d`
- * @author mengke01(kekee000@gmail.com)
- */
 
-/**
- * 将路径转换为svg路径
- *
- * @param {Array} contour 轮廓序列
- * @param {number} precision 精确度
- * @return {string} 路径
- */
 function contour2svg(contour) {
   var precision = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 2;
   if (!contour.length) {
@@ -35,7 +24,6 @@ function contour2svg(contour) {
     prevPoint = i === 0 ? contour[l - 1] : contour[i - 1];
     nextPoint = i === l - 1 ? contour[0] : contour[i + 1];
 
-    // 起始坐标
     if (i === 0) {
       if (curPoint.onCurve) {
         x = curPoint.x;
@@ -52,7 +40,6 @@ function contour2svg(contour) {
       }
     }
 
-    // 直线
     if (curPoint.onCurve && nextPoint.onCurve) {
       pathArr.push('l' + ceil(nextPoint.x - x) + ' ' + ceil(nextPoint.y - y));
       x = nextPoint.x;

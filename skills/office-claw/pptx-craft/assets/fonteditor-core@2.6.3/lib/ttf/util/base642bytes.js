@@ -4,17 +4,7 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = base642bytes;
-/**
- * @file base64字符串转数组
- * @author mengke01(kekee000@gmail.com)
- */
 
-/**
- * base64字符串转数组
- *
- * @param  {string} base64 base64字符串
- * @return {Array}  数组
- */
 function base642bytes(base64) {
   var str = atob(base64);
   var result = [];

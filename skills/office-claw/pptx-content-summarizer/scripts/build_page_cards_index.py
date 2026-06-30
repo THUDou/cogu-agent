@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-"""Build page_cards/index.json from existing slide_XXX.json files."""
 
 from __future__ import annotations
 

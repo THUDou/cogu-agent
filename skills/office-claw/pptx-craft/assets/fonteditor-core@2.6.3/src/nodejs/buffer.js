@@ -1,17 +1,6 @@
-/**
- * @file Buffer和ArrayBuffer转换
- * @author mengke01(kekee000@gmail.com)
- */
 
-/* eslint-disable no-undef */
 export default {
 
-    /**
-     * Buffer转换成ArrayBuffer
-     *
-     * @param {Buffer} buffer 缓冲数组
-     * @return {ArrayBuffer}
-     */
     toArrayBuffer(buffer) {
         const length = buffer.length;
         const view = new DataView(new ArrayBuffer(length), 0, length);
@@ -21,12 +10,6 @@ export default {
         return view.buffer;
     },
 
-    /**
-     * ArrayBuffer转换成Buffer
-     *
-     * @param {ArrayBuffer} arrayBuffer 缓冲数组
-     * @return {Buffer}
-     */
     toBuffer(arrayBuffer) {
         if (Array.isArray(arrayBuffer)) {
             return Buffer.from(arrayBuffer);

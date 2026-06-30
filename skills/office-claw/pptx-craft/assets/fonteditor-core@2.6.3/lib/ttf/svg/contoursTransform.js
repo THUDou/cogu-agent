@@ -7,23 +7,7 @@ exports.default = contoursTransform;
 var _matrix = require("../../graphics/matrix");
 var _pathTransform = _interopRequireDefault(require("../../graphics/pathTransform"));
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-/**
- * @file 根据transform参数变换轮廓
- * @author mengke01(kekee000@gmail.com)
- */
 
-/**
- * 根据transform参数变换轮廓
- *
- * @param {Array} contours 轮廓集合
- * @param {Array} transforms 变换指令集合
- *     transforms = [{
- *         name: 'scale'
- *         params: [3,4]
- *     }]
- *
- * @return {Array} 变换后的轮廓数组
- */
 function contoursTransform(contours, transforms) {
   if (!contours || !contours.length || !transforms || !transforms.length) {
     return contours;

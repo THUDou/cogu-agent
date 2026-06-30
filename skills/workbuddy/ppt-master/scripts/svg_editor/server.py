@@ -1,21 +1,3 @@
-#!/usr/bin/env python3
-"""
-PPT Master - SVG Editor Server
-
-Flask backend for the SVG annotation editor.
-Serves the web UI and provides API endpoints for reading/writing SVG annotations.
-
-Usage:
-    python3 scripts/svg_editor/server.py <project_dir>
-
-Examples:
-    python3 scripts/svg_editor/server.py projects/my-project
-    python3 scripts/svg_editor/server.py projects/my-project --port 8080
-    python3 scripts/svg_editor/server.py projects/my-project --live
-
-Dependencies:
-    flask>=3.0.0
-"""
 
 import argparse
 import os
@@ -30,7 +12,6 @@ from typing import Optional
 
 from flask import Flask, jsonify, request, send_from_directory
 
-# Local — sys.path injection for sibling module (code-style.md §3)
 _SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
@@ -57,11 +38,6 @@ _USE_ICON_PATTERN = re.compile(r'<use\s+[^>]*data-icon="[^"]*"[^>]*/>')
 
 
 def _inline_icons(content: str) -> str:
-    """Replace <use data-icon="..."/> with rendered <g> for browser preview.
-
-    Preserves the original <use>'s id on the produced <g> so editor element
-    targeting (and AI-side annotation lookups against svg_output) stays consistent.
-    """
     matches = list(_USE_ICON_PATTERN.finditer(content))
     if not matches:
         return content
@@ -91,7 +67,6 @@ def _inline_icons(content: str) -> str:
 
 
 def create_app(project_dir: str, idle_timeout: int = 900, live: bool = False) -> Flask:
-    """Create and configure the Flask app for a given project directory."""
     project_path = Path(project_dir).resolve()
     svg_dir = project_path / 'svg_output'
     images_dir = project_path / 'images'
@@ -102,10 +77,8 @@ def create_app(project_dir: str, idle_timeout: int = 900, live: bool = False) ->
     app.config['SVG_DIR'] = svg_dir
     app.config['LIVE_MODE'] = live
 
-    # In-memory annotation store: {filename: {element_id: annotation_text}}
     app.config['ANNOTATIONS'] = {}
 
-    # Idle timeout: auto-shutdown if no one connects within idle_timeout seconds
     app.config['LAST_REQUEST_TIME'] = time.time()
 
     @app.before_request
@@ -120,8 +93,6 @@ def create_app(project_dir: str, idle_timeout: int = 900, live: bool = False) ->
             elapsed = time.time() - app.config['LAST_REQUEST_TIME']
             if elapsed > idle_timeout:
                 print(f"SVG Editor idle for {idle_timeout}s, shutting down.")
-                # os._exit: Flask dev server has no clean shutdown mechanism;
-                # data is safe because idle timeout only fires when no requests are in flight.
                 os._exit(0)
 
     watchdog = threading.Thread(target=_idle_watchdog, daemon=True)
@@ -135,7 +106,6 @@ def create_app(project_dir: str, idle_timeout: int = 900, live: bool = False) ->
         def _stop():
             time.sleep(0.5)  # Let HTTP response flush before killing the process
             print(f"SVG Editor shutting down ({reason}).")
-            # os._exit: save-all already wrote to disk; 0.5s delay ensures response is sent.
             os._exit(0)
         threading.Thread(target=_stop, daemon=True).start()
         return jsonify({'status': 'ok'})
@@ -152,11 +122,6 @@ def create_app(project_dir: str, idle_timeout: int = 900, live: bool = False) ->
 
     @app.route('/images/<path:filename>')
     def serve_image(filename: str):
-        """Serve images referenced by SVGs as `../images/*.png`.
-
-        Resolution against an absolute images_dir + relative_to() check is the
-        authoritative path-traversal guard.
-        """
         if not images_dir.exists():
             return jsonify({'error': 'images directory not found'}), 404
         target = (images_dir / filename).resolve()
@@ -170,7 +135,6 @@ def create_app(project_dir: str, idle_timeout: int = 900, live: bool = False) ->
 
     @app.route('/assets/<path:filename>')
     def serve_asset(filename: str):
-        """Serve media extracted by pptx_to_svg.py as `../assets/*`."""
         if not assets_dir.exists():
             return jsonify({'error': 'assets directory not found'}), 404
         target = (assets_dir / filename).resolve()
@@ -210,11 +174,6 @@ def create_app(project_dir: str, idle_timeout: int = 900, live: bool = False) ->
         return jsonify({'slides': slides})
 
     def _safe_svg_path(name: str):
-        """Validate slide name and return safe path. Returns None if invalid.
-
-        The early string checks reject obvious bad inputs; the resolve()+startswith()
-        check is the authoritative path traversal guard.
-        """
         if '/' in name or '\\' in name or '..' in name:
             return None
         svg_file = (svg_dir / name).resolve()
@@ -260,7 +219,6 @@ def create_app(project_dir: str, idle_timeout: int = 900, live: bool = False) ->
                 })
 
         content = ET.tostring(root, encoding='unicode', xml_declaration=False)
-        # Inline <use data-icon> placeholders so the browser can render icons.
         content = _inline_icons(content)
 
         return jsonify({
@@ -300,8 +258,6 @@ def create_app(project_dir: str, idle_timeout: int = 900, live: bool = False) ->
     @app.route('/api/slide/<name>/annotate/<element_id>', methods=['DELETE'])
     def delete_annotate(name: str, element_id: str):
         annotations = app.config['ANNOTATIONS']
-        # Ensure the file key exists so save-all knows to rewrite this file
-        # even if no new annotations were added (pure delete path).
         if name not in annotations:
             annotations[name] = {}
         if element_id in annotations[name]:
@@ -319,8 +275,6 @@ def create_app(project_dir: str, idle_timeout: int = 900, live: bool = False) ->
         modified = []
 
         for filename, anns in annotations.items():
-            # anns may be empty when the user deleted all annotations — still
-            # need to write so the on-disk data-edit-* attributes are cleared.
 
             svg_file = _safe_svg_path(filename)
             if svg_file is None or not svg_file.exists():
@@ -334,7 +288,6 @@ def create_app(project_dir: str, idle_timeout: int = 900, live: bool = False) ->
 
             assign_temp_ids(root)
 
-            # Clear all existing annotations from the file before writing current state
             for elem in root.iter():
                 elem.attrib.pop('data-edit-target', None)
                 elem.attrib.pop('data-edit-annotation', None)
@@ -342,9 +295,6 @@ def create_app(project_dir: str, idle_timeout: int = 900, live: bool = False) ->
             for element_id, annotation_text in anns.items():
                 set_annotation(root, element_id, annotation_text)
 
-            # Strip transient _edit_N ids from elements that are NOT user-annotated.
-            # Only annotated elements need to keep their id so the AI can locate them
-            # via check_annotations.py; the rest are pollution.
             annotated_ids = set(anns.keys())
             for elem in root.iter():
                 eid = elem.get('id', '')

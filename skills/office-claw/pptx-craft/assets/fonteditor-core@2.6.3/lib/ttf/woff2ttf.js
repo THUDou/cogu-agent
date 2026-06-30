@@ -8,20 +8,7 @@ var _reader = _interopRequireDefault(require("./reader"));
 var _writer = _interopRequireDefault(require("./writer"));
 var _error = _interopRequireDefault(require("./error"));
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-/**
- * @file woff转换ttf
- * @author mengke01(kekee000@gmail.com)
- */
 
-/**
- * woff格式转换成ttf字体格式
- *
- * @param {ArrayBuffer} woffBuffer woff缓冲数组
- * @param {Object} options 选项
- * @param {Object} options.inflate 解压相关函数
- *
- * @return {ArrayBuffer} ttf格式byte流
- */
 function woff2ttf(woffBuffer) {
   var options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
   var reader = new _reader.default(woffBuffer);
@@ -38,7 +25,6 @@ function woff2ttf(woffBuffer) {
   var i;
   var l;
 
-  // 读取woff表索引信息
   for (i = 0; i < numTables; ++i) {
     reader.seek(44 + i * 20);
     tableEntry = {
@@ -49,9 +35,7 @@ function woff2ttf(woffBuffer) {
       checkSum: reader.readUint32()
     };
 
-    // ttf 表数据
     var deflateData = reader.readBytes(tableEntry.offset, tableEntry.compLength);
-    // 需要解压
     if (deflateData.length < tableEntry.length) {
       if (!options.inflate) {
         reader.dispose();
@@ -65,7 +49,6 @@ function woff2ttf(woffBuffer) {
     tableEntries.push(tableEntry);
   }
   var writer = new _writer.default(new ArrayBuffer(ttfSize));
-  // 写头部
   var entrySelector = Math.floor(Math.log(numTables) / Math.LN2);
   var searchRange = Math.pow(2, entrySelector) * 16;
   var rangeShift = numTables * 16 - searchRange;
@@ -75,7 +58,6 @@ function woff2ttf(woffBuffer) {
   writer.writeUint16(entrySelector);
   writer.writeUint16(rangeShift);
 
-  // 写ttf表索引
   var tblOffset = 12 + 16 * tableEntries.length;
   for (i = 0, l = tableEntries.length; i < l; ++i) {
     tableEntry = tableEntries[i];
@@ -86,7 +68,6 @@ function woff2ttf(woffBuffer) {
     tblOffset += tableEntry.length + (tableEntry.length % 4 ? 4 - tableEntry.length % 4 : 0);
   }
 
-  // 写ttf表数据
   for (i = 0, l = tableEntries.length; i < l; ++i) {
     tableEntry = tableEntries[i];
     writer.writeBytes(tableEntry.data);

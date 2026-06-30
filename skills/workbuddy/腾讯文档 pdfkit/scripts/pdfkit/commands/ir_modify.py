@@ -1,10 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""PDF IR 精准修改。
-
-直接修改 PDF 中的低级对象（文本替换、图片替换、注释操作等），
-无需导出/导入完整 IR。适用于精确、可控的文档修改。
-"""
 
 import os
 
@@ -21,7 +14,6 @@ PARAMS = [
 
 
 def _op_replace_text(doc, page, op):
-    """替换文本（基于 search_for + redact + TextWriter）。"""
     import fitz
 
     find = op.get("find", "")
@@ -33,7 +25,6 @@ def _op_replace_text(doc, page, op):
     if not instances:
         return {"success": False, "error": f"Text not found: {find}"}
 
-    # 获取原始字号
     font_size = 12
     text_dict = page.get_text("dict")
     for block in text_dict.get("blocks", []):
@@ -45,7 +36,6 @@ def _op_replace_text(doc, page, op):
                     font_size = span.get("size", 12)
                     break
 
-    # Redact + rewrite
     for rect in instances:
         page.add_redact_annot(rect, fill=(1, 1, 1))
     page.apply_redactions()
@@ -66,7 +56,6 @@ def _op_replace_text(doc, page, op):
 
 
 def _op_replace_image(doc, page, op):
-    """替换指定页上的图片实例，避免修改共享 xref 影响其他页面。"""
     import fitz
 
     image_index = op.get("image_index", 0)
@@ -110,7 +99,6 @@ def _op_replace_image(doc, page, op):
 
 
 def _op_add_annotation(doc, page, op):
-    """添加注释。"""
     import fitz
 
     annot_type = op.get("annot_type", "text")
@@ -142,7 +130,6 @@ def _op_add_annotation(doc, page, op):
 
 
 def _op_delete_annotation(doc, page, op):
-    """删除注释。"""
     index = op.get("annot_index", 0)
     annots = list(page.annots()) if page.annots() else []
     if index >= len(annots):
@@ -153,7 +140,6 @@ def _op_delete_annotation(doc, page, op):
 
 
 def handler(params):
-    """执行 IR 级精准修改操作。"""
     import fitz
 
     input_path = params["input"]

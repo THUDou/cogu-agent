@@ -1,15 +1,3 @@
-#!/usr/bin/env python3
-"""
-PPT Master - Batch Project Validation Tool
-
-Checks the structural integrity and compliance of multiple projects at once.
-
-Usage:
-    python3 scripts/batch_validate.py examples
-    python3 scripts/batch_validate.py projects
-    python3 scripts/batch_validate.py --all
-    python3 scripts/batch_validate.py examples projects
-"""
 
 import sys
 from collections import defaultdict
@@ -30,7 +18,6 @@ except ImportError:
 
 
 class BatchValidator:
-    """Batch validator"""
 
     def __init__(self):
         self.results: list[dict[str, object]] = []
@@ -45,16 +32,6 @@ class BatchValidator:
         }
 
     def validate_directory(self, directory: str, recursive: bool = False) -> list[dict[str, object]]:
-        """
-        Validate all projects in a directory
-
-        Args:
-            directory: Directory path
-            recursive: Whether to recursively search subdirectories
-
-        Returns:
-            List of validation results
-        """
         dir_path = Path(directory)
         if not dir_path.exists():
             print(f"[ERROR] Directory does not exist: {directory}")
@@ -77,24 +54,12 @@ class BatchValidator:
         return self.results
 
     def validate_project(self, project_path: str) -> dict[str, object]:
-        """
-        Validate a single project
-
-        Args:
-            project_path: Project path
-
-        Returns:
-            Validation result dictionary
-        """
         self.summary['total'] += 1
 
-        # Get project info
         info = get_project_info(project_path)
 
-        # Validate project structure
         is_valid, errors, warnings = validate_project_structure(project_path)
 
-        # Validate SVG viewBox
         svg_warnings = []
         if info['svg_files']:
             project_path_obj = Path(project_path)
@@ -102,7 +67,6 @@ class BatchValidator:
                          f for f in info['svg_files']]
             svg_warnings = validate_svg_viewbox(svg_files, info['format'])
 
-        # Aggregate results
         result = {
             'path': project_path,
             'name': info['name'],
@@ -118,7 +82,6 @@ class BatchValidator:
 
         self.results.append(result)
 
-        # Update statistics
         if is_valid and not warnings and not svg_warnings:
             self.summary['valid'] += 1
             status = "[OK]"
@@ -136,7 +99,6 @@ class BatchValidator:
         if svg_warnings:
             self.summary['svg_issues'] += 1
 
-        # Print result
         print(f"{status} {info['name']}")
         print(f"   Path: {project_path}")
         print(
@@ -160,7 +122,6 @@ class BatchValidator:
         return result
 
     def print_summary(self) -> None:
-        """Print a summary of validation results."""
         print("\n" + "=" * 80)
         print("[Summary] Validation Summary")
         print("=" * 80)
@@ -178,7 +139,6 @@ class BatchValidator:
         print(f"  Missing design spec: {self.summary['missing_spec']} project(s)")
         print(f"  SVG format issues: {self.summary['svg_issues']} project(s)")
 
-        # Group statistics by format
         format_stats = defaultdict(int)
         for result in self.results:
             format_stats[result['format']] += 1
@@ -188,7 +148,6 @@ class BatchValidator:
             for fmt, count in sorted(format_stats.items(), key=lambda x: x[1], reverse=True):
                 print(f"  {fmt}: {count} project(s)")
 
-        # Provide fix suggestions
         if self.summary['has_errors'] > 0 or self.summary['has_warnings'] > 0:
             print(f"\n[TIP] Fix suggestions:")
 
@@ -205,18 +164,11 @@ class BatchValidator:
                 print(f"  3. Add design specification files")
 
     def _percentage(self, count: int) -> int:
-        """Calculate percentage"""
         if self.summary['total'] == 0:
             return 0
         return int(count / self.summary['total'] * 100)
 
     def export_report(self, output_file: str = 'validation_report.txt') -> None:
-        """
-        Export validation report to file
-
-        Args:
-            output_file: Output file path
-        """
         with open(output_file, 'w', encoding='utf-8') as f:
             f.write("PPT Master Project Validation Report\n")
             f.write("=" * 80 + "\n\n")
@@ -242,7 +194,6 @@ class BatchValidator:
 
                 f.write("\n" + "-" * 80 + "\n\n")
 
-            # Write summary
             f.write("\n" + "=" * 80 + "\n")
             f.write("Validation Summary\n")
             f.write("=" * 80 + "\n\n")
@@ -255,7 +206,6 @@ class BatchValidator:
 
 
 def print_usage() -> None:
-    """Print CLI usage information."""
     print("PPT Master - Batch Project Validation Tool\n")
     print("Usage:")
     print("  python3 scripts/batch_validate.py <directory>")
@@ -269,7 +219,6 @@ def print_usage() -> None:
 
 
 def main() -> None:
-    """Run the CLI entry point."""
     if len(sys.argv) < 2:
         print_usage()
         sys.exit(0)
@@ -280,23 +229,19 @@ def main() -> None:
 
     validator = BatchValidator()
 
-    # Process arguments
     if '--all' in sys.argv:
         directories = ['examples', 'projects']
     else:
         directories = [arg for arg in sys.argv[1:] if not arg.startswith('--')]
 
-    # Validate each directory
     for directory in directories:
         if Path(directory).exists():
             validator.validate_directory(directory)
         else:
             print(f"[WARN] Skipping non-existent directory: {directory}\n")
 
-    # Print summary
     validator.print_summary()
 
-    # Export report (if specified)
     if '--export' in sys.argv:
         output_file = 'validation_report.txt'
         if '--output' in sys.argv:
@@ -305,7 +250,6 @@ def main() -> None:
                 output_file = sys.argv[idx + 1]
         validator.export_report(output_file)
 
-    # Return exit code
     if validator.summary['has_errors'] > 0:
         sys.exit(1)
     elif validator.summary['has_warnings'] > 0:

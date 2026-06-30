@@ -1,12 +1,3 @@
-#!/usr/bin/env python3
-"""PPT Master project management helpers.
-
-Usage:
-    python3 scripts/project_manager.py init <project_name> [--format ppt169] [--dir projects]
-    python3 scripts/project_manager.py import-sources <project_path> <source1> [<source2> ...] [--move | --copy]
-    python3 scripts/project_manager.py validate <project_path>
-    python3 scripts/project_manager.py info <project_path>
-"""
 
 from __future__ import annotations
 
@@ -59,7 +50,6 @@ WECHAT_HOST_KEYWORDS = ("mp.weixin.qq.com", "weixin.qq.com")
 
 
 def _curl_cffi_available() -> bool:
-    """Return whether curl_cffi is importable (enables Python TLS impersonation)."""
     try:
         import curl_cffi  # noqa: F401
         return True
@@ -68,13 +58,11 @@ def _curl_cffi_available() -> bool:
 
 
 def is_url(value: str) -> bool:
-    """Return whether a string looks like an HTTP(S) URL."""
     parsed = urlparse(value)
     return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
 
 
 def sanitize_name(value: str) -> str:
-    """Sanitize a user-facing name into a filesystem-safe token."""
     safe = "".join(ch if ch.isalnum() or ch in "-_." else "_" for ch in value.strip())
     safe = safe.strip("._")
     while "__" in safe:
@@ -83,7 +71,6 @@ def sanitize_name(value: str) -> str:
 
 
 def derive_url_basename(url: str) -> str:
-    """Derive a stable base filename from a URL."""
     parsed = urlparse(url)
     parts = [sanitize_name(parsed.netloc)]
     if parsed.path and parsed.path != "/":
@@ -94,7 +81,6 @@ def derive_url_basename(url: str) -> str:
 
 
 def is_within_path(path: Path, parent: Path) -> bool:
-    """Return whether `path` resolves inside `parent`."""
     try:
         path.resolve().relative_to(parent.resolve())
         return True
@@ -103,7 +89,6 @@ def is_within_path(path: Path, parent: Path) -> bool:
 
 
 class ProjectManager:
-    """Create, inspect, validate, and populate project folders."""
 
     CANVAS_FORMATS = CANVAS_FORMATS
 
@@ -279,10 +264,6 @@ class ProjectManager:
         )
 
     def _import_url(self, url: str, markdown_path: Path) -> None:
-        # Prefer web_to_md.py: it uses curl_cffi internally when available,
-        # which handles WeChat and other TLS-fingerprint-blocked sites.
-        # Fall back to the Node.js version only when the URL is known to
-        # require TLS impersonation AND curl_cffi isn't installed.
         host = urlparse(url).netloc.lower()
         is_tls_sensitive = any(keyword in host for keyword in WECHAT_HOST_KEYWORDS)
 
@@ -618,12 +599,10 @@ class ProjectManager:
 
 
 def print_usage() -> None:
-    """Print CLI usage information from the module docstring."""
     print(__doc__)
 
 
 def parse_init_args(argv: list[str]) -> tuple[str, str, str]:
-    """Parse arguments for the `init` subcommand."""
     if len(argv) < 3:
         raise ValueError("Project name is required")
 
@@ -646,7 +625,6 @@ def parse_init_args(argv: list[str]) -> tuple[str, str, str]:
 
 
 def parse_import_args(argv: list[str]) -> tuple[str, list[str], bool, bool]:
-    """Parse arguments for the `import-sources` subcommand."""
     if len(argv) < 4:
         raise ValueError("Project path and at least one source are required")
 
@@ -670,7 +648,6 @@ def parse_import_args(argv: list[str]) -> tuple[str, list[str], bool, bool]:
 
 
 def main() -> None:
-    """Run the CLI entry point."""
     if len(sys.argv) < 2:
         print_usage()
         sys.exit(1)

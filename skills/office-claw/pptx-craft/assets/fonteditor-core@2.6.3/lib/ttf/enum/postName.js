@@ -4,13 +4,6 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
-/**
- * @file Mac glyf命名表
- * @author mengke01(kekee000@gmail.com)
- *
- * see:
- * http://www.microsoft.com/typography/otspec/WGL4.htm
- */
 var _default = exports.default = {
   0: '.notdef',
   1: '.null',

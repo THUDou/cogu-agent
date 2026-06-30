@@ -1,4 +1,3 @@
-"""SVG to PNG conversion for Office compatibility mode."""
 
 from __future__ import annotations
 
@@ -7,8 +6,6 @@ import shutil
 import tempfile
 from pathlib import Path
 
-# SVG to PNG library detection
-# Prefer CairoSVG (better quality), fall back to svglib
 PNG_RENDERER: str | None = None
 
 try:
@@ -24,11 +21,6 @@ except (ImportError, OSError):
 
 
 def get_png_renderer_info() -> tuple[str | None, str, str | None]:
-    """Get PNG renderer status information.
-
-    Returns:
-        (renderer_name, status_text, install_hint) tuple.
-    """
     if PNG_RENDERER == 'cairosvg':
         return ('cairosvg', '(full gradient/filter support)', None)
     elif PNG_RENDERER == 'svglib':
@@ -45,17 +37,6 @@ def convert_svg_to_png(
     width: int | None = None,
     height: int | None = None,
 ) -> bool:
-    """Convert SVG to PNG using the available renderer.
-
-    Args:
-        svg_path: SVG file path.
-        png_path: Output PNG file path.
-        width: Output width in pixels.
-        height: Output height in pixels.
-
-    Returns:
-        Whether the conversion was successful.
-    """
     if PNG_RENDERER is None:
         return False
 
@@ -104,12 +85,6 @@ def convert_svg_to_png_cached(
     height: int | None = None,
     cache_dir: Path | None = None,
 ) -> bool:
-    """Cache-aware SVG→PNG conversion.
-
-    Returns True on success (cache hit or fresh render). Cache key bakes in
-    SVG content hash + size + renderer name; switching renderers invalidates
-    naturally. Failures are never cached.
-    """
     if cache_dir is None:
         return convert_svg_to_png(svg_path, png_path, width, height)
 

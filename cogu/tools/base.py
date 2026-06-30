@@ -49,7 +49,6 @@ class PermissionResult:
 
 
 class ToolSpec(ABC):
-    """Enhanced tool interface — based on Claude Code's 30+ method Tool pattern."""
 
     @abstractmethod
     def name(self) -> str: ...

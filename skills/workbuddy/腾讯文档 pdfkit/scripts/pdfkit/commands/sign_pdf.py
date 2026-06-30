@@ -1,12 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""PDF 数字签名脚本。
-
-为 PDF 添加可见的数字签名（图片印章 + 文字信息）。
-注意：这是可见签名（视觉印章），非加密数字签名（需要证书）。
-
-依赖：PyMuPDF (fitz)
-"""
 
 import os
 from datetime import datetime
@@ -23,22 +14,6 @@ PARAMS = [
 
 
 def sign_pdf(input_path, output_path, signature, pages=None):
-    """为 PDF 添加可见签名。
-
-    Args:
-        input_path: 输入 PDF 路径
-        output_path: 输出 PDF 路径
-        signature: 签名配置
-            - image: 签名图片路径（可选）
-            - text: 签名文字（可选）
-            - position: 签名位置 [x, y]（PDF 坐标）
-            - width: 签名宽度
-            - height: 签名高度
-            - font_size: 文字字号
-            - font_color: 文字颜色 [r, g, b]
-            - opacity: 透明度 0-1
-        pages: 签名页码列表，None 表示最后一页
-    """
     import fitz  # PyMuPDF
 
     doc = fitz.open(input_path)
@@ -64,7 +39,6 @@ def sign_pdf(input_path, output_path, signature, pages=None):
         page = doc[p_idx]
         page_rect = page.rect
 
-        # 解析位置参数：支持字符串名称或 [x, y] 坐标
         if isinstance(position, str):
             margin = 30
             pos_map = {
@@ -84,11 +58,9 @@ def sign_pdf(input_path, output_path, signature, pages=None):
 
         rect = fitz.Rect(x, y, x + width, y + height)
 
-        # 添加签名图片
         if image_path and os.path.exists(image_path):
             page.insert_image(rect, filename=image_path, overlay=True)
 
-        # 添加签名文字
         if text:
             text_point = fitz.Point(x, y + height + font_size + 2)
             page.insert_text(
@@ -98,7 +70,6 @@ def sign_pdf(input_path, output_path, signature, pages=None):
                 color=tuple(c for c in font_color)
             )
 
-        # 添加签名时间
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         time_point = fitz.Point(x, y + height + font_size * 2 + 6)
         page.insert_text(
@@ -124,7 +95,6 @@ def sign_pdf(input_path, output_path, signature, pages=None):
 
 
 def handler(params):
-    """处理 PDF 签名请求。"""
     input_path = params.get("input", "")
     output_path = params.get("output", "")
     signature = params.get("signature", {})

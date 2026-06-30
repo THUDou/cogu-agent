@@ -1,7 +1,3 @@
-"""
-Excel Formula Verification & Recalculation
-Validates all formulas in an Excel workbook via LibreOffice headless mode.
-"""
 
 import json
 import os
@@ -21,7 +17,6 @@ def is_libreoffice_available() -> bool:
 
 
 def scan_errors_only(filename: str) -> dict:
-    """当 LibreOffice 不可用时，仅扫描文件中已有的公式错误（不触发重算）。"""
     excel_errors = ["#VALUE!", "#DIV/0!", "#REF!", "#NAME?", "#NULL!", "#NUM!", "#N/A"]
     try:
         wb = load_workbook(filename, data_only=True)

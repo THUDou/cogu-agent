@@ -1,8 +1,3 @@
-"""Evolution Models — 进化数据模型
-
-灵感来源: EvoMaster evomaster/evolution/models.py (TraceDigest/EvolutionCandidates/EvolutionOverlay)
-COGU 实现: 基于 EvoMaster 的 TraceDigest + EvolutionCandidates + Overlay 模式
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -12,7 +7,6 @@ from typing import Any, Literal
 
 @dataclass
 class RunMetrics:
-    """单次运行的紧凑指标"""
     status: str = "unknown"
     step_count: int = 0
     llm_call_count: int = 0
@@ -35,7 +29,6 @@ class RunMetrics:
 
 @dataclass
 class TraceDigest:
-    """一次完整运行的紧凑分析视图 (EvoMaster TraceDigest 模式)"""
     run_dir: str = ""
     config_path: str = ""
     known_agents: list[str] = field(default_factory=list)
@@ -74,7 +67,6 @@ class TraceDigest:
 
 @dataclass
 class SkillCandidate:
-    """可物化为 SKILL.md 的技能候选"""
     name: str = ""
     agent_names: list[str] = field(default_factory=list)
     description: str = ""
@@ -86,7 +78,6 @@ class SkillCandidate:
 
 @dataclass
 class PromptPatchCandidate:
-    """Prompt 覆盖补丁"""
     agent_name: str = ""
     prompt_type: Literal["system", "user"] = "system"
     patch_text: str = ""
@@ -97,7 +88,6 @@ class PromptPatchCandidate:
 
 @dataclass
 class ToolProposal:
-    """工具提案 (不会自动启用)"""
     name: str = ""
     description: str = ""
     params_schema: dict[str, Any] = field(default_factory=dict)
@@ -109,7 +99,6 @@ class ToolProposal:
 
 @dataclass
 class EvolutionCandidates:
-    """一轮分析产生的所有候选输出"""
     skills: list[SkillCandidate] = field(default_factory=list)
     prompt_patches: list[PromptPatchCandidate] = field(default_factory=list)
     tool_proposals: list[ToolProposal] = field(default_factory=list)
@@ -122,7 +111,6 @@ class EvolutionCandidates:
 
 @dataclass
 class EvolutionOverlay:
-    """为进化重跑生成的文件集合"""
     config_path: Path = field(default_factory=Path)
     skills_dir: Path = field(default_factory=Path)
     prompts_dir: Path = field(default_factory=Path)

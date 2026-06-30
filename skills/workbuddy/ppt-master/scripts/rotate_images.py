@@ -1,15 +1,3 @@
-#!/usr/bin/env python3
-"""
-PPT Master - Image Orientation Management Tool
-
-Provides visual image orientation filtering, fix code generation,
-and batch image rotation functionality.
-
-Usage:
-    python3 scripts/rotate_images.py gen <images_directory>
-    python3 scripts/rotate_images.py fix <fixes.json>
-    python3 scripts/rotate_images.py auto <images_directory>
-"""
 
 
 import os
@@ -24,15 +12,12 @@ from PIL import Image, ExifTags
 ORIENTATION_TAG_ID = 274  # 0x0112
 
 class ImageRotator:
-    """Image orientation manager"""
 
     def __init__(self):
-        """Initialize the manager"""
         pass
 
     @staticmethod
     def _repo_root() -> Path:
-        # scripts/rotate_images.py -> skills/ppt-master/
         return Path(__file__).resolve().parent.parent
 
     @staticmethod
@@ -41,7 +26,6 @@ class ImageRotator:
         if not p:
             return p
 
-        # common copy/paste artifacts
         p = re.sub(r"^file:(?:///?)+", "", p, flags=re.IGNORECASE)
         p = p.replace("\\", "/")
         p = re.sub(r"^\\./", "", p)
@@ -49,7 +33,6 @@ class ImageRotator:
 
     @staticmethod
     def _natural_sort_key(s: Union[str, Path]) -> List[Union[int, str]]:
-        """Natural sort key generator"""
         return [int(text) if text.isdigit() else text.lower()
                 for text in re.split(r'(\d+)', str(s))]
 
@@ -70,10 +53,8 @@ class ImageRotator:
         if exif_bytes:
             save_kwargs["exif"] = exif_bytes
 
-        # Avoid passing unsupported params to formats (e.g. PNG doesn't take `quality`).
         if fmt in {"JPEG", "JPG"}:
             save_kwargs["quality"] = 95
-            # keep it simple; avoid Pillow-version-specific kwargs like optimize/subsampling
             if img.mode not in {"RGB", "L"}:
                 img = img.convert("RGB")
         elif fmt == "WEBP":
@@ -82,20 +63,11 @@ class ImageRotator:
         try:
             img.save(file_path, **save_kwargs)
         except TypeError:
-            # Fallback: drop metadata kwargs that some formats/plugins may reject.
             save_kwargs.pop("exif", None)
             save_kwargs.pop("icc_profile", None)
             img.save(file_path, **save_kwargs)
 
     def auto_fix_exif(self, target_dir: Union[str, Path]) -> int:
-        """Auto-fix EXIF orientation for all images in the directory
-
-        Args:
-            target_dir: Target directory
-
-        Returns:
-            Number of images fixed
-        """
         target_path = Path(target_dir)
         if not target_path.exists():
             return 0
@@ -104,7 +76,6 @@ class ImageRotator:
         fixed_count = 0
         valid_exts = {'.jpg', '.jpeg', '.webp'} # PNG typically does not carry rotation EXIF
 
-        # Pre-collect file list to avoid issues caused by modifying during iteration
         files = [f for f in target_path.iterdir() if f.is_file() and f.suffix.lower() in valid_exts]
 
         for f in files:
@@ -119,25 +90,17 @@ class ImageRotator:
         return fixed_count
 
     def generate_html_tool(self, target_dir: str, output_filename: str = "image_orientation_tool.html") -> str:
-        """Generate the image filtering HTML tool
-
-        Automatically performs EXIF correction before generating.
-        """
         target_path = Path(target_dir).resolve()
         repo_root = self._repo_root()
 
         if not target_path.exists():
             raise FileNotFoundError(f"Directory not found: {target_path}")
 
-        # 1. Perform automatic EXIF correction first
         self.auto_fix_exif(target_path)
 
-        # 2. Generate HTML
-        # Tool is generated in the parent directory (projects/)
         project_root = target_path.parent
         html_output_path = project_root / output_filename
 
-        # Collect images
         images = []
         valid_exts = {'.jpg', '.jpeg', '.png', '.webp', '.bmp'}
 
@@ -148,17 +111,11 @@ class ImageRotator:
         for f in files:
             if f.is_file() and f.suffix.lower() in valid_exts:
                 try:
-                    # src is used for HTML display, keep path relative to the HTML file (e.g. "images/1.jpg")
                     src_rel_path = f.relative_to(project_root).as_posix()
 
-                    # path is used for JSON data, using path relative to the working directory (usually repo root)
-                    # e.g. "projects/Name/images/1.jpg"
-                    # We assume the script is run from the repo root, or target_path is already absolute
-                    # The safest approach is to compute a path relative to the repo root (avoids CWD changes making fixes.json unusable)
                     try:
                         repo_rel_path = f.relative_to(repo_root).as_posix()
                     except ValueError:
-                        # If the file is not under CWD, fall back to absolute path
                         repo_rel_path = str(f.resolve())
 
                     images.append({'src': src_rel_path, 'path': repo_rel_path})
@@ -171,7 +128,6 @@ class ImageRotator:
 
         json_data = json.dumps(images)
 
-        # Embed HTML template
         html_content = self._get_html_template().replace('__IMAGES__', json_data)
 
         with open(html_output_path, 'w', encoding='utf-8') as f:
@@ -180,11 +136,9 @@ class ImageRotator:
         return str(html_output_path)
 
     def apply_fixes(self, json_source: Union[str, List[Dict]]) -> Dict[str, int]:
-        """Apply image rotation fixes"""
         tasks = []
         json_file_dir: Optional[Path] = None
 
-        # Parse input
         if isinstance(json_source, str):
             if json_source.endswith('.json') or os.path.exists(json_source):
                 json_file_dir = Path(json_source).resolve().parent
@@ -212,10 +166,8 @@ class ImageRotator:
             if not rel_path or rotation is None:
                 continue
 
-            # Absolute paths should stay absolute; repo-relative paths should resolve from repo root.
             target_file = Path(rel_path)
             if not target_file.is_absolute():
-                # Prefer repo root (stable); also allow CWD and fixes.json location as fallbacks.
                 candidates = [
                     repo_root / rel_path,
                     cwd / rel_path,
@@ -223,7 +175,6 @@ class ImageRotator:
                 if json_file_dir:
                     candidates.append(json_file_dir / rel_path)
 
-                # Compatibility with legacy logic / bare filenames (try finding under the projects directory)
                 candidates.append(repo_root / 'projects' / rel_path)
                 candidates.append(cwd / 'projects' / rel_path)
                 if json_file_dir:
@@ -245,7 +196,6 @@ class ImageRotator:
         return stats
 
     def _fix_single_exif(self, file_path: Path) -> bool:
-        """Check and fix EXIF orientation for a single image"""
         try:
             fixed_img: Optional[Image.Image] = None
             exif_bytes: Optional[bytes] = None
@@ -261,11 +211,9 @@ class ImageRotator:
 
                 print(f"  [EXIF] Fixing: {file_path.name} (Orientation={orientation})")
 
-                # Apply rotation
                 fixed_img = self._apply_exif_orientation(img, orientation)
                 fixed_img.load()
 
-                # Remove the specific Orientation tag, keep other EXIF data
                 if exif:
                     exif[ORIENTATION_TAG_ID] = 1
                     exif_bytes = exif.tobytes()
@@ -273,7 +221,6 @@ class ImageRotator:
                 icc_profile = img.info.get('icc_profile')
                 src_format = img.format
 
-            # Must save after the original file is closed (Windows requirement)
             if fixed_img is None:
                 return False
 
@@ -290,7 +237,6 @@ class ImageRotator:
             return False
 
     def _get_exif_orientation(self, img: Image.Image) -> Optional[int]:
-        """Get the Orientation value"""
         try:
             exif = img._getexif()
             if exif:
@@ -302,7 +248,6 @@ class ImageRotator:
         return None
 
     def _apply_exif_orientation(self, img: Image.Image, orientation: int) -> Image.Image:
-        """Rotate image according to the Orientation value"""
         T = getattr(Image, "Transpose", Image)
         if orientation == 2:
             return img.transpose(T.FLIP_LEFT_RIGHT)
@@ -321,7 +266,6 @@ class ImageRotator:
         return img
 
     def _rotate_single_image(self, file_path: Path, rotation_deg: int):
-        """Manually rotate a single image"""
         T = getattr(Image, "Transpose", Image)
         with Image.open(file_path) as img:
             ccw_angle = (360 - int(rotation_deg)) % 360
@@ -357,7 +301,6 @@ class ImageRotator:
         )
 
     def _get_html_template(self) -> str:
-        """Get HTML template content"""
         return """
 <!DOCTYPE html>
 <html lang="en">
@@ -415,7 +358,6 @@ class ImageRotator:
         }
         .btn:hover { background: #0056b3; }
 
-        #output-modal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;
         }
@@ -519,10 +461,6 @@ class ImageRotator:
 </script>
 </body>
 </html>
-"""
-
-def main() -> None:
-    """Run the CLI entry point."""
     if len(sys.argv) < 2:
         print(__doc__)
         sys.exit(1)
@@ -571,7 +509,6 @@ def main() -> None:
 
         target_dir = sys.argv[2]
         try:
-            # Only perform automatic EXIF fix
             count = rotator.auto_fix_exif(Path(target_dir))
             if count == 0:
                 print("[INFO] No images requiring automatic fix found")

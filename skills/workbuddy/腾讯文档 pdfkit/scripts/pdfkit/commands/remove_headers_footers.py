@@ -1,12 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""PDF 页眉/页脚自动清除脚本。
-
-智能识别并清除 PDF 中的页眉、页脚和脚注内容，
-提取纯净的正文文本。
-
-依赖：PyMuPDF (fitz)
-"""
 
 import os
 
@@ -26,16 +17,6 @@ PARAMS = [
 def remove_headers_footers(input_path, output_path=None, pages=None,
                            header_ratio=0.08, footer_ratio=0.08,
                            extract_only=False):
-    """识别并清除页眉页脚。
-
-    Args:
-        input_path: PDF 文件路径
-        output_path: 输出 PDF 路径（extract_only=False 时必填）
-        pages: 页码列表，None 表示全部页
-        header_ratio: 页眉区域占页面高度的比例
-        footer_ratio: 页脚区域占页面高度的比例
-        extract_only: 仅识别不清除，返回识别结果
-    """
     import fitz  # PyMuPDF
 
     doc = fitz.open(input_path)
@@ -43,7 +24,6 @@ def remove_headers_footers(input_path, output_path=None, pages=None,
     if pages is None:
         pages = list(range(total_pages))
 
-    # 第一遍：收集每页的页眉页脚候选文本
     page_headers = {}
     page_footers = {}
 
@@ -77,7 +57,6 @@ def remove_headers_footers(input_path, output_path=None, pages=None,
         page_headers[p_idx] = headers
         page_footers[p_idx] = footers
 
-    # 第二遍：识别重复出现的页眉页脚（跨页重复 = 高置信度）
     from collections import Counter
     header_texts = Counter()
     footer_texts = Counter()
@@ -109,7 +88,6 @@ def remove_headers_footers(input_path, output_path=None, pages=None,
         return {"success": True, "mode": "extract_only", "pages": results,
                 "repeated_headers": list(repeated_headers), "repeated_footers": list(repeated_footers)}
 
-    # 清除模式
     for p_idx in pages:
         if p_idx < 0 or p_idx >= total_pages:
             continue
@@ -136,7 +114,6 @@ def remove_headers_footers(input_path, output_path=None, pages=None,
 
 
 def handler(params):
-    """处理 PDF 页眉页脚清除请求。"""
     input_path = params.get("input", "")
     output_path = params.get("output", "")
     pages = params.get("pages")

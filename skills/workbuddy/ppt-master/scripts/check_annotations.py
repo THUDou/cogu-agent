@@ -1,21 +1,3 @@
-#!/usr/bin/env python3
-"""
-PPT Master - SVG Annotation Checker
-
-Scans SVG files for edit annotations (data-edit-target / data-edit-annotation attributes)
-and prints a human-readable summary. Used by AI agents to discover pending annotations.
-
-Usage:
-    python3 scripts/check_annotations.py <project_dir>
-    python3 scripts/check_annotations.py <svg_file>
-
-Examples:
-    python3 scripts/check_annotations.py projects/my-project
-    python3 scripts/check_annotations.py projects/my-project/svg_output/slide_01.svg
-
-Dependencies:
-    None (only uses standard library)
-"""
 
 import argparse
 import sys
@@ -25,7 +7,6 @@ from typing import Optional
 
 
 def scan_svg_file(svg_path: Path) -> list[dict]:
-    """Scan a single SVG file for edit annotations."""
     try:
         tree = ET.parse(svg_path)
     except ET.ParseError:
@@ -55,7 +36,6 @@ def scan_svg_file(svg_path: Path) -> list[dict]:
 
 
 def scan_directory(dir_path: Path) -> dict[str, list[dict]]:
-    """Scan all SVG files in svg_output/ for edit annotations."""
     svg_dir = dir_path / 'svg_output'
     if not svg_dir.exists():
         return {}
@@ -70,7 +50,6 @@ def scan_directory(dir_path: Path) -> dict[str, list[dict]]:
 
 
 def print_results(results: dict[str, list[dict]]) -> None:
-    """Print annotation results in human-readable format."""
     if not results:
         print("[OK] No annotations found.")
         return

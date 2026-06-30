@@ -1,11 +1,3 @@
-/**
- * @file ttf转eot
- * @author mengke01(kekee000@gmail.com)
- *
- * reference:
- * http://www.w3.org/Submission/EOT/
- * https://github.com/fontello/ttf2eot/blob/master/index.js
- */
 
 import Reader from './reader';
 import Writer from './writer';
@@ -36,22 +28,12 @@ const EotHead = table.create(
     ]
 );
 
-/**
- * ttf格式转换成eot字体格式
- *
- * @param {ArrayBuffer} ttfBuffer ttf缓冲数组
- * @param {Object} options 选项
- * @return {ArrayBuffer} eot格式byte流
- */
-// eslint-disable-next-line no-unused-vars
 export default function ttf2eot(ttfBuffer, options = {}) {
-    // 构造eot头部
     const eotHead = new EotHead();
     const eotHeaderSize = eotHead.size();
     const eot = {};
     eot.head = eotHead.read(new Reader(new ArrayBuffer(eotHeaderSize)));
 
-    // set fields
     eot.head.FontDataSize = ttfBuffer.byteLength || ttfBuffer.length;
     eot.head.Version = 0x20001;
     eot.head.Flags = 0;
@@ -60,16 +42,13 @@ export default function ttf2eot(ttfBuffer, options = {}) {
     eot.head.Padding1 = 0;
 
     const ttfReader = new Reader(ttfBuffer);
-    // 读取ttf表个数
     const numTables = ttfReader.readUint16(4);
 
     if (numTables <= 0 || numTables > 100) {
         error.raise(10101);
     }
 
-    // 读取ttf表索引信息
     ttfReader.seek(12);
-    // 需要读取3个表内容，设置3个byte
     let tblReaded = 0;
     for (let i = 0; i < numTables && tblReaded !== 0x7; ++i) {
 
@@ -96,7 +75,6 @@ export default function ttf2eot(ttfBuffer, options = {}) {
             tblReaded += 0x2;
         }
 
-        // 设置名字信息
         else if (tableEntry.tag === 'name') {
             const names = new NameTbl(tableEntry.offset).read(ttfReader);
 
@@ -118,7 +96,6 @@ export default function ttf2eot(ttfBuffer, options = {}) {
         ttfReader.seek(entryOffset);
     }
 
-    // 计算size
     eot.head.EOTSize = eotHeaderSize
         + 4 + eot.FamilyNameSize
         + 4 + eot.StyleNameSize
@@ -127,13 +104,10 @@ export default function ttf2eot(ttfBuffer, options = {}) {
         + 2
         + eot.head.FontDataSize;
 
-    // 这里用小尾方式写入
     const eotWriter = new Writer(new ArrayBuffer(eot.head.EOTSize), 0, eot.head.EOTSize, true);
 
-    // write head
     eotHead.write(eotWriter, eot);
 
-    // write names
     eotWriter.writeUint16(eot.FamilyNameSize);
     eotWriter.writeBytes(eot.FamilyName, eot.FamilyNameSize);
     eotWriter.writeUint16(0);
@@ -150,7 +124,6 @@ export default function ttf2eot(ttfBuffer, options = {}) {
     eotWriter.writeBytes(eot.FullName, eot.FullNameSize);
     eotWriter.writeUint16(0);
 
-    // write rootstring
     eotWriter.writeUint16(0);
 
     eotWriter.writeBytes(ttfBuffer, eot.head.FontDataSize);

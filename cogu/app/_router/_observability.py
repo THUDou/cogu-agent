@@ -1,4 +1,3 @@
-"""Observability REST API — Trace/Metrics查询"""
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException

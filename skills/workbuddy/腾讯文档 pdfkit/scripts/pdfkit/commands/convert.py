@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""PDF 格式转换中心。支持 PDF ↔ Word/HTML/Markdown/Images 等多种格式互转。"""
 
 import json
 import os
@@ -22,7 +19,6 @@ PARAMS = [
 
 
 def handler(params):
-    """格式转换入口。"""
     input_path = params["input"]
     output_path = params["output"]
     from_format = params.get("from_format", "auto")
@@ -32,19 +28,16 @@ def handler(params):
     if not os.path.exists(input_path):
         raise FileNotFoundError(f"输入文件不存在: {input_path}")
 
-    # 自动检测源格式
     if from_format == "auto":
         from_format = _detect_format(input_path)
 
     if not to_format:
         to_format = _detect_format(output_path)
 
-    # 确保输出目录存在
     output_dir = os.path.dirname(output_path)
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
 
-    # 路由到对应的转换函数
     converter_key = f"{from_format}_to_{to_format}"
     converters = {
         "pdf_to_docx": _pdf_to_docx,
@@ -66,7 +59,6 @@ def handler(params):
 
     result = converter(input_path, output_path, options)
 
-    # 获取输出文件大小
     if os.path.exists(output_path):
         result["file_size"] = os.path.getsize(output_path)
 
@@ -79,7 +71,6 @@ def handler(params):
 
 
 def _detect_format(filepath):
-    """根据文件扩展名检测格式。"""
     ext = os.path.splitext(filepath)[1].lower()
     format_map = {
         ".pdf": "pdf",
@@ -99,11 +90,9 @@ def _detect_format(filepath):
 
 
 def _pdf_to_docx(input_path, output_path, options):
-    """PDF → Word (.docx) 转换。"""
     method = options.get("method", "auto")
     pages = options.get("pages", None)
 
-    # 方法 1: pdf2docx（推荐）
     if method in ("auto", "pdf2docx"):
         try:
             from pdf2docx import Converter
@@ -125,9 +114,7 @@ def _pdf_to_docx(input_path, output_path, options):
         except Exception as e:
             if method == "pdf2docx":
                 raise
-            # auto 模式下继续尝试其他方法
 
-    # 方法 2: LibreOffice headless
     if method in ("auto", "libreoffice"):
         try:
             return _convert_with_libreoffice(input_path, output_path, "docx")
@@ -139,7 +126,6 @@ def _pdf_to_docx(input_path, output_path, options):
 
 
 def _pdf_to_html(input_path, output_path, options):
-    """PDF → HTML 转换。"""
     import fitz
 
     doc = fitz.open(input_path)
@@ -175,10 +161,8 @@ def _pdf_to_html(input_path, output_path, options):
 
 
 def _pdf_to_markdown(input_path, output_path, options):
-    """PDF → Markdown 转换。"""
     method = options.get("method", "auto")
 
-    # 方法 1: marker（推荐，效果最好）
     if method in ("auto", "marker"):
         try:
             result = subprocess.run(
@@ -186,7 +170,6 @@ def _pdf_to_markdown(input_path, output_path, options):
                 capture_output=True, text=True, timeout=300
             )
             if result.returncode == 0:
-                # marker 输出到目录，需要找到生成的 md 文件
                 base_name = os.path.splitext(os.path.basename(input_path))[0]
                 marker_output = os.path.join(
                     os.path.dirname(output_path) or ".", base_name, f"{base_name}.md"
@@ -198,7 +181,6 @@ def _pdf_to_markdown(input_path, output_path, options):
             if method == "marker":
                 raise
 
-    # 方法 2: PyMuPDF 文本提取 + 简单 Markdown 格式化
     import fitz
 
     doc = fitz.open(input_path)
@@ -212,7 +194,6 @@ def _pdf_to_markdown(input_path, output_path, options):
         page = doc[page_num]
         text_dict = page.get_text("dict")
 
-        # 获取平均字号用于标题检测
         all_sizes = []
         for block in text_dict.get("blocks", []):
             if block["type"] == 0:
@@ -239,7 +220,6 @@ def _pdf_to_markdown(input_path, output_path, options):
                 if not block_text:
                     continue
 
-                # 标题检测
                 if block_size > title_threshold and len(block_text) < 200:
                     if block_size > avg_size * 1.8:
                         md_parts.append(f"# {block_text}\n")
@@ -265,7 +245,6 @@ def _pdf_to_markdown(input_path, output_path, options):
 
 
 def _pdf_to_images(input_path, output_path, options):
-    """PDF → Images 转换。"""
     import fitz
 
     doc = fitz.open(input_path)
@@ -273,7 +252,6 @@ def _pdf_to_images(input_path, output_path, options):
     dpi = options.get("dpi", 150)
     target_pages = pages if pages else list(range(len(doc)))
 
-    # output_path 作为输出目录
     output_dir = output_path
     if output_path.endswith((".png", ".jpg")):
         output_dir = os.path.dirname(output_path)
@@ -302,13 +280,10 @@ def _pdf_to_images(input_path, output_path, options):
 
 
 def _docx_to_pdf(input_path, output_path, options):
-    """Word (.docx) → PDF 转换。"""
     return _convert_with_libreoffice(input_path, output_path, "pdf")
 
 
 def _html_to_pdf(input_path, output_path, options):
-    """HTML → PDF 转换。"""
-    # 方法 1: wkhtmltopdf
     try:
         result = subprocess.run(
             ["wkhtmltopdf", "--encoding", "utf-8", input_path, output_path],
@@ -319,9 +294,7 @@ def _html_to_pdf(input_path, output_path, options):
     except (FileNotFoundError, subprocess.TimeoutExpired):
         pass
 
-    # 方法 2: Chromium headless
     chrome_candidates = ["chromium", "chromium-browser", "google-chrome", "chrome"]
-    # Windows: 添加常见 Chrome 安装路径
     if sys.platform == "win32":
         for prog in [os.environ.get("PROGRAMFILES", ""), os.environ.get("PROGRAMFILES(X86)", ""),
                       os.environ.get("LOCALAPPDATA", "")]:
@@ -346,8 +319,6 @@ def _html_to_pdf(input_path, output_path, options):
 
 
 def _md_to_pdf(input_path, output_path, options):
-    """Markdown → PDF 转换。"""
-    # 方法 1: pandoc
     try:
         cmd = ["pandoc", input_path, "-o", output_path,
                "--pdf-engine=xelatex",
@@ -358,7 +329,6 @@ def _md_to_pdf(input_path, output_path, options):
     except (FileNotFoundError, subprocess.TimeoutExpired):
         pass
 
-    # 方法 2: 先转 HTML 再转 PDF
     import tempfile
     try:
         import markdown
@@ -387,10 +357,8 @@ def _md_to_pdf(input_path, output_path, options):
 
 
 def _images_to_pdf(input_path, output_path, options):
-    """Images → PDF 转换。"""
     import fitz
 
-    # input_path 可以是目录或单个图片
     if os.path.isdir(input_path):
         image_files = sorted([
             os.path.join(input_path, f) for f in os.listdir(input_path)
@@ -425,13 +393,11 @@ def _images_to_pdf(input_path, output_path, options):
 
 
 def _convert_with_libreoffice(input_path, output_path, to_format):
-    """使用 LibreOffice headless 模式转换。"""
     import tempfile
 
     output_dir = tempfile.mkdtemp(prefix="pdfkit-lo-")
 
     try:
-        # 查找 LibreOffice
         for lo in ["soffice", "libreoffice"]:
             try:
                 result = subprocess.run(
@@ -440,7 +406,6 @@ def _convert_with_libreoffice(input_path, output_path, to_format):
                     capture_output=True, text=True, timeout=300
                 )
                 if result.returncode == 0:
-                    # 找到转换后的文件
                     base_name = os.path.splitext(os.path.basename(input_path))[0]
                     converted = os.path.join(output_dir, f"{base_name}.{to_format}")
                     if os.path.exists(converted):
@@ -458,11 +423,9 @@ def _convert_with_libreoffice(input_path, output_path, to_format):
 
 
 def _count_docx_pages(docx_path):
-    """估算 docx 文件的页数（近似值）。"""
     try:
         from docx import Document
         doc = Document(docx_path)
-        # 简单估算：每 40 行约 1 页
         total_paragraphs = len(doc.paragraphs)
         return max(1, total_paragraphs // 40)
     except Exception:

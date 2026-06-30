@@ -1,7 +1,3 @@
-/**
- * @file 解析cffdict数据
- * @author mengke01(kekee000@gmail.com)
- */
 
 import getCFFString from './getCFFString';
 
@@ -166,7 +162,6 @@ function entriesToObject(entries) {
 }
 
 
-/* eslint-disable no-constant-condition */
 function parseFloatOperand(reader) {
     let s = '';
     const eof = 15;
@@ -192,15 +187,7 @@ function parseFloatOperand(reader) {
 
     return parseFloat(s);
 }
-/* eslint-enable no-constant-condition */
 
-/**
- * 解析cff字典数据
- *
- * @param  {Reader} reader 读取器
- * @param  {number} b0     操作码
- * @return {number}        数据
- */
 function parseOperand(reader, b0) {
     let b1;
     let b2;
@@ -243,19 +230,9 @@ function parseOperand(reader, b0) {
 
 
 
-/**
- * 解析字典值
- *
- * @param  {Object} dict    字典数据
- * @param  {Array} meta    元数据
- * @param  {Object} strings cff字符串字典
- * @return {Object}         解析后数据
- */
 function interpretDict(dict, meta, strings) {
     const newDict = {};
 
-    // Because we also want to include missing values, we start out from the meta list
-    // and lookup values in the dict.
     for (let i = 0, l = meta.length; i < l; i++) {
         const m = meta[i];
         let value = dict[m.op];
@@ -274,14 +251,6 @@ function interpretDict(dict, meta, strings) {
 }
 
 
-/**
- * 解析cff dict字典
- *
- * @param  {Reader} reader 读取器
- * @param  {number} offset  起始偏移
- * @param  {number} length   大小
- * @return {Object}        配置
- */
 function parseCFFDict(reader, offset, length) {
     if (null != offset) {
         reader.seek(offset);
@@ -294,10 +263,7 @@ function parseCFFDict(reader, offset, length) {
     while (reader.offset < lastOffset) {
         let op = reader.readUint8();
 
-        // The first byte for each dict item distinguishes between operator (key) and operand (value).
-        // Values <= 21 are operators.
         if (op <= 21) {
-            // Two-byte operators have an initial escape byte of 12.
             if (op === 12) {
                 op = 1200 + reader.readUint8();
             }
@@ -306,8 +272,6 @@ function parseCFFDict(reader, offset, length) {
             operands = [];
         }
         else {
-            // Since the operands (values) come before the operators (keys), we store all operands in a list
-            // until we encounter an operator.
             operands.push(parseOperand(reader, op));
         }
     }
@@ -315,29 +279,11 @@ function parseCFFDict(reader, offset, length) {
     return entriesToObject(entries);
 }
 
-/**
- * 解析cff top字典
- *
- * @param  {Reader} reader  读取器
- * @param  {number} start 开始offset
- * @param  {number} length 大小
- * @param  {Object} strings 字符串集合
- * @return {Object}         字典数据
- */
 function parseTopDict(reader, start, length, strings) {
     const dict = parseCFFDict(reader, start || 0, length || reader.length);
     return interpretDict(dict, TOP_DICT_META, strings);
 }
 
-/**
- * 解析cff私有字典
- *
- * @param  {Reader} reader  读取器
- * @param  {number} start 开始offset
- * @param  {number} length 大小
- * @param  {Object} strings 字符串集合
- * @return {Object}         字典数据
- */
 function parsePrivateDict(reader, start, length, strings) {
     const dict = parseCFFDict(reader, start || 0, length || reader.length);
     return interpretDict(dict, PRIVATE_DICT_META, strings);

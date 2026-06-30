@@ -1,11 +1,3 @@
-"""Pexels provider.
-
-Requires ``PEXELS_API_KEY`` in the environment. Pexels's site-wide license
-allows commercial use without attribution, so all returned candidates are
-classified as ``no-attribution``.
-
-API docs: https://www.pexels.com/api/documentation/
-"""
 
 from __future__ import annotations
 
@@ -51,7 +43,6 @@ def _require_api_key() -> str:
 
 
 def parse_results(payload: dict) -> list[AssetCandidate]:
-    """Translate a Pexels response into candidates."""
     candidates: list[AssetCandidate] = []
     for item in payload.get("photos", []) or []:
         src = item.get("src") or {}
@@ -85,12 +76,6 @@ def search(
     page_size: int = DEFAULT_PAGE_SIZE,
     timeout: int = DEFAULT_TIMEOUT,
 ) -> list[AssetCandidate]:
-    """Search Pexels for candidates.
-
-    Pexels images are uniformly ``no-attribution``, so the ``"all"`` filter
-    behaves identically to ``"no-attribution-only"``. Both are accepted to
-    keep the dispatcher simple.
-    """
     if license_tier_filter not in {"no-attribution-only", "all"}:
         raise ValueError(f"unsupported license_tier_filter: {license_tier_filter!r}")
 

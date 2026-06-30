@@ -1,46 +1,3 @@
-#!/usr/bin/env python3
-"""
-Unified Image Generation Tool
-
-Dispatches to the appropriate backend based on explicit provider configuration.
-
-Backend selection (`IMAGE_BACKEND` in `.env` or the current process environment):
-  IMAGE_BACKEND=gemini      -> Gemini backend (google-genai SDK)
-  IMAGE_BACKEND=openai      -> OpenAI-compatible backend (openai SDK)
-  IMAGE_BACKEND=minimax     -> MiniMax image backend
-  IMAGE_BACKEND=stability   -> Stability AI backend
-  IMAGE_BACKEND=bfl         -> Black Forest Labs FLUX backend
-  IMAGE_BACKEND=ideogram    -> Ideogram backend
-  IMAGE_BACKEND=qwen        -> Alibaba Qwen image backend
-  IMAGE_BACKEND=zhipu       -> Zhipu GLM-Image backend
-  IMAGE_BACKEND=volcengine  -> Volcengine Seedream backend
-  IMAGE_BACKEND=modelscope  -> ModelScope backend
-  IMAGE_BACKEND=siliconflow -> SiliconFlow backend
-  IMAGE_BACKEND=fal         -> fal.ai backend
-  IMAGE_BACKEND=replicate   -> Replicate backend
-  IMAGE_BACKEND=openrouter  -> OpenRouter backend
-
-Configuration source (process env wins, `.env` is the fallback layer):
-  1. Current process environment variables
-  2. The first `.env` found among:
-     - Current working directory
-     - Repo root (when running from a clone)
-     - `~/.ppt-master/.env` (user-level config)
-
-Supported keys:
-  IMAGE_BACKEND    (required) backend name
-
-  Provider-specific keys are used for credentials and overrides, for example:
-    GEMINI_API_KEY / GEMINI_MODEL / GEMINI_BASE_URL
-    OPENAI_API_KEY / OPENAI_MODEL / OPENAI_BASE_URL
-    QWEN_API_KEY / QWEN_MODEL / QWEN_BASE_URL
-    ZHIPU_API_KEY / ZHIPU_MODEL / ZHIPU_BASE_URL
-
-Usage:
-  python3 image_gen.py "prompt" --aspect_ratio 16:9 --image_size 1K -o images/
-  python3 image_gen.py --manifest project/images/image_prompts.json -o project/images/
-  python3 image_gen.py --list-backends
-"""
 
 import concurrent.futures
 import json
@@ -81,8 +38,6 @@ DEPRECATED_IMAGE_KEYS = {
     "IMAGE_BASE_URL",
 }
 
-# All aspect ratios accepted by the unified CLI
-# (each backend validates its own subset internally)
 ALL_ASPECT_RATIOS = [
     "1:1", "1:4", "1:8",
     "2:3", "3:2", "3:4", "4:1", "4:3",
@@ -208,11 +163,6 @@ SUPPORTED_BACKENDS = tuple(sorted(BACKEND_REGISTRY))
 
 
 def _load_image_env_file() -> None:
-    """
-    Load image generation config from the resolved `.env` as a fallback layer.
-
-    Existing process environment variables win over `.env`.
-    """
     replacements = {
         "IMAGE_API_KEY": "GEMINI_API_KEY / OPENAI_API_KEY / QWEN_API_KEY / ZHIPU_API_KEY / ...",
         "IMAGE_MODEL": "GEMINI_MODEL / OPENAI_MODEL / QWEN_MODEL / ZHIPU_MODEL / ...",
@@ -229,7 +179,6 @@ def _load_image_env_file() -> None:
 
 
 def _validate_runtime_config() -> None:
-    """Reject deprecated global image variables from any configuration source."""
     for key in DEPRECATED_IMAGE_KEYS:
         if key not in os.environ:
             continue
@@ -246,7 +195,6 @@ def _validate_runtime_config() -> None:
 
 
 def _build_backend_aliases() -> dict[str, str]:
-    """Build a lookup from aliases to canonical backend names."""
     aliases = {}
     for canonical_name, config in BACKEND_REGISTRY.items():
         aliases[canonical_name] = canonical_name
@@ -265,7 +213,6 @@ _BACKEND_PIP_HINTS = {
 
 
 def _load_backend(canonical_name: str) -> tuple[object, str]:
-    """Import and return the configured backend module."""
     module_name = f"image_backends.{BACKEND_REGISTRY[canonical_name]['module']}"
     try:
         module = __import__(module_name, fromlist=["*"])
@@ -282,7 +229,6 @@ def _load_backend(canonical_name: str) -> tuple[object, str]:
 
 
 def _print_backend_list() -> None:
-    """Print supported backends grouped by support tier."""
     print("Supported image backends:\n")
     tiers = ("core", "extended", "experimental")
     for tier in tiers:
@@ -302,12 +248,6 @@ def _print_backend_list() -> None:
 
 
 def _resolve_backend() -> tuple[object, str]:
-    """
-    Determine which backend to use from explicit configuration.
-
-    Returns:
-        A backend module with a generate() function.
-    """
     backend_name = os.environ.get("IMAGE_BACKEND", "").strip().lower()
     if backend_name:
         canonical = BACKEND_ALIASES.get(backend_name)
@@ -346,15 +286,6 @@ REQUIRED_ITEM_FIELDS = ("filename", "prompt", "aspect_ratio", "status")
 
 
 def load_manifest(path: str) -> dict:
-    """Load and validate an `image_prompts.json` manifest.
-
-    Schema (top level): {"items": [ ... ]}, optionally with
-    `deck_style_anchor`, `color_scheme`, `generated_at`.
-
-    Each item requires: `filename`, `prompt`, `aspect_ratio`, `status`.
-    Optional: `image_size`, `model`, `alt_text`, `purpose`, `type`,
-    `last_error`.
-    """
     try:
         data = json.loads(Path(path).read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
@@ -399,7 +330,6 @@ def load_manifest(path: str) -> dict:
 
 
 def save_manifest(path: str, data: dict) -> None:
-    """Atomically write manifest back to disk (tmp file + rename)."""
     target = Path(path)
     fd, tmp_path = tempfile.mkstemp(
         prefix=target.stem + ".",
@@ -424,20 +354,6 @@ def _run_manifest(manifest: dict, manifest_path: str, backend_module, *,
                   image_size: str,
                   output_dir: str,
                   model: str | None) -> tuple[int, int, int]:
-    """Run Pending/Failed items through the backend with adaptive concurrency.
-
-    Strategy:
-      - Start at `initial_concurrency` workers per batch.
-      - On any rate-limit error in a batch, halve concurrency (min 1) and
-        requeue the rate-limited items.
-      - Per-item failures are recorded as `status: Failed` + `last_error`
-        and not retried within this run.
-      - Status is written back to the manifest file after each completion;
-        a Ctrl-C in the middle still preserves done items.
-      - `Needs-Manual` items are skipped (user processes them externally).
-
-    Returns (ok_count, failed_count, skipped_count).
-    """
     from image_backends.backend_common import is_rate_limit_error
 
     items = manifest["items"]
@@ -532,7 +448,6 @@ def _run_manifest(manifest: dict, manifest_path: str, backend_module, *,
 
 
 def _resolve_concurrency(cli_value: int | None) -> int:
-    """CLI value wins over IMAGE_CONCURRENCY env; default 3."""
     if cli_value is not None:
         return max(1, cli_value)
     env_val = os.environ.get("IMAGE_CONCURRENCY", "").strip()
@@ -542,12 +457,6 @@ def _resolve_concurrency(cli_value: int | None) -> int:
 
 
 def render_manifest_md(manifest: dict) -> str:
-    """Render a manifest into the paste-ready Markdown view.
-
-    The output is a read-only snapshot of the JSON manifest, intended as a
-    fallback so a user can copy `Prompt` blocks into ChatGPT / Midjourney
-    when `--manifest` cannot run (no key, no backend, network down).
-    """
     lines: list[str] = []
     lines.append("# Image Generation Prompts")
     lines.append("")
@@ -608,11 +517,6 @@ def render_manifest_md(manifest: dict) -> str:
 
 
 def render_manifest_md_to_file(manifest_path: str, manifest: dict | None = None) -> str:
-    """Render the manifest's Markdown sidecar next to the JSON file.
-
-    Returns the written path. If `manifest` is omitted, it is loaded from
-    `manifest_path` first.
-    """
     if manifest is None:
         manifest = load_manifest(manifest_path)
     md_path = str(Path(manifest_path).with_suffix(".md"))
@@ -621,7 +525,6 @@ def render_manifest_md_to_file(manifest_path: str, manifest: dict | None = None)
 
 
 def main() -> None:
-    """Run the CLI entry point."""
     parser = argparse.ArgumentParser(
         description="Generate images using AI image model providers."
     )
@@ -706,7 +609,6 @@ def main() -> None:
         print(f"Error: {e}")
         sys.exit(1)
 
-    # CLI --backend overrides the value loaded from .env
     if args.backend:
         os.environ["IMAGE_BACKEND"] = args.backend
 

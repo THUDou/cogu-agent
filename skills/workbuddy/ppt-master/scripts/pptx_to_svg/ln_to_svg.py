@@ -1,11 +1,3 @@
-"""DrawingML <a:ln> -> SVG stroke conversion.
-
-Reverse of svg_to_pptx/drawingml_styles.build_stroke_xml.
-
-Produces an SVG attribute dict with stroke / stroke-width / stroke-opacity /
-stroke-dasharray / stroke-linecap / stroke-linejoin / marker-start /
-marker-end (markers also need a <defs> entry which is returned alongside).
-"""
 
 from __future__ import annotations
 
@@ -18,13 +10,11 @@ from .emu_units import NS, emu_to_px, fmt_num
 
 @dataclass
 class StrokeResult:
-    """Resolved stroke: SVG attributes to apply + optional <defs> for markers."""
 
     attrs: dict[str, str] = field(default_factory=dict)
     defs: list[str] = field(default_factory=list)
 
 
-# Reverse of svg_to_pptx DASH_PRESETS (preset name -> dasharray).
 PRST_DASH_TO_ARRAY = {
     "solid": None,           # no dasharray
     "dot": "1 3",
@@ -39,7 +29,6 @@ PRST_DASH_TO_ARRAY = {
     "sysDashDotDot": "3 3 1 3 1 3",
 }
 
-# DrawingML cap -> SVG stroke-linecap
 CAP_MAP = {
     "rnd": "round",
     "sq": "square",
@@ -55,13 +44,6 @@ def resolve_stroke(
     id_seq: list[int] | None = None,
     style_stroke_default: str | None = None,
 ) -> StrokeResult:
-    """Resolve <a:ln> child of <p:spPr>.
-
-    Returns:
-        StrokeResult.attrs is empty if no <a:ln> present (caller falls back to
-        the spec default). If <a:ln> exists with <a:noFill/>, attrs has
-        stroke="none".
-    """
     if sp_pr is None:
         return StrokeResult()
 
@@ -72,7 +54,6 @@ def resolve_stroke(
     attrs: dict[str, str] = {}
     defs: list[str] = []
 
-    # Width (a:ln@w in EMU)
     width_emu = ln.attrib.get("w")
     if width_emu is not None:
         try:
@@ -81,12 +62,10 @@ def resolve_stroke(
         except (ValueError, TypeError):
             pass
 
-    # Cap
     cap = ln.attrib.get("cap")
     if cap and cap in CAP_MAP:
         attrs["stroke-linecap"] = CAP_MAP[cap]
 
-    # Fill: noFill / solidFill / gradFill
     no_fill = ln.find("a:noFill", NS)
     if no_fill is not None:
         attrs["stroke"] = "none"
@@ -102,9 +81,6 @@ def resolve_stroke(
         else:
             grad = ln.find("a:gradFill", NS)
             if grad is not None:
-                # Approximate gradient stroke as the first stop color (SVG
-                # supports gradient strokes via fill="url()" but it adds a lot
-                # of plumbing; first-stop is good enough for v1).
                 first_gs = grad.find("a:gsLst/a:gs", NS)
                 if first_gs is not None:
                     color_elem = find_color_elem(first_gs)
@@ -114,7 +90,6 @@ def resolve_stroke(
                         if alpha < 1.0:
                             attrs["stroke-opacity"] = fmt_num(alpha, 4)
 
-    # Dash pattern
     prst_dash = ln.find("a:prstDash", NS)
     if prst_dash is not None:
         preset = prst_dash.attrib.get("val", "")
@@ -127,7 +102,6 @@ def resolve_stroke(
             ds_parts: list[str] = []
             sw = float(attrs.get("stroke-width", "1") or "1") or 1.0
             for ds in cust_dash.findall("a:ds", NS):
-                # d, sp are percentages of stroke width (1000ths)
                 try:
                     d_pct = int(ds.attrib.get("d", "0"))
                     sp_pct = int(ds.attrib.get("sp", "0"))
@@ -138,7 +112,6 @@ def resolve_stroke(
             if ds_parts:
                 attrs["stroke-dasharray"] = " ".join(ds_parts)
 
-    # Join
     if ln.find("a:round", NS) is not None:
         attrs["stroke-linejoin"] = "round"
     elif ln.find("a:bevel", NS) is not None:
@@ -146,7 +119,6 @@ def resolve_stroke(
     elif ln.find("a:miter", NS) is not None:
         attrs["stroke-linejoin"] = "miter"
 
-    # Arrow markers (head / tail)
     if id_seq is None:
         id_seq = [0]
     for which, attr in (("headEnd", "marker-start"), ("tailEnd", "marker-end")):
@@ -169,13 +141,7 @@ def resolve_stroke(
     return StrokeResult(attrs=attrs, defs=defs)
 
 
-# ---------------------------------------------------------------------------
-# Arrow marker generation
-# ---------------------------------------------------------------------------
 
-# Bucket -> markerWidth/markerHeight ratio (in stroke widths).
-# Tuned to roughly match PowerPoint's rendered arrowhead size; the spec is
-# under-defined but PowerPoint draws noticeably larger heads than 1.5–3.5×.
 SIZE_BUCKET = {"sm": 3.0, "med": 5.0, "lg": 7.0}
 
 
@@ -187,7 +153,6 @@ def _build_arrow_marker(
     seq: list[int],
     reversed_: bool,
 ) -> tuple[str | None, str]:
-    """Build an SVG <marker> def for an <a:headEnd>/<a:tailEnd>."""
     typ = end_elem.attrib.get("type", "")
     if typ in ("none", ""):
         return None, ""
@@ -200,8 +165,6 @@ def _build_arrow_marker(
     seq[0] += 1
     marker_id = f"{id_prefix}arrow{seq[0]}"
 
-    # SVG markers are drawn in their own viewBox; we use a 0..10 box and place
-    # the path so refX is at the line endpoint.
     if typ == "triangle":
         path = "M 0 0 L 10 5 L 0 10 z"
     elif typ == "stealth":
@@ -213,7 +176,6 @@ def _build_arrow_marker(
     elif typ == "oval":
         path = ""  # use circle below
     else:
-        # Unknown type — fall back to triangle so user still sees something
         path = "M 0 0 L 10 5 L 0 10 z"
 
     if typ == "oval":
@@ -223,7 +185,6 @@ def _build_arrow_marker(
 
     orient = "auto-start-reverse" if reversed_ else "auto"
     fill_attr = "" if typ == "arrow" else ""  # no extra
-    # Note: stroke="none" prevents marker from inheriting parent stroke.
     marker_def = (
         f'<marker id="{marker_id}" viewBox="0 0 10 10" '
         f'refX="{"0" if reversed_ else "10"}" refY="5" '

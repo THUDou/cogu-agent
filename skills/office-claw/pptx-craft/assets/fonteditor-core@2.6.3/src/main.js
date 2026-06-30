@@ -1,7 +1,3 @@
-/**
- * @file 主函数
- * @author mengke01(kekee000@gmail.com)
- */
 
 import {Font, createFont} from './ttf/font';
 import TTF from './ttf/ttf';
@@ -49,13 +45,10 @@ const modules = {
     toBuffer: bufferUtil.toBuffer,
 };
 
-// Export named exports for ESM
 export { Font, woff2, createFont };
 
-// Export default object
 export default modules;
 
 if (typeof exports !== 'undefined') {
-    // eslint-disable-next-line import/no-commonjs
     module.exports = modules;
 }

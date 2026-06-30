@@ -1,9 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-AI 辅助 PDF 编辑工具（占位模块）。
-通过 AI 模型理解编辑意图，自动选择合适的编辑策略。
-"""
 
 import os
 import sys
@@ -21,16 +15,6 @@ PARAMS = [
 
 
 def handler(params):
-    """AI 辅助编辑 PDF（占位实现）。
-
-    Args:
-        params: {
-            "input": 源 PDF 文件路径,
-            "output": 输出 PDF 文件路径,
-            "instruction": 自然语言编辑指令,
-            "model": AI 模型名称（默认 auto）,
-        }
-    """
     return {
         "success": False,
         "error": "ai_edit 功能尚未实现，请使用 smart_edit 命令进行 PDF 编辑。",

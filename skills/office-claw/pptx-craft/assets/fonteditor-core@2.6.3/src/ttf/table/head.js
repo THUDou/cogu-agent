@@ -1,7 +1,3 @@
-/**
- * @file head表
- * @author mengke01(kekee000@gmail.com)
- */
 
 import table from './table';
 import struct from './struct';

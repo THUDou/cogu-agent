@@ -1,8 +1,3 @@
-"""Langfuse Tracer — Langfuse 监控集成
-
-基于源码: Claude Code Best Langfuse monitoring
-COGU 实现: Trace + Session + Cost 追踪
-"""
 from __future__ import annotations
 
 import time
@@ -31,7 +26,6 @@ class TraceSession:
 
 
 class LangfuseTracer:
-    """Langfuse 集成 — Trace + Session + Cost"""
 
     def __init__(self, host: str = "", api_key: str = ""):
         self.host = host

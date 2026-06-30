@@ -1,8 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-PDF 页面操作工具（旋转、裁剪）。
-"""
 
 import json
 import sys
@@ -25,7 +20,6 @@ PARAMS = [
 
 
 def rotate_pages(input_path, output_path, angle, pages=None):
-    """旋转 PDF 页面。"""
     from pypdf import PdfReader, PdfWriter
 
     reader = PdfReader(input_path)
@@ -56,7 +50,6 @@ def rotate_pages(input_path, output_path, angle, pages=None):
 
 
 def crop_pages(input_path, output_path, left, bottom, right, top, pages=None):
-    """裁剪 PDF 页面。"""
     from pypdf import PdfReader, PdfWriter
 
     reader = PdfReader(input_path)
@@ -90,20 +83,6 @@ def crop_pages(input_path, output_path, left, bottom, right, top, pages=None):
 
 
 def handler(params):
-    """PDF 页面操作入口。
-
-    Args:
-        params: {
-            "action": "rotate" | "crop",
-            "input": 输入 PDF 路径,
-            "output": 输出 PDF 路径,
-            "pages": 页码列表（可选）,
-            # rotate 专用
-            "angle": 旋转角度,
-            # crop 专用
-            "left", "bottom", "right", "top": 裁剪边界
-        }
-    """
     action = params.get("action")
     input_path = params.get("input", "")
     output_path = params.get("output", "")

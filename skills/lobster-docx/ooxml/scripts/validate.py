@@ -1,10 +1,3 @@
-#!/usr/bin/env python3
-"""
-Command line tool to validate Office document XML files against XSD schemas and tracked changes.
-
-Usage:
-    python validate.py <dir> --original <original_file>
-"""
 
 import argparse
 import sys
@@ -32,7 +25,6 @@ def main():
     )
     args = parser.parse_args()
 
-    # Validate paths
     unpacked_dir = Path(args.unpacked_dir)
     original_file = Path(args.original)
     file_extension = original_file.suffix.lower()
@@ -42,7 +34,6 @@ def main():
         f"Error: {original_file} must be a .docx, .pptx, or .xlsx file"
     )
 
-    # Run validations
     match file_extension:
         case ".docx":
             validators = [DOCXSchemaValidator, RedliningValidator]
@@ -52,7 +43,6 @@ def main():
             print(f"Error: Validation not supported for file type {file_extension}")
             sys.exit(1)
 
-    # Run validators
     success = True
     for V in validators:
         validator = V(unpacked_dir, original_file, verbose=args.verbose)

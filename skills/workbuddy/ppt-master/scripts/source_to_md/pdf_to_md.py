@@ -1,9 +1,3 @@
-#!/usr/bin/env python3
-"""
-PDF to Markdown Converter
-Uses PyMuPDF to extract PDF text content and convert to Markdown format.
-Supports heading levels, bold, italic, and list detection.
-"""
 
 import argparse
 import hashlib
@@ -28,14 +22,6 @@ HEADER_FOOTER_EDGE_SAMPLE_SIZE = 20
 
 
 def analyze_font_sizes(doc: fitz.Document) -> dict[str, float]:
-    """Analyze font size distribution to infer heading levels.
-
-    Args:
-        doc: Open PDF document.
-
-    Returns:
-        A size mapping containing body and inferred heading sizes.
-    """
     size_counter = Counter()
 
     for page in doc:
@@ -76,20 +62,6 @@ def analyze_font_sizes(doc: fitz.Document) -> dict[str, float]:
 
 def get_heading_level(size: float, size_map: dict, text: str = "",
                       flags: int = 0, strict: bool = True) -> int:
-    """
-    Determine heading level using multiple heuristics.
-
-    Args:
-        size: Font size
-        size_map: Font size mapping
-        text: Text content (used for additional heuristics)
-        flags: Font flags (bit 4 = bold)
-        strict: Strict mode, requires more conditions to be met
-
-    Returns:
-        Heading level (0 = body text, 1-3 = H1-H3)
-    """
-    # Initial determination based on font size
     level = 0
     if "h1" in size_map and size >= size_map["h1"] - 0.5:
         level = 1
@@ -101,28 +73,21 @@ def get_heading_level(size: float, size_map: dict, text: str = "",
     if level == 0:
         return 0
 
-    # Non-strict mode returns directly (backward compatible)
     if not strict or not text:
         return level
 
-    # Strict mode: additional validation conditions
     text = text.strip()
 
-    # Exclusion: text too long is unlikely to be a heading
     if len(text) > 80:
         return 0
 
-    # Exclusion: complete sentences ending with punctuation
     sentence_endings = '.。!！?？'
     if text and text[-1] in sentence_endings:
-        # But keep numbered headings like "1. Overview" or "Chapter 1."
         if not re.match(r'^[\d第]+[.、章节]', text):
             return 0
 
-    # Bonus: bold text is more likely to be a heading
     is_bold = flags & 16
     if not is_bold and level >= 2:
-        # Non-bold subheadings require a larger font size difference
         body_size = size_map.get("body", 12)
         if size < body_size + 2:
             return 0
@@ -130,9 +95,6 @@ def get_heading_level(size: float, size_map: dict, text: str = "",
     return level
 
 def is_monospace_font(font_name: str) -> bool:
-    """
-    Determine if the font is monospace (typically used for code).
-    """
     if not font_name:
         return False
     font_lower = font_name.lower()
@@ -146,7 +108,6 @@ def is_monospace_font(font_name: str) -> bool:
 
 
 def format_span_text(text: str, flags: int) -> str:
-    """Format text based on font flags (bold, italic)."""
     text = text.strip()
     if not text:
         return ""
@@ -164,7 +125,6 @@ def format_span_text(text: str, flags: int) -> str:
 
 
 def detect_list_item(text: str) -> tuple:
-    """Detect if the text is a list item. Returns (is_list, list_type, content)."""
     text = text.strip()
 
     ul_patterns = [
@@ -187,15 +147,10 @@ def detect_list_item(text: str) -> tuple:
 
 
 def remove_page_footer(text: str) -> str:
-    """
-    Remove page number patterns from footers, e.g. 'November 2025 8' or '2025年11月 8'.
-    """
-    # English month + year + page number
     months_en = r'(?:January|February|March|April|May|June|July|August|September|October|November|December)'
     pattern_en = rf'\s*{months_en}\s+\d{{4}}\s+\d{{1,3}}\s*$'
     text = re.sub(pattern_en, '', text, flags=re.IGNORECASE)
 
-    # Chinese format: 2025年11月 8
     pattern_cn = r'\s*\d{4}年\d{1,2}月\s+\d{1,3}\s*$'
     text = re.sub(pattern_cn, '', text)
 
@@ -203,20 +158,12 @@ def remove_page_footer(text: str) -> str:
 
 
 def detect_headers_footers(doc: fitz.Document, threshold_ratio: float = 0.6) -> set[str]:
-    """
-    Detect headers and footers statistically.
-
-    Principle: Headers and footers typically appear at fixed positions (top or bottom)
-    on each page with the same content. We collect top and bottom text from all pages,
-    and if certain text appears more frequently than the threshold, it is treated as noise.
-    """
     if len(doc) < 3:
         return set()
 
     headers = []
     footers = []
 
-    # Sample first 20 and last 20 pages (avoid processing too slowly)
     pages_to_scan = list(range(len(doc)))
     if len(doc) > HEADER_FOOTER_SAMPLE_LIMIT:
         pages_to_scan = (
@@ -229,11 +176,9 @@ def detect_headers_footers(doc: fitz.Document, threshold_ratio: float = 0.6) -> 
         rect = page.rect
         h = rect.height
 
-        # Define top and bottom regions (15% each)
         top_rect = fitz.Rect(0, 0, rect.width, h * 0.15)
         bottom_rect = fitz.Rect(0, h * 0.85, rect.width, h)
 
-        # Extract text blocks
         blocks = page.get_text("blocks")
         for b in blocks:
             b_rect = fitz.Rect(b[:4])
@@ -241,20 +186,17 @@ def detect_headers_footers(doc: fitz.Document, threshold_ratio: float = 0.6) -> 
             if not text:
                 continue
 
-            # Simple spatial determination
             if b_rect.intersects(top_rect):
                 headers.append(text)
             elif b_rect.intersects(bottom_rect):
                 footers.append(text)
 
-    # Count frequencies
     noise_texts = set()
     total_scanned = len(pages_to_scan)
 
     for collection in [headers, footers]:
         counter = Counter(collection)
         for text, count in counter.items():
-            # if text appears in > 60% of scanned pages, mark as noise
             if count / total_scanned > threshold_ratio:
                 noise_texts.add(text)
 
@@ -262,10 +204,6 @@ def detect_headers_footers(doc: fitz.Document, threshold_ratio: float = 0.6) -> 
 
 
 def merge_adjacent_headings(elements: list) -> list:
-    """
-    Merge adjacent same-level short headings.
-    Example: '# Agent Tools &' + '# Interoperability' -> '# Agent Tools & Interoperability'
-    """
     if not elements:
         return elements
 
@@ -275,14 +213,12 @@ def merge_adjacent_headings(elements: list) -> list:
     while i < len(elements):
         el = elements[i]
 
-        # Only process heading elements
         if el.get("type") != 0 or not el.get("is_heading"):
             merged.append(el)
             i += 1
             continue
 
         content = el["content"]
-        # Extract heading level
         match = re.match(r'^(#{1,6})\s+(.+)$', content)
         if not match:
             merged.append(el)
@@ -292,7 +228,6 @@ def merge_adjacent_headings(elements: list) -> list:
         level = match.group(1)
         title_text = match.group(2)
 
-        # If heading is short and the next one is also the same level, try to merge
         j = i + 1
         while j < len(elements) and len(title_text) < 60:
             next_el = elements[j]
@@ -304,15 +239,12 @@ def merge_adjacent_headings(elements: list) -> list:
                 break
 
             next_text = next_match.group(2)
-            # Only merge short heading fragments
             if len(next_text) > 40:
                 break
 
-            # Merge
             title_text += " " + next_text
             j += 1
 
-        # Create merged element
         merged_el = el.copy()
         merged_el["content"] = f"{level} {title_text}"
         merged.append(merged_el)
@@ -321,7 +253,6 @@ def merge_adjacent_headings(elements: list) -> list:
     return merged
 
 
-# Image filtering thresholds
 MIN_IMAGE_PIXELS = 100       # Minimum pixel dimension (width AND height)
 MIN_IMAGE_AREA = 30000       # Minimum pixel area (e.g. 200x150)
 MIN_IMAGE_BYTES = 2048       # Minimum image data size (2KB)
@@ -336,23 +267,11 @@ def should_keep_image(
     page_rect: fitz.Rect,
     seen_hashes: set[str] | None = None,
 ) -> bool:
-    """Filter out small, decorative, or duplicate images.
-
-    Args:
-        block: Image block extracted from PyMuPDF.
-        page_rect: Current page rectangle.
-        seen_hashes: Optional set used to deduplicate image payloads.
-
-    Returns:
-        Whether the image should be kept in the Markdown output.
-    """
     w, h = block.get("width", 0), block.get("height", 0)
 
-    # Pixel dimension filter
     if w < MIN_IMAGE_PIXELS or h < MIN_IMAGE_PIXELS:
         return False
 
-    # Pixel area filter
     area = w * h
     if area < MIN_IMAGE_AREA:
         return False
@@ -361,14 +280,12 @@ def should_keep_image(
     if len(image_data) < MIN_IMAGE_BYTES:
         return False
 
-    # Deduplicate: skip images with identical content (e.g. repeated backgrounds)
     if seen_hashes is not None:
         img_hash = hashlib.md5(image_data).hexdigest()
         if img_hash in seen_hashes:
             return False
         seen_hashes.add(img_hash)
 
-    # Check render size relative to page
     bbox = block.get("bbox", (0, 0, 0, 0))
     render_w = bbox[2] - bbox[0]
     render_h = bbox[3] - bbox[1]
@@ -378,14 +295,10 @@ def should_keep_image(
         if render_w / page_w < MIN_PAGE_RATIO and render_h / page_h < MIN_PAGE_RATIO:
             return False
 
-    # Filter extreme aspect ratios (decorative bars/separators)
     aspect = max(w, h) / max(min(w, h), 1)
     if aspect > MAX_ASPECT_RATIO:
         return False
 
-    # Filter low-info images: solid color blocks / gradients have very high
-    # compression ratios (low bytes-per-pixel). Only apply to smaller images
-    # to avoid filtering large photos with dark/uniform backgrounds.
     bpp = len(image_data) / area
     if bpp < MAX_LOW_INFO_BPP and area < MAX_LOW_INFO_AREA:
         return False
@@ -394,7 +307,6 @@ def should_keep_image(
 
 
 def clean_text(text: str) -> str:
-    """Clean extracted text."""
     lines = text.split('\n')
     cleaned_lines = []
     prev_empty = False
@@ -415,28 +327,12 @@ def clean_text(text: str) -> str:
 
 
 def merge_adjacent_formatting(text: str) -> str:
-    """Merge adjacent same-style formatted spans split across PDF tokens.
-
-    PyMuPDF often emits a phrase as several spans, so per-span wrapping in
-    ``format_span_text`` produces ``**X****Y**`` (bold) or ``***X******Y***``
-    (bold-italic) where one phrase is intended. Collapse the abutting markers
-    so the run reads as a single phrase: ``**X Y**`` / ``***X Y***``.
-
-    Italic-italic adjacency (``*X**Y*``) is indistinguishable from a plain
-    bold span's open/close pair and is left alone — merging it would corrupt
-    every legitimate ``**bold**`` phrase on the page. The previous regexes
-    ``\\*\\s*\\*`` and ``\\*\\*\\*\\s*\\*\\*\\*`` did exactly that, deleting
-    all bold formatting from the converted Markdown.
-    """
-    # Bold-italic adjacency first so the inner ``******`` isn't half-eaten
-    # by the bold pass.
     text = re.sub(r'\*{6}', ' ', text)
     text = re.sub(r'\*{4}', ' ', text)
     return text
 
 
 def is_sentence_end(text: str) -> bool:
-    """Check if the text ends with sentence-ending punctuation."""
     text = text.rstrip()
     if not text:
         return True
@@ -445,7 +341,6 @@ def is_sentence_end(text: str) -> bool:
 
 
 def should_merge_lines(current: dict, next_line: dict) -> bool:
-    """Determine if two lines should be merged into the same paragraph."""
     if current.get("is_heading") or next_line.get("is_heading"):
         return False
     if current.get("is_list") or next_line.get("is_list"):
@@ -456,16 +351,6 @@ def should_merge_lines(current: dict, next_line: dict) -> bool:
 
 
 def extract_pdf_to_markdown(pdf_path: str, output_path: str = None, images: str = "filtered") -> str:
-    """Extract text, images, and tables from a PDF and convert to Markdown.
-
-    Args:
-        pdf_path: Path to the PDF file.
-        output_path: Optional output path for the Markdown file.
-        images: Image extraction mode.
-            "filtered" = apply size/quality filters (default),
-            "all"      = extract all images without filtering,
-            "none"     = skip all images.
-    """
     try:
         doc = fitz.open(pdf_path)
     except Exception as e:
@@ -506,7 +391,6 @@ def extract_pdf_to_markdown(pdf_path: str, output_path: str = None, images: str 
 
     for page_num, page in enumerate(doc, 1):
         if page_num > 1:
-            # Add page break marker to help LLM understand context segmentation
             markdown_content += f"\n\n<!-- Page {page_num} -->\n\n"
 
         try:
@@ -531,7 +415,6 @@ def extract_pdf_to_markdown(pdf_path: str, output_path: str = None, images: str 
         for block in blocks:
             block_rect = fitz.Rect(block["bbox"])
 
-            # Check if this is table content
             is_in_table = False
             for tab_rect in tab_rects:
                 intersect = block_rect & tab_rect
@@ -543,7 +426,6 @@ def extract_pdf_to_markdown(pdf_path: str, output_path: str = None, images: str 
                 continue
 
             if block["type"] == 0:
-                # Check if this is noise text to be filtered (whole block match)
                 block_text_full = "".join([span["text"] for line in block["lines"] for span in line["spans"]]).strip()
                 if block_text_full in noise_texts:
                     continue
@@ -572,7 +454,6 @@ def extract_pdf_to_markdown(pdf_path: str, output_path: str = None, images: str 
 
                         heading_level = get_heading_level(span_size, size_map, span_text, span_flags)
 
-                        # Detect code font
                         font_name = span.get("font", "")
                         if is_monospace_font(font_name):
                             is_code_line = True
@@ -586,7 +467,6 @@ def extract_pdf_to_markdown(pdf_path: str, output_path: str = None, images: str 
                     if not line_text:
                         continue
 
-                    # Secondary check: line-level noise match (sometimes blocks are split)
                     if line_text in noise_texts:
                         continue
 
@@ -629,7 +509,6 @@ def extract_pdf_to_markdown(pdf_path: str, output_path: str = None, images: str 
 
         page_elements.sort(key=lambda x: x["y0"])
 
-        # Merge adjacent same-level short headings
         page_elements = merge_adjacent_headings(page_elements)
 
         merged_elements = []
@@ -663,7 +542,6 @@ def extract_pdf_to_markdown(pdf_path: str, output_path: str = None, images: str 
         code_block_lines = []
 
         def flush_code_block():
-            """Flush accumulated code block."""
             nonlocal code_block_lines, markdown_content
             if code_block_lines:
                 markdown_content += "```\n"
@@ -678,14 +556,12 @@ def extract_pdf_to_markdown(pdf_path: str, output_path: str = None, images: str 
                 is_code = el.get("is_code", False)
 
                 if is_code:
-                    # Accumulate code lines
                     if prev_was_list:
                         markdown_content += "\n"
                         prev_was_list = False
                     code_block_lines.append(el["content"])
                     prev_was_code = True
                 else:
-                    # Non-code line, flush accumulated code block first
                     if prev_was_code:
                         flush_code_block()
                         prev_was_code = False
@@ -739,7 +615,6 @@ def extract_pdf_to_markdown(pdf_path: str, output_path: str = None, images: str 
                     except Exception as e:
                         print(f"  [WARN] Failed to save image: {e}")
 
-        # Flush code block at end of page
         if prev_was_code:
             flush_code_block()
 
@@ -758,13 +633,6 @@ def extract_pdf_to_markdown(pdf_path: str, output_path: str = None, images: str 
 
 
 def process_directory(input_dir: str, output_dir: str | None = None, images: str = "filtered") -> None:
-    """Convert all PDFs in a directory to Markdown.
-
-    Args:
-        input_dir: Directory containing PDF files.
-        output_dir: Optional output directory for Markdown files.
-        images: Image extraction mode passed through to each file conversion.
-    """
     input_path = Path(input_dir)
 
     if output_dir:
@@ -783,7 +651,6 @@ def process_directory(input_dir: str, output_dir: str | None = None, images: str
 
 
 def main() -> int:
-    """Run the CLI entry point."""
     parser = argparse.ArgumentParser(
         description='PDF to Markdown converter (with structure detection and LLM optimization)',
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -801,33 +668,3 @@ Structure detection features:
   - Extract tables and convert to Markdown format (with deduplication)
   - [New] Smart detection and removal of repeated page headers/footers
   - [New] Add <!-- Page N --> page break markers to help LLM understanding
-'''
-    )
-
-    parser.add_argument('input', help='PDF file or directory containing PDFs')
-    parser.add_argument('-o', '--output', help='Output file or directory')
-    parser.add_argument(
-        '--images',
-        choices=['all', 'filtered', 'none'],
-        default='filtered',
-        help='Image extraction mode: filtered=apply size/quality filters (default), all=no filtering, none=skip images',
-    )
-
-    args = parser.parse_args()
-
-    input_path = Path(args.input)
-
-    if input_path.is_file():
-        output = args.output or str(input_path.with_suffix('.md'))
-        extract_pdf_to_markdown(str(input_path), output, images=args.images)
-    elif input_path.is_dir():
-        process_directory(str(input_path), args.output, images=args.images)
-    else:
-        print(f"Error: File or directory not found: {args.input}")
-        return 1
-
-    return 0
-
-
-if __name__ == '__main__':
-    exit(main())

@@ -1,11 +1,6 @@
-/* ============================================================
-   PPT Master - SVG Editor  |  app.js
-   Vanilla JS, IIFE pattern
-   ============================================================ */
 (function () {
     "use strict";
 
-    // ---- i18n -------------------------------------------------------
     var MESSAGES = {
         en: {
             page_title: "PPT Master - Live Preview",
@@ -140,13 +135,11 @@
             toggleBtn.textContent = lang === "zh" ? "EN" : "中";
             toggleBtn.title = t("lang_toggle_title");
         }
-        // Re-render dynamic regions so they pick up the new language
         updateSelectionPanel();
         updateAnnotationList();
         loadSlides();
     }
 
-    // ---- DOM refs ---------------------------------------------------
     var slideListEl       = document.getElementById("slide-list");
     var svgPlaceholder    = document.getElementById("svg-placeholder");
     var svgContent        = document.getElementById("svg-content");
@@ -170,7 +163,6 @@
     var navCounterEl      = document.getElementById("nav-counter");
     var navNameEl         = document.getElementById("nav-name");
 
-    // ---- State ------------------------------------------------------
     var currentSlide      = null;   // filename, e.g. "slide_01.svg"
     var slideNames        = [];     // ordered slide filenames for navigation
     var selectedElementIds = new Set(); // id attrs of selected SVG elements
@@ -215,9 +207,6 @@
         if (navLastBtn)  navLastBtn.disabled  = !hasCurrent || idx2 >= total - 1;
     }
 
-    // ================================================================
-    //  1.  loadSlides  -- GET /api/slides
-    // ================================================================
     function loadSlides() {
         return fetch("/api/slides")
             .then(function (res) { return res.json(); })
@@ -280,11 +269,7 @@
             });
     }
 
-    // ================================================================
-    //  2.  selectSlide  -- GET /api/slide/{name}
-    // ================================================================
     function selectSlide(name, el) {
-        // Update active class in sidebar
         document.querySelectorAll(".slide-item").forEach(function (it) {
             it.classList.remove("active");
         });
@@ -295,7 +280,6 @@
         slideAnnotations = {};
         updateNavLabel();
 
-        // Reset right panel and rubber band
         cancelRubberBand();
         clearSelection();
 
@@ -312,12 +296,10 @@
                     }
                     return;
                 }
-                // Render SVG
                 svgPlaceholder.style.display = "none";
                 svgContent.style.display = "block";
                 svgContent.innerHTML = sanitizeSvg(data.content);
 
-                // Build annotations map from response
                 (data.annotations || []).forEach(function (a) {
                     slideAnnotations[a.element_id] = a.annotation;
                 });
@@ -332,9 +314,6 @@
             });
     }
 
-    // ================================================================
-    //  3.  setupSvgInteraction
-    // ================================================================
     var SKIP_TAGS = ["defs", "style", "title", "desc"];
 
     function setupSvgInteraction() {
@@ -355,7 +334,6 @@
             });
         });
 
-        // Click on blank area clears selection (skip the synthetic click after rubber band)
         svg.addEventListener("click", function (e) {
             if (suppressNextSvgClick) {
                 suppressNextSvgClick = false;
@@ -365,15 +343,11 @@
         });
     }
 
-    // ================================================================
-    //  4.  selectElement
-    // ================================================================
     function selectElement(elem, addToSelection) {
         var eid = elem.id;
         if (!eid) return;
 
         if (addToSelection) {
-            // Ctrl+click: toggle this element
             if (selectedElementIds.has(eid)) {
                 selectedElementIds.delete(eid);
                 elem.classList.remove("svg-selected");
@@ -382,7 +356,6 @@
                 elem.classList.add("svg-selected");
             }
         } else {
-            // Normal click: clear others, select only this one
             selectedElementIds.forEach(function (id) {
                 if (id !== eid) {
                     var old = svgContent.querySelector("#" + CSS.escape(id));
@@ -397,9 +370,6 @@
         updateSelectionPanel();
     }
 
-    // ================================================================
-    //  5.  clearSelection
-    // ================================================================
     function clearSelection() {
         selectedElementIds.forEach(function (id) {
             var el = svgContent.querySelector("#" + CSS.escape(id));
@@ -451,7 +421,6 @@
             : "";
     }
 
-    // ---- Rubber band selection ----
     var rubberBandEl = null;
     var rubberBandStart = null;
     var rubberBandUsed = false;
@@ -463,13 +432,8 @@
         var container = document.getElementById("svg-container");
 
         container.addEventListener("mousedown", function (e) {
-            // Only left mouse button
             if (e.button !== 0) return;
 
-            // Always start tracking — rubber band only activates when
-            // mousemove exceeds the threshold. This allows clicking on any
-            // element (including SVG background rects) to still trigger
-            // the element's click handler for selection.
             rubberBandStart = { x: e.clientX, y: e.clientY };
             rubberBandUsed = false;
         });
@@ -485,7 +449,6 @@
                 return;
             }
 
-            // Threshold exceeded — this is a drag, not a click
             if (!rubberBandUsed) {
                 rubberBandUsed = true;
                 overlay.classList.add("active");
@@ -522,7 +485,6 @@
                 rubberBandEl = null;
             }
 
-            // Only process if drag was beyond threshold
             if (dist >= RUBBER_BAND_THRESHOLD) {
                 var rect = {
                     left: Math.min(rubberBandStart.x, e.clientX),
@@ -541,7 +503,6 @@
                     suppressNextSvgClick = false;
                 }, 50);
             } else {
-                // Below threshold: treat as click on empty space
                 if (!e.ctrlKey && !e.metaKey) {
                     clearSelection();
                 }
@@ -573,7 +534,6 @@
                 var ctm = el.getScreenCTM();
                 if (!ctm) return;
 
-                // Transform bbox corners to screen coordinates
                 var corners = [
                     { x: bbox.x, y: bbox.y },
                     { x: bbox.x + bbox.width, y: bbox.y },
@@ -591,7 +551,6 @@
                     if (sy > maxY) maxY = sy;
                 });
 
-                // AABB intersection
                 if (minX < screenRect.right && maxX > screenRect.left &&
                     minY < screenRect.bottom && maxY > screenRect.top) {
                     var eid = el.id;
@@ -601,21 +560,15 @@
                     }
                 }
             } catch (err) {
-                // getBBox can throw for elements with no geometry
             }
         });
 
         updateSelectionPanel();
     }
 
-    // ================================================================
-    //  Keyboard shortcuts
-    // ================================================================
     function initKeyboardShortcuts() {
         document.addEventListener("keydown", function (e) {
-            // Ctrl+A / Cmd+A: select all elements
             if ((e.ctrlKey || e.metaKey) && e.key === "a") {
-                // Don't intercept if focus is in textarea
                 if (document.activeElement === annotationText) return;
 
                 e.preventDefault();
@@ -632,13 +585,11 @@
                 updateSelectionPanel();
             }
 
-            // Escape: clear selection (skip if textarea is focused)
             if (e.key === "Escape") {
                 if (document.activeElement === annotationText) return;
                 clearSelection();
             }
 
-            // Slide navigation: ArrowLeft/Right + Home/End (skip while typing)
             if (document.activeElement === annotationText) return;
             if (e.ctrlKey || e.metaKey || e.altKey) return;
             if (slideNames.length === 0) return;
@@ -666,9 +617,6 @@
         if (navLastBtn)  navLastBtn.addEventListener("click", function ()  { gotoSlideIndex(slideNames.length - 1); });
     }
 
-    // ================================================================
-    //  6.  Add annotation  -- POST /api/slide/{name}/annotate
-    // ================================================================
     btnAddAnnotation.addEventListener("click", function () {
         if (!currentSlide || selectedElementIds.size === 0) return;
 
@@ -700,9 +648,6 @@
             });
     });
 
-    // ================================================================
-    //  7.  removeAnnotation  -- DELETE /api/slide/{name}/annotate/{id}
-    // ================================================================
     function removeAnnotation(elementId) {
         if (!currentSlide) return;
 
@@ -722,24 +667,16 @@
             });
     }
 
-    // ================================================================
-    //  8.  refreshAnnotationVisuals
-    // ================================================================
     function refreshAnnotationVisuals() {
-        // Clear all annotated marks
         svgContent.querySelectorAll(".svg-annotated").forEach(function (el) {
             el.classList.remove("svg-annotated");
         });
-        // Apply marks
         Object.keys(slideAnnotations).forEach(function (eid) {
             var el = svgContent.querySelector("#" + CSS.escape(eid));
             if (el) el.classList.add("svg-annotated");
         });
     }
 
-    // ================================================================
-    //  9.  updateAnnotationList
-    // ================================================================
     function updateAnnotationList() {
         annotationsEl.innerHTML = "";
 
@@ -753,7 +690,6 @@
             var item = document.createElement("div");
             item.className = "annotation-item";
 
-            // Try to resolve tag from live SVG
             var tag = "";
             var el = svgContent.querySelector("#" + CSS.escape(eid));
             if (el) tag = el.tagName.toLowerCase();
@@ -795,9 +731,6 @@
         });
     }
 
-    // ================================================================
-    // 10.  Save all  -- two-step: confirm then save
-    // ================================================================
     btnSave.addEventListener("click", function () {
         pendingModalAction = "submit";
         modalMessage.textContent = t("modal_confirm_submit");
@@ -835,7 +768,6 @@
             return;
         }
 
-        // Step 2: save annotations. Service lifetime is controlled only by Exit preview.
         modalConfirm.style.display = "none";
         modalCancel.style.display = "none";
 
@@ -859,7 +791,6 @@
         modalOverlay.style.display = "none";
     });
 
-    // Close modal on overlay click
     modalOverlay.addEventListener("click", function (e) {
             if (e.target === modalOverlay) {
                 modalConfirm.textContent = t("modal_submit");
@@ -867,16 +798,12 @@
             }
         });
 
-    // ================================================================
-    //  Utility
-    // ================================================================
     function sanitizeSvg(svgString) {
         var doc = new DOMParser().parseFromString(svgString, "image/svg+xml");
         doc.querySelectorAll("script,foreignObject").forEach(function (el) { el.remove(); });
         doc.querySelectorAll("*").forEach(function (el) {
             Array.from(el.attributes).forEach(function (attr) {
                 if (attr.name.indexOf("on") === 0) el.removeAttribute(attr.name);
-                // Strip dangerous URI protocols from href/xlink:href
                 if ((attr.name === "href" || attr.name === "xlink:href") &&
                     (/^\s*javascript\s*:/i.test(attr.value) ||
                      /^\s*data\s*:/i.test(attr.value))) {
@@ -929,21 +856,16 @@
         }, 2000);
     }
 
-    // ================================================================
-    //  Property extraction & rendering
-    // ================================================================
     function getElementProperties(elem) {
         var props = {};
         var tag = elem.tagName.toLowerCase();
         var style = window.getComputedStyle(elem);
 
-        // Position (common to all)
         try {
             var bbox = elem.getBBox();
             props["position"] = Math.round(bbox.x) + ", " + Math.round(bbox.y);
             props["size"] = Math.round(bbox.width) + " x " + Math.round(bbox.height);
         } catch (e) {
-            // no geometry
         }
 
         if (tag === "text" || tag === "tspan") {
@@ -979,8 +901,6 @@
     }
 
     function isSafeColor(val) {
-        // Only allow values that look like CSS colors (hex, rgb, rgba, hsl, named).
-        // Reject anything with ; : url @ \ to prevent CSS injection.
         return val.length < 100 && !/[;:@\\]|url\s*\(/i.test(val);
     }
 
@@ -1036,7 +956,6 @@
         }
         summary += '</div>';
 
-        // Element list
         summary += '<div class="multi-el-list">';
         ids.forEach(function (eid) {
             var el = svgContent.querySelector("#" + CSS.escape(eid));
@@ -1050,9 +969,6 @@
         return summary;
     }
 
-    // ================================================================
-    //  Boot
-    // ================================================================
     applyI18n();
     var langToggleBtn = document.getElementById("btn-lang-toggle");
     if (langToggleBtn) {

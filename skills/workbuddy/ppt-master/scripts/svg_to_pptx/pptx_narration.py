@@ -1,4 +1,3 @@
-"""Narration audio discovery and PPTX XML helpers."""
 
 from __future__ import annotations
 
@@ -38,7 +37,6 @@ def _leading_number(text: str) -> int | None:
 
 
 def find_narration_files(audio_dir: Path, svg_files: list[Path]) -> dict[str, Path]:
-    """Return `{svg_stem: audio_path}` matched by exact stem, normalized stem, or index."""
     if not audio_dir.exists() or not audio_dir.is_dir():
         return {}
 
@@ -71,7 +69,6 @@ def find_narration_files(audio_dir: Path, svg_files: list[Path]) -> dict[str, Pa
 
 
 def probe_audio_duration(audio_path: Path) -> float | None:
-    """Return duration in seconds using ffprobe when available."""
     try:
         result = subprocess.run(
             [
@@ -104,7 +101,6 @@ def create_audio_pic_xml(
     media_rid: str,
     poster_rid: str,
 ) -> str:
-    """Create a tiny audio picture shape carrying narration media."""
     return f'''<p:pic>
         <p:nvPicPr>
           <p:cNvPr id="{shape_id}" name="{shape_name}">
@@ -161,7 +157,6 @@ def inject_narration(
     media_rid: str,
     poster_rid: str,
 ) -> str:
-    """Inject a hidden narration media shape and slide-entry autoplay timing."""
     audio_pic_xml = create_audio_pic_xml(
         shape_id=shape_id,
         shape_name=shape_name,
@@ -199,7 +194,6 @@ def apply_recorded_timing(
     transition_duration: float,
     transition_effect: str | None = "fade",
 ) -> str:
-    """Set slide auto-advance timing so exported video follows narration length."""
     adv_ms = max(1, int(advance_after * 1000))
     dur_ms = max(1, int(transition_duration * 1000))
 

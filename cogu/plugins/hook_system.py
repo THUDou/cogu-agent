@@ -1,8 +1,3 @@
-"""Hook System — 9事件 Hook 系统
-
-基于源码: Claude Code hooks/ (9事件 + command/prompt类型)
-         + ECC hooks/hooks.json
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -32,7 +27,6 @@ class HookConfig:
 
 
 class HookSystem:
-    """9事件 Hook 系统"""
 
     def __init__(self):
         self._hooks: dict[HookEvent, list[tuple[str, Callable]]] = {}

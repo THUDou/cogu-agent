@@ -1,8 +1,3 @@
-#!/usr/bin/env python3
-"""
-Convert HTML slide files to a PPTX presentation.
-Uses Playwright to render HTML as screenshots, then python-pptx to assemble.
-"""
 
 import os
 import re
@@ -14,7 +9,6 @@ import argparse
 
 
 def natural_sort_key(filename):
-    """Natural sort so page_1 comes before page_10."""
     numbers = re.findall(r'\d+', filename)
     return int(numbers[0]) if numbers else 0
 
@@ -50,11 +44,6 @@ SCALE_SCRIPT = """
     }
     return false;
 }
-"""
-
-
-def html_to_image(browser, html_path, output_image_path, width=1920, height=1080, wait_time=3000):
-    """Render an HTML file to a PNG screenshot using Playwright."""
     page = browser.new_page(viewport={'width': width, 'height': height})
     page.goto(f'file://{html_path}')
     page.wait_for_load_state('networkidle')
@@ -66,7 +55,6 @@ def html_to_image(browser, html_path, output_image_path, width=1920, height=1080
 
 
 def create_ppt_from_images(image_dir, output_ppt_path, width=1920, height=1080):
-    """Assemble PNG screenshots into a PPTX presentation."""
     prs = Presentation()
     prs.slide_width = Inches(width / 96)
     prs.slide_height = Inches(height / 96)
@@ -94,7 +82,6 @@ def create_ppt_from_images(image_dir, output_ppt_path, width=1920, height=1080):
 
 
 def convert_html_to_ppt(html_dir, output_ppt_path, temp_dir=None, wait_time=3000, width=1920, height=1080):
-    """Main: convert a directory of HTML files to a PPTX presentation."""
     html_dir = Path(html_dir).resolve()
 
     if temp_dir is None:
@@ -115,7 +102,6 @@ def convert_html_to_ppt(html_dir, output_ppt_path, temp_dir=None, wait_time=3000
 
     print(f"Converting {len(html_files)} HTML files to PPTX...")
 
-    # Step 1: Render HTML to images
     print("Step 1: Rendering HTML to images...")
     with sync_playwright() as p:
         browser = p.chromium.launch()
@@ -126,7 +112,6 @@ def convert_html_to_ppt(html_dir, output_ppt_path, temp_dir=None, wait_time=3000
             html_to_image(browser, str(html_path), str(image_path), width=width, height=height, wait_time=wait_time)
         browser.close()
 
-    # Step 2: Assemble PPTX
     print("Step 2: Creating PPTX...")
     create_ppt_from_images(str(temp_dir), output_ppt_path, width=width, height=height)
 

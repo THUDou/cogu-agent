@@ -1,20 +1,3 @@
-#!/usr/bin/env python3
-"""
-PPT Master - Animation Config Tool
-
-Create and validate optional per-object PPTX animation sidecar files.
-
-Usage:
-    python3 scripts/animation_config.py scaffold <project_path>
-    python3 scripts/animation_config.py validate <project_path>
-
-Examples:
-    python3 scripts/animation_config.py scaffold projects/demo --force
-    python3 scripts/animation_config.py validate projects/demo
-
-Dependencies:
-    None (standard library only)
-"""
 
 from __future__ import annotations
 

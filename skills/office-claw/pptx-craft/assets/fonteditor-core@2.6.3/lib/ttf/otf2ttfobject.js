@@ -18,13 +18,6 @@ function _arrayLikeToArray(arr, len) { if (len == null || len > arr.length) len 
  * @file otf格式转ttf格式对象
  * @author mengke01(kekee000@gmail.com)
  */
-/**
- * otf格式转ttf格式对象
- *
- * @param  {ArrayBuffer|otfObject} otfBuffer 原始数据或者解析后的otf数据
- * @param  {Object} options   参数
- * @return {Object}          ttfObject对象
- */
 function otf2ttfobject(otfBuffer, options) {
   var otfObject;
   if (otfBuffer instanceof ArrayBuffer) {
@@ -37,7 +30,6 @@ function otf2ttfobject(otfBuffer, options) {
     _error.default.raise(10111);
   }
 
-  // 转换otf轮廓
   otfObject.glyf.forEach(function (g) {
     g.contours = (0, _otfContours2ttfContours.default)(g.contours);
     var box = _computeBoundingBox.computePathBox.apply(void 0, _toConsumableArray(g.contours));
@@ -57,7 +49,6 @@ function otf2ttfobject(otfBuffer, options) {
   });
   otfObject.version = 0x1;
 
-  // 修改maxp相关配置
   otfObject.maxp.version = 1.0;
   otfObject.maxp.maxZones = otfObject.maxp.maxTwilightPoints ? 2 : 1;
   delete otfObject.CFF;

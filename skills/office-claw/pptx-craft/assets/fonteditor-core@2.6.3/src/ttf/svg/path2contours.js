@@ -1,19 +1,8 @@
-/**
- * @file svg path转换为轮廓
- * @author mengke01(kekee000@gmail.com)
- */
 
 import bezierCubic2Q2 from '../../math/bezierCubic2Q2';
 import getArc from '../../graphics/getArc';
 import parseParams from './parseParams';
 
-/**
- * 三次贝塞尔曲线，转二次贝塞尔曲线
- *
- * @param {Array} cubicList 三次曲线数组
- * @param {Array} contour 当前解析后的轮廓数组
- * @return {Array} 当前解析后的轮廓数组
- */
 function cubic2Points(cubicList, contour) {
 
     let i;
@@ -44,7 +33,6 @@ function cubic2Points(cubicList, contour) {
         }
         else {
             prevq2 = q2List[i - 1];
-            // 检查是否存在切线点
             if (
                 prevq2[1].x + q2[1].x === 2 * q2[0].x
                 && prevq2[1].y + q2[1].y === 2 * q2[0].y
@@ -73,15 +61,8 @@ function cubic2Points(cubicList, contour) {
 }
 
 
-/**
- * svg 命令数组转轮廓
- *
- * @param {Array} segments svg 命令数组
- * @return {Array} 轮廓数组
- */
 function segments2Contours(segments) {
 
-    // 解析segments
     const contours = [];
     let contour = [];
     let prevX = 0;
@@ -121,7 +102,6 @@ function segments2Contours(segments) {
                 throw new Error('`M` command error:' + args.join(','));
             }
 
-            // 这里可能会连续绘制，最后一个是终点
             if (relative) {
                 px = prevX;
                 py = prevY;
@@ -180,9 +160,7 @@ function segments2Contours(segments) {
                 onCurve: true
             });
         }
-        // 二次贝塞尔
         else if (cmd === 'Q') {
-            // 这里可能会连续绘制，最后一个是终点
             if (relative) {
                 px = prevX;
                 py = prevY;
@@ -223,9 +201,7 @@ function segments2Contours(segments) {
                 prevY = args[ql - 1];
             }
         }
-        // 二次贝塞尔平滑
         else if (cmd === 'T') {
-            // 这里需要移除上一个曲线的终点
             let last = contour.pop();
             let pc = contour[contour.length - 1];
             if (!pc) {
@@ -278,13 +254,11 @@ function segments2Contours(segments) {
             });
 
         }
-        // 三次贝塞尔
         else if (cmd === 'C') {
             if (args.length % 6) {
                 throw new Error('`C` command params error:' + args.join(','));
             }
 
-            // 这里可能会连续绘制，最后一个是终点
             cubicList = [];
 
             if (relative) {
@@ -344,13 +318,11 @@ function segments2Contours(segments) {
             cubic2Points(cubicList, contour);
             prevCubicC1 = cubicList[cubicList.length - 1][2];
         }
-        // 三次贝塞尔平滑
         else if (cmd === 'S') {
             if (args.length % 4) {
                 throw new Error('`S` command params error:' + args.join(','));
             }
 
-            // 这里可能会连续绘制，最后一个是终点
             cubicList = [];
 
             if (relative) {
@@ -362,7 +334,6 @@ function segments2Contours(segments) {
                 py = 0;
             }
 
-            // 这里需要移除上一个曲线的终点
             p1 = contour.pop();
             if (!prevCubicC1) {
                 prevCubicC1 = p1;
@@ -416,7 +387,6 @@ function segments2Contours(segments) {
             cubic2Points(cubicList, contour);
             prevCubicC1 = cubicList[cubicList.length - 1][2];
         }
-        // 求弧度, rx, ry, angle, largeArc, sweep, ex, ey
         else if (cmd === 'A') {
             if (args.length % 7) {
                 throw new Error('arc command params error:' + args.join(','));
@@ -452,12 +422,6 @@ function segments2Contours(segments) {
     return contours;
 }
 
-/**
- * svg path转轮廓
- *
- * @param {string} path svg的path字符串
- * @return {Array} 转换后的轮廓
- */
 export default function path2contours(path) {
 
     if (!path || !path.length) {
@@ -466,15 +430,12 @@ export default function path2contours(path) {
 
     path = path.trim();
 
-    // 修正头部不为`m`的情况
     if (path[0] !== 'M' && path[0] !== 'm') {
         path = 'M 0 0' + path;
     }
 
-    // 修复中间没有结束符`z`的情况
     path = path.replace(/(\d+)\s*(m|$)/gi, '$1z$2');
 
-    // 获取segments
     const segments = [];
     let cmd;
     let relative = false;
@@ -487,13 +448,11 @@ export default function path2contours(path) {
 
         switch (c) {
         case 'M':
-            /* jshint -W086 */
             if (i === 0) {
                 cmd = c;
                 lastIndex = 1;
                 break;
             }
-        // eslint-disable-next-line no-fallthrough
         case 'Q':
         case 'T':
         case 'C':

@@ -197,7 +197,6 @@ async function reviewReusableStyleAssets(templateDir, configPath, options = {}) 
       try {
         fs.unlinkSync(tempPath);
       } catch {
-        // Best-effort cleanup; temp files are uniquely named and contain no secrets.
       }
     }
   }

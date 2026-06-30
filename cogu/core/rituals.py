@@ -497,7 +497,6 @@ class CronJob:
 
 
 class CronJobStore:
-    """持久化 Cron 任务存储"""
 
     def __init__(self, storage_path: Optional[Path] = None):
         self._path = storage_path or Path("cron_jobs.json")

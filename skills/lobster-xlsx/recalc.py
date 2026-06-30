@@ -1,8 +1,3 @@
-#!/usr/bin/env python3
-"""
-Excel Formula Recalculation Script
-Recalculates all formulas in an Excel file using LibreOffice
-"""
 
 import json
 import sys
@@ -14,7 +9,6 @@ from openpyxl import load_workbook
 
 
 def setup_libreoffice_macro():
-    """Setup LibreOffice macro for recalculation if not already configured"""
     if platform.system() == 'Darwin':
         macro_dir = os.path.expanduser('~/Library/Application Support/LibreOffice/4/user/basic/Standard')
     else:
@@ -51,16 +45,6 @@ def setup_libreoffice_macro():
 
 
 def recalc(filename, timeout=30):
-    """
-    Recalculate formulas in Excel file and report any errors
-    
-    Args:
-        filename: Path to Excel file
-        timeout: Maximum time to wait for recalculation (seconds)
-    
-    Returns:
-        dict with error locations and counts
-    """
     if not Path(filename).exists():
         return {'error': f'File {filename} does not exist'}
     
@@ -75,11 +59,9 @@ def recalc(filename, timeout=30):
         abs_path
     ]
     
-    # Handle timeout command differences between Linux and macOS
     if platform.system() != 'Windows':
         timeout_cmd = 'timeout' if platform.system() == 'Linux' else None
         if platform.system() == 'Darwin':
-            # Check if gtimeout is available on macOS
             try:
                 subprocess.run(['gtimeout', '--version'], capture_output=True, timeout=1, check=False)
                 timeout_cmd = 'gtimeout'
@@ -98,7 +80,6 @@ def recalc(filename, timeout=30):
         else:
             return {'error': error_msg}
     
-    # Check for Excel errors in the recalculated file - scan ALL cells
     try:
         wb = load_workbook(filename, data_only=True)
         
@@ -108,7 +89,6 @@ def recalc(filename, timeout=30):
         
         for sheet_name in wb.sheetnames:
             ws = wb[sheet_name]
-            # Check ALL rows and columns - no limits
             for row in ws.iter_rows():
                 for cell in row:
                     if cell.value is not None and isinstance(cell.value, str):
@@ -121,14 +101,12 @@ def recalc(filename, timeout=30):
         
         wb.close()
         
-        # Build result summary
         result = {
             'status': 'success' if total_errors == 0 else 'errors_found',
             'total_errors': total_errors,
             'error_summary': {}
         }
         
-        # Add non-empty error categories
         for err_type, locations in error_details.items():
             if locations:
                 result['error_summary'][err_type] = {
@@ -136,7 +114,6 @@ def recalc(filename, timeout=30):
                     'locations': locations[:20]  # Show up to 20 locations
                 }
         
-        # Add formula count for context - also check ALL cells
         wb_formulas = load_workbook(filename, data_only=False)
         formula_count = 0
         for sheet_name in wb_formulas.sheetnames:

@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""PDF 解密。"""
 
 import os
 
@@ -16,7 +13,6 @@ PARAMS = [
 
 
 def handler(params):
-    """解密 PDF 文件。"""
     from pypdf import PdfReader, PdfWriter
 
     input_path = params["input"]
@@ -26,7 +22,6 @@ def handler(params):
     if not os.path.exists(input_path):
         raise FileNotFoundError(f"文件不存在: {input_path}")
 
-    # 确保输出目录存在
     output_dir = os.path.dirname(output_path)
     if output_dir and not os.path.exists(output_dir):
         os.makedirs(output_dir, exist_ok=True)

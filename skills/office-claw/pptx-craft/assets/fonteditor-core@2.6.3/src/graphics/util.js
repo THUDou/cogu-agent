@@ -1,18 +1,7 @@
-/**
- * @file grahpics点相关工具箱
- * @author mengke01(kekee000@gmail.com)
- */
 
-/**
- * 将点进行误差舍入
- *
- * @param {Object} p 点对象
- * @return {Object} 点
- */
 export function ceilPoint(p) {
     let t = p.x;
 
-    // 处理形如 4.99999 = 5, 5.00001 = 5的情况
     if (Math.abs(Math.round(t) - t) < 0.00002) {
         p.x = Math.round(t);
     }
@@ -31,12 +20,6 @@ export function ceilPoint(p) {
     return p;
 }
 
-/**
- * 将数值进行误差舍入
- *
- * @param {Object} x 数值
- * @return {number} 点
- */
 export function ceil(x) {
     if (Math.abs(Math.round(x) - x) < 0.00002) {
         return Math.round(x);
@@ -45,14 +28,6 @@ export function ceil(x) {
     return Math.round(x * 100000) / 100000;
 }
 
-/**
- * 判断点是否在bounding box内部
- *
- * @param {Object} bound bounding box对象
- * @param {Object} p 点对象
- * @param {boolean=} fixed 是否四舍五入
- * @return {boolean} 是否
- */
 export function isPointInBound(bound, p, fixed) {
 
     if (fixed) {
@@ -68,25 +43,11 @@ export function isPointInBound(bound, p, fixed) {
         && p.y >= bound.y;
 }
 
-/**
- * 判断点是否重合
- *
- * @param {Object} p0 p0
- * @param {Object} p1 p1
- * @return {boolean} 是否
- */
 export function isPointOverlap(p0, p1) {
     return ceil(p0.x) === ceil(p1.x) && ceil(p0.y) === ceil(p1.y);
 }
 
 
-/**
- * 获取点的hash值
- *
- * @param {Object} p p
- * @param {Object} p1 p1
- * @return {number}
- */
 export function getPointHash(p) {
     return Math.floor(7 * Math.floor(p.x * 10) + 131 * Math.floor(p.y * 100));
 }

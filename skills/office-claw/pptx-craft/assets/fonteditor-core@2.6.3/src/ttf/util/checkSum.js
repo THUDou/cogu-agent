@@ -1,7 +1,3 @@
-/**
- * @file ttf table校验函数
- * @author mengke01(kekee000@gmail.com)
- */
 
 function checkSumArrayBuffer(buffer, offset = 0, length) {
     length = length == null ? buffer.byteLength : length;
@@ -62,15 +58,6 @@ function checkSumArray(buffer, offset = 0, length) {
 }
 
 
-/**
- * table校验
- *
- * @param {ArrayBuffer|Array} buffer 表数据
- * @param {number=} offset 偏移量
- * @param {number=} length 长度
- *
- * @return {number} 校验和
- */
 export default function checkSum(buffer, offset, length) {
     if (buffer instanceof ArrayBuffer) {
         return checkSumArrayBuffer(buffer, offset, length);

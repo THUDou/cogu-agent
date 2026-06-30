@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""提取 PDF 文本内容。
-
-- 有文字层的页面：直接提取文字层文本
-- 纯扫描件页面（无文字层）：启用 --ocr_fallback 时自动 OCR 提取
-- 混合型页面（文字层 + 嵌入图片）：仅提取文字层文本，不对图片做 OCR
-"""
 
 import os
 
@@ -70,12 +62,9 @@ def handler(params):
         char_count = len(page.get_text("text").strip())
         total_chars += char_count
 
-        # 检测无文字层页面（纯扫描件/图片型页面）
-        # 注意：混合型页面（char_count > 0）不会触发 OCR，图片上的文字不提取
         if char_count == 0:
             empty_pages.append(i)
 
-            # 自动 OCR 降级：仅当页面完全无文字层时才使用 OCR 提取
             if ocr_fallback and fmt == "text":
                 ocr_text = _ocr_extract_page_text(page, ocr_lang)
                 if ocr_text:
@@ -93,7 +82,6 @@ def handler(params):
 
     doc.close()
 
-    # 可选写入文件
     if output_path:
         output_dir = os.path.dirname(output_path)
         if output_dir and not os.path.exists(output_dir):
@@ -107,7 +95,6 @@ def handler(params):
             else:
                 json.dump(results, f, ensure_ascii=False, indent=2)
 
-    # 构建返回结果
     result = {
         "success": True,
         "pages_extracted": len(results),
@@ -117,15 +104,12 @@ def handler(params):
         "pages": results if fmt == "text" else None,
     }
 
-    # 当存在空白页时，添加扫描件提示
     if empty_pages:
-        # 过滤掉已通过 OCR 成功提取的页面
         still_empty = [p for p in empty_pages if p not in ocr_pages]
         result["empty_pages"] = empty_pages
         result["ocr_pages"] = ocr_pages
 
         if still_empty and not ocr_fallback:
-            # 未启用 OCR 降级，提示用户
             result["hint"] = (
                 f"检测到 {len(empty_pages)} 个页面完全无文字层（页码: {empty_pages}），"
                 "这些页面可能是纯扫描件或图片型 PDF。"
@@ -135,7 +119,6 @@ def handler(params):
                 "示例：pdfkit.py extract_text --input <file> --pages '[0]' --ocr_fallback"
             )
         elif still_empty:
-            # 启用了 OCR 但仍有页面提取失败
             result["hint"] = (
                 f"OCR 降级已启用，但仍有 {len(still_empty)} 个页面无法提取文字（页码: {still_empty}）。"
                 "请检查这些页面是否为空白页，或尝试调整 --lang 参数。"
@@ -145,25 +128,14 @@ def handler(params):
 
 
 def _ocr_extract_page_text(page, lang="eng+chi_sim"):
-    """对单个页面进行 OCR 提取纯文本。
-
-    Args:
-        page: fitz.Page 对象
-        lang: OCR 语言
-
-    Returns:
-        提取的文本字符串，失败返回空字符串
-    """
     try:
         import pytesseract
         from PIL import Image
         import io
         from pdfkit.commands.smart_edit import _check_tesseract_langs
 
-        # 预检测 OCR 语言包
         _check_tesseract_langs(lang)
 
-        # 渲染为 300 DPI 高清图片
         import fitz
         zoom = 300.0 / 72.0
         mat = fitz.Matrix(zoom, zoom)
@@ -171,13 +143,11 @@ def _ocr_extract_page_text(page, lang="eng+chi_sim"):
         img_data = pix.tobytes("png")
         img = Image.open(io.BytesIO(img_data))
 
-        # OCR 识别，直接提取纯文本
         text = pytesseract.image_to_string(img, lang=lang)
         return text.strip()
     except ImportError:
         return ""
     except Exception as e:
-        # OCR 失败不应阻断整个提取流程，返回空并在结果中体现
         import sys
         print(f"[warn] OCR 提取第 {page.number} 页失败: {e}", file=sys.stderr)
         return ""

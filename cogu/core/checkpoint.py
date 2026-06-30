@@ -1,9 +1,3 @@
-"""Checkpoint Manager — 自动会话存档
-
-基于小米 MiMo-Code 智能上下文管理方案：
-当对话 token 数接近阈值时，自动保存关键上下文到 SQLite，
-支持摘要、关键决策、活跃任务、文件变更、工具结果等结构化存档。
-"""
 from __future__ import annotations
 
 import json
@@ -93,65 +87,8 @@ class CheckpointManager:
                 tool_results_summary TEXT NOT NULL DEFAULT '[]',
                 token_count INTEGER NOT NULL DEFAULT 0
             )
-        """)
-        conn.execute("""
             CREATE INDEX IF NOT EXISTS idx_checkpoints_session
             ON checkpoints(session_id, created_at DESC)
-        """)
-        conn.commit()
-        conn.close()
-
-    def should_checkpoint(self, token_count: int, max_tokens: int) -> bool:
-        if max_tokens <= 0:
-            return False
-        ratio = token_count / max_tokens
-        if ratio < self._checkpoint_threshold:
-            return False
-        delta = token_count - self._last_checkpoint_token_count
-        min_delta = int(max_tokens * 0.10)
-        if delta < min_delta:
-            return False
-        return True
-
-    async def auto_checkpoint(
-        self,
-        session: Session,
-        messages: list[dict],
-        token_count: int,
-    ) -> Optional[Checkpoint]:
-        summary = self._extract_summary(messages)
-        key_decisions = self._extract_key_decisions(messages)
-        active_tasks = self._extract_active_tasks(messages)
-        file_changes = self._extract_file_changes(messages)
-        tool_results_summary = self._extract_tool_results(messages)
-
-        checkpoint = Checkpoint(
-            session_id=session.session_id if session else "",
-            created_at=time.time(),
-            summary=summary,
-            key_decisions=key_decisions,
-            active_tasks=active_tasks,
-            file_changes=file_changes,
-            tool_results_summary=tool_results_summary,
-            token_count=token_count,
-        )
-
-        saved_id = await self.save_checkpoint(checkpoint)
-        if saved_id:
-            self._last_checkpoint_token_count = token_count
-            self._logger.info(
-                f"checkpoint.auto_checkpoint.saved: id={saved_id}, "
-                f"session_id={checkpoint.session_id}, tokens={token_count}"
-            )
-            return checkpoint
-        return None
-
-    async def save_checkpoint(self, checkpoint: Checkpoint) -> str:
-        with self._write_lock:
-            try:
-                conn = sqlite3.connect(self._db_path)
-                conn.execute(
-                    """INSERT OR REPLACE INTO checkpoints
                        (id, session_id, created_at, summary, key_decisions,
                         active_tasks, file_changes, tool_results_summary, token_count)
                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
@@ -178,11 +115,6 @@ class CheckpointManager:
         try:
             conn = sqlite3.connect(self._db_path)
             row = conn.execute(
-                """SELECT id, session_id, created_at, summary, key_decisions,
-                          active_tasks, file_changes, tool_results_summary, token_count
-                   FROM checkpoints
-                   WHERE session_id = ?
-                   ORDER BY created_at DESC LIMIT 1""",
                 (session_id,),
             ).fetchone()
             conn.close()
@@ -207,11 +139,6 @@ class CheckpointManager:
         try:
             conn = sqlite3.connect(self._db_path)
             rows = conn.execute(
-                """SELECT id, session_id, created_at, summary, key_decisions,
-                          active_tasks, file_changes, tool_results_summary, token_count
-                   FROM checkpoints
-                   WHERE session_id = ?
-                   ORDER BY created_at DESC""",
                 (session_id,),
             ).fetchall()
             conn.close()

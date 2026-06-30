@@ -1,36 +1,4 @@
-# /// script
-# requires-python = ">=3.10"
-# dependencies = []
-# ///
 
-"""
-Word 文档解包/打包/替换工具：在 .docx 上修改内容，保留原始格式。
-
-用法：
-    # 解包：将 .docx 解压为可编辑的 XML 目录
-    uv run scripts/docx_edit.py unpack 模板.docx unpacked/
-
-    # 打包：将编辑后的 XML 目录重新打包为 .docx
-    uv run scripts/docx_edit.py pack unpacked/ 输出.docx
-
-    # 替换：直接在 .docx 中做文本替换（一步完成解包→替换→打包）
-    uv run scripts/docx_edit.py replace 原文件.docx 输出.docx replacements.json
-
-解包后在 unpacked/word/document.xml 中用编辑工具替换文本，
-保留 <w:rPr>（格式属性）不动，只改 <w:t> 中的文字。
-
-replacements.json 格式：
-    {
-      "replacements": [
-        {"find": "{{发明名称}}", "replace": "一种智能停车管理方法"},
-        {"find": "旧文本", "replace": "新文本"}
-      ],
-      "track_changes": false,
-      "author": "patent-assistant"
-    }
-
-当 track_changes 为 true 时，替换以修订标记形式体现，方便审查员对比。
-"""
 
 import argparse
 import json
@@ -51,9 +19,6 @@ SMART_QUOTES = {
 }
 
 
-# ──────────────────────────────────────────────
-#  unpack / pack
-# ──────────────────────────────────────────────
 
 def _pretty_print_xml(path: Path) -> None:
     try:
@@ -137,9 +102,6 @@ def pack(input_dir: str, output_file: str) -> None:
     print(f"已打包：{src} → {dst}")
 
 
-# ──────────────────────────────────────────────
-#  replace — 自动 unpack → 替换 → pack
-# ──────────────────────────────────────────────
 
 def replace(input_path: str, output_path: str, replacements_path: str) -> None:
     inp = Path(input_path)
@@ -205,7 +167,6 @@ def replace(input_path: str, output_path: str, replacements_path: str) -> None:
 
 
 def _replace_in_xml(xml_content: str, find: str, replace: str) -> tuple[str, int]:
-    """在 XML 中替换文本，处理文本可能被拆分到多个 <w:t> 标签的情况。"""
     result = re.sub(
         r'(<w:t[^>]*>)(.*?)(</w:t>)',
         lambda m: m.group(1) + m.group(2).replace(find, replace) + m.group(3)
@@ -221,7 +182,6 @@ def _replace_in_xml(xml_content: str, find: str, replace: str) -> tuple[str, int
 
 
 def _replace_across_runs(xml_content: str, find: str, replace: str) -> tuple[str, int]:
-    """处理文本被拆分到多个 <w:r> 中的情况——在段落级别拼接所有文本后匹配替换。"""
     count = 0
     para_pattern = re.compile(r'(<w:p[ >].*?</w:p>)', re.DOTALL)
     t_pattern = re.compile(r'(<w:t[^>]*>)(.*?)(</w:t>)', re.DOTALL)
@@ -254,7 +214,6 @@ def _replace_across_runs(xml_content: str, find: str, replace: str) -> tuple[str
 
 
 def _replace_with_tracking(xml_content: str, find: str, replace: str, author: str) -> tuple[str, int]:
-    """用修订标记替换文本（删除旧 + 插入新）。"""
     count = 0
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -292,9 +251,6 @@ def _replace_with_tracking(xml_content: str, find: str, replace: str, author: st
     return result, count
 
 
-# ──────────────────────────────────────────────
-#  CLI
-# ──────────────────────────────────────────────
 
 def main():
     parser = argparse.ArgumentParser(description="Word 文档解包/打包/替换工具")

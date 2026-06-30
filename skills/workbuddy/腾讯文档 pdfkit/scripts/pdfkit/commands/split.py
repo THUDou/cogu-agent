@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""拆分 PDF 文档。"""
 
 import os
 
@@ -38,7 +35,6 @@ def handler(params):
     outputs = []
 
     if mode == "ranges" and ranges:
-        # 按指定范围拆分
         for idx, r in enumerate(ranges):
             if isinstance(r, (list, tuple)) and len(r) == 2:
                 start, end = int(r[0]), int(r[1])
@@ -65,7 +61,6 @@ def handler(params):
                 "file_size": os.path.getsize(filepath),
             })
     else:
-        # 每页一个文件
         for i in range(total_pages):
             new_doc = fitz.open()
             new_doc.insert_pdf(doc, from_page=i, to_page=i)

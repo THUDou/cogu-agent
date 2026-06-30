@@ -4,13 +4,11 @@ import sys
 from pptx import Presentation
 from pptx.util import Cm, Pt
 
-# Allow importing from parent directory in test environment without package installation
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'scripts'))
 from extract_structure import classify_slide_roles, extract_content_layout_styles
 
 
 def add_textbox(slide, bounds, text, font_size=20):
-    """Add a textbox to slide. bounds is (left, top, width, height) in Cm."""
     left, top, width, height = bounds
     box = slide.shapes.add_textbox(Cm(left), Cm(top), Cm(width), Cm(height))
     frame = box.text_frame

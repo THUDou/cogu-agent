@@ -1,13 +1,3 @@
-/**
- * @file cff表
- * @author mengke01(kekee000@gmail.com)
- *
- * reference:
- * http://wwwimages.adobe.com/content/dam/Adobe/en/devnet/font/pdfs/5176.CFF.pdf
- *
- * modify from:
- * https://github.com/nodebox/opentype.js/blob/master/src/tables/cff.js
- */
 
 import table from './table';
 import string from '../util/string';
@@ -19,14 +9,6 @@ import parseCFFCharset from './cff/parseCFFCharset';
 import parseCFFEncoding from './cff/parseCFFEncoding';
 import Reader from '../reader';
 
-/**
- * 获取cff偏移
- *
- * @param  {Reader} reader  读取器
- * @param  {number} offSize 偏移大小
- * @param  {number} offset  起始偏移
- * @return {number}         偏移
- */
 function getOffset(reader, offSize) {
     let v = 0;
     for (let i = 0; i < offSize; i++) {
@@ -36,12 +18,6 @@ function getOffset(reader, offSize) {
     return v;
 }
 
-/**
- * 解析cff表头部
- *
- * @param  {Reader} reader 读取器
- * @return {Object}        头部字段
- */
 function parseCFFHead(reader) {
     const head = {};
     head.startOffset = reader.offset;
@@ -53,14 +29,6 @@ function parseCFFHead(reader) {
     return head;
 }
 
-/**
- * 解析`CFF`表索引
- *
- * @param  {Reader} reader       读取器
- * @param  {number} offset       偏移
- * @param  {Funciton} conversionFn 转换函数
- * @return {Object}              表对象
- */
 function parseCFFIndex(reader, offset, conversionFn) {
     if (offset) {
         reader.seek(offset);
@@ -93,8 +61,6 @@ function parseCFFIndex(reader, offset, conversionFn) {
     };
 }
 
-// Subroutines are encoded using the negative half of the number space.
-// See type 2 chapter 4.7 "Subroutine operators".
 function calcCFFSubroutineBias(subrs) {
     let bias;
     if (subrs.length < 1240) {
@@ -130,11 +96,9 @@ export default table.create(
                 head
             };
 
-            // 全局子glyf数据
             cff.gsubrs = globalSubrIndex.objects;
             cff.gsubrsBias = calcCFFSubroutineBias(globalSubrIndex.objects);
 
-            // 顶级字典数据
             const dictReader = new Reader(new Uint8Array(topDictIndex.objects[0]).buffer);
             const topDict = parseCFFDict.parseTopDict(
                 dictReader,
@@ -144,7 +108,6 @@ export default table.create(
             );
             cff.topDict = topDict;
 
-            // 私有字典数据
             const privateDictLength = topDict.private[0];
             let privateDict = {};
             let privateDictOffset;
@@ -164,7 +127,6 @@ export default table.create(
                 cff.nominalWidthX = 0;
             }
 
-            // 私有子glyf数据
             if (privateDict.subrs) {
                 const subrOffset = privateDictOffset + privateDict.subrs;
                 const subrIndex = parseCFFIndex(reader, subrOffset);
@@ -177,28 +139,19 @@ export default table.create(
             }
             cff.privateDict = privateDict;
 
-            // 解析glyf数据和名字
             const charStringsIndex = parseCFFIndex(reader, offset + topDict.charStrings);
             const nGlyphs = charStringsIndex.objects.length;
 
             if (topDict.charset < 3) {
-                // @author: fr33z00
-                // See end of chapter 13 (p22) of #5176.CFF.pdf :
-                // Still more optimization is possible by
-                // observing that many fonts adopt one of 3 common charsets. In
-                // these cases the operand to the charset operator in the Top DICT
-                // specifies a predefined charset id, in place of an offset, as shown in table 22
                 cff.charset = cffStandardStrings;
             }
             else {
                 cff.charset = parseCFFCharset(reader, offset + topDict.charset, nGlyphs, stringIndex.objects);
             }
 
-            // Standard encoding
             if (topDict.encoding === 0) {
                 cff.encoding = encoding.standardEncoding;
             }
-            // Expert encoding
             else if (topDict.encoding === 1) {
                 cff.encoding = encoding.expertEncoding;
             }
@@ -208,17 +161,14 @@ export default table.create(
 
             cff.glyf = [];
 
-            // only parse subset glyphs
             const subset = font.readOptions.subset;
             if (subset && subset.length > 0) {
 
-                // subset map
                 const subsetMap = {
                     0: true // 设置.notdef
                 };
                 const codes = font.cmap;
 
-                // unicode to index
                 Object.keys(codes).forEach((c) => {
                     if (subset.indexOf(+c) > -1) {
                         const i = codes[c];
@@ -234,7 +184,6 @@ export default table.create(
                     cff.glyf[i] = glyf;
                 });
             }
-            // parse all
             else {
                 for (let i = 0, l = nGlyphs; i < l; i++) {
                     const glyf = parseCFFGlyph(charStringsIndex.objects[i], cff, i);
@@ -246,12 +195,10 @@ export default table.create(
             return cff;
         },
 
-        // eslint-disable-next-line no-unused-vars
         write(writer, font) {
             throw new Error('not support write cff table');
         },
 
-        // eslint-disable-next-line no-unused-vars
         size(font) {
             throw new Error('not support get cff table size');
         }

@@ -11,18 +11,11 @@ var _rect2contour = _interopRequireDefault(require("./rect2contour"));
 var _parseTransform = _interopRequireDefault(require("./parseTransform"));
 var _contoursTransform = _interopRequireDefault(require("./contoursTransform"));
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-/**
- * @file svg节点转字形轮廓
- * @author mengke01(kekee000@gmail.com)
- */
 
-// 支持的解析器集合
 var support = {
   path: {
     parse: _path2contours.default,
-    // 解析器
     params: ['d'],
-    // 参数列表
     contours: true // 是否是多个轮廓
   },
   circle: {
@@ -47,12 +40,6 @@ var support = {
   }
 };
 
-/**
- * svg节点转字形轮廓
- *
- * @param {Array} xmlNodes xml节点集合
- * @return {Array|false} 轮廓数组
- */
 function svgnode2contours(xmlNodes) {
   var i;
   var length;
@@ -108,7 +95,6 @@ function svgnode2contours(xmlNodes) {
       if (contour && contour.length) {
         var contours = parser.contours ? contour : [contour];
 
-        // 如果有变换则应用变换规则
         if (segment.transform) {
           contours = (0, _contoursTransform.default)(contours, segment.transform);
         }

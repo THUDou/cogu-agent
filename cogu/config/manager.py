@@ -34,7 +34,6 @@ class ConfigManager:
     CONFIG_FILE = "config.json"
     SECRETS_FILE = "secrets.json"
 
-    # API Key 格式验证规则 — 借鉴 OfficeAce provider registry 模式
     _PROVIDER_KEY_PATTERNS = {
         "deepseek": {"prefix": "sk-", "min_length": 20, "label": "DeepSeek"},
         "openai": {"prefix": "sk-", "min_length": 20, "label": "OpenAI"},
@@ -98,22 +97,6 @@ class ConfigManager:
                 os.environ[env_var] = key
 
     def validate_all_keys(self) -> dict[str, dict]:
-        """验证所有已配置的 API Keys — 借鉴 OfficeAce 启动时健康检查模式.
-        
-        在 Agent 启动时调用，检查所有 provider 的 Key 格式是否有效。
-        
-        Returns:
-            {
-                "provider_name": {
-                    "configured": bool,
-                    "valid": bool,
-                    "key_preview": str,  # 前8位...
-                    "error": str,         # 失败原因
-                    "label": str,         # 显示名称
-                },
-                ...
-            }
-        """
         secrets = self._read_secrets()
         api_keys = secrets.get("api_keys", {})
         result = {}
@@ -133,13 +116,6 @@ class ConfigManager:
         return result
 
     def validate_keys_on_startup(self) -> tuple[bool, list[str]]:
-        """启动时 API Key 完整性检查 — 借鉴 OfficeAce 启动校验模式.
-        
-        检查至少有一个可用的 API Key 配置正确。
-        
-        Returns:
-            (is_ready, warnings): 是否可以启动，以及警告信息列表
-        """
         all_keys = self.validate_all_keys()
         configured_valid = [
             name for name, info in all_keys.items()
@@ -170,11 +146,6 @@ class ConfigManager:
         return bool(configured_valid), warnings
 
     def get_key_status_report(self) -> str:
-        """生成 API Key 状态报告 — 借鉴 OfficeAce 可读状态输出模式.
-        
-        Returns:
-            格式化的状态报告字符串
-        """
         all_keys = self.validate_all_keys()
         lines = ["📋 API Key 配置状态", "=" * 50]
         
@@ -202,15 +173,6 @@ class ConfigManager:
         return "\n".join(lines)
 
     def _validate_api_key_format(self, provider: str, api_key: str) -> tuple[bool, str]:
-        """验证 API Key 格式.
-
-        Args:
-            provider: 提供商名称
-            api_key: API Key
-
-        Returns:
-            (是否有效, 错误信息)
-        """
         if not api_key or not api_key.strip():
             return False, "API Key 不能为空"
 
@@ -231,7 +193,6 @@ class ConfigManager:
         return True, ""
 
     def set_api_key(self, provider: str, api_key: str):
-        # ✅ 验证 API Key 格式
         is_valid, error_msg = self._validate_api_key_format(provider, api_key)
         if not is_valid:
             raise ValueError(f"❌ {error_msg}")

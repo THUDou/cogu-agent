@@ -1,24 +1,3 @@
-"""Per-slide composition: dispatches every ShapeNode through the right
-converter, accumulates <defs>, and produces one final SVG string.
-
-The output structure mirrors what svg_to_pptx expects so the deck can be
-round-tripped:
-    <svg viewBox="0 0 W H">
-        <defs>
-            <linearGradient id=.../>
-            <marker id=.../>
-            <filter id=.../>
-        </defs>
-        <!-- background -->
-        <rect ... />        (slide background, if any)
-        <g id="shape-1">...</g>
-        <g id="shape-2">...</g>
-        ...
-    </svg>
-
-Each top-level <g> wraps one shape and is treated by svg_to_pptx as an
-animation anchor.
-"""
 
 from __future__ import annotations
 
@@ -47,13 +26,9 @@ from .txbody_to_svg import (
 )
 
 
-# ---------------------------------------------------------------------------
-# AssemblyContext
-# ---------------------------------------------------------------------------
 
 @dataclass
 class AssemblyContext:
-    """Per-slide accumulator for unique IDs + media + defs."""
 
     palette: ColorPalette | None
     pkg: OoxmlPackage
@@ -66,21 +41,16 @@ class AssemblyContext:
     render_graphic_previews: bool = True
     asset_name_map: dict[str, str] = field(default_factory=dict)
 
-    # Sequence counters (single-element lists so handlers can mutate)
     grad_seq: list[int] = field(default_factory=lambda: [0])
     marker_seq: list[int] = field(default_factory=lambda: [0])
     filter_seq: list[int] = field(default_factory=lambda: [0])
     shape_seq: list[int] = field(default_factory=lambda: [0])
     clip_seq: list[int] = field(default_factory=lambda: [0])
 
-    # Accumulated outputs
     defs: list[str] = field(default_factory=list)
     media: dict[str, bytes] = field(default_factory=dict)
 
 
-# ---------------------------------------------------------------------------
-# Public entry
-# ---------------------------------------------------------------------------
 
 def assemble_slide(
     pkg: OoxmlPackage,
@@ -94,17 +64,6 @@ def assemble_slide(
     inheritance_mode: str = "flat",
     asset_name_map: dict[str, str] | None = None,
 ) -> tuple[str, dict[str, bytes]]:
-    """Convert one slide to a complete SVG string + media files map.
-
-    inheritance_mode controls how master/layout shapes are rendered:
-        - "flat" (default): emit master + layout non-placeholder shapes inline
-          inside the slide SVG. This is the historical behavior, used for
-          round-trip fidelity with svg_to_pptx.
-        - "layered": skip inherited shapes entirely. The slide SVG contains
-          only its own shapes. Callers (e.g. /create-template's PPTX import)
-          render master/layout once each as separate SVGs and record the
-          inheritance graph in inheritance.json.
-    """
     ctx = AssemblyContext(
         palette=palette,
         pkg=pkg,
@@ -119,7 +78,6 @@ def assemble_slide(
 
     canvas_w, canvas_h = pkg.slide_size_px
 
-    # Background (cSld/bg) — emit as the first body element.
     body_parts: list[str] = []
     bg_xml = (
         _emit_background(slide, ctx, canvas_w, canvas_h)
@@ -133,16 +91,12 @@ def assemble_slide(
         body_parts.append(bg_xml)
 
     if inheritance_mode == "flat":
-        # Inherited layout/master shapes render behind slide-local shapes. Skip
-        # placeholders; they define editable regions, not visible background.
         body_parts.extend(_emit_inherited_shapes(slide, ctx))
     elif inheritance_mode != "layered":
         raise ValueError(
             f"inheritance_mode must be 'flat' or 'layered', got {inheritance_mode!r}"
         )
 
-    # Walk shapes — placeholders without their own xfrm inherit geometry from
-    # layout, then master.
     nodes = walk_sp_tree(
         slide.part.xml,
         layout_xml=slide.layout.xml if slide.layout else None,
@@ -153,7 +107,6 @@ def assemble_slide(
         if chunk:
             body_parts.append(chunk)
 
-    # Compose final SVG
     defs_xml = "".join(ctx.defs) if ctx.defs else ""
     defs_block = f"<defs>{defs_xml}</defs>" if defs_xml else ""
 
@@ -182,23 +135,6 @@ def assemble_part_solo(
     keep_hidden: bool = False,
     asset_name_map: dict[str, str] | None = None,
 ) -> tuple[str, dict[str, bytes]]:
-    """Render a single slideMaster or slideLayout part as a standalone SVG.
-
-    Used by the layered export path. Skips placeholders the same way
-    `_emit_inherited_shapes` does, so the output represents the part's
-    decorative / structural shapes only — what the part *contributes* to its
-    descendants. The first ancestor's background (if any) is emitted as the
-    first body element so the output reads like a real slide.
-
-    Args:
-        role: 'master' or 'layout'. Used as the group_id_prefix to keep ids
-            unique when the workspace inlines multiple parts in a viewer.
-        parent_master: when ``role == "layout"``, pass the parent slide
-            master so theme-style background fills (``<p:bgRef idx=...>``)
-            can resolve via the theme attached to that master. For
-            ``role == "master"`` the master is its own parent and this
-            argument is ignored.
-    """
     if role not in {"master", "layout"}:
         raise ValueError(f"role must be 'master' or 'layout', got {role!r}")
 
@@ -219,13 +155,6 @@ def assemble_part_solo(
 
     body_parts: list[str] = []
 
-    # Layered semantics: each part's standalone SVG must contain only that
-    # part's own contribution. The master gets its own bg, the layout gets
-    # its own bg only if it overrides the master's, and consumers re-stack
-    # the layers when they need a flat view. We therefore inspect <p:bg> on
-    # this part alone — never inherited from above. Theme-style fills
-    # (<p:bgRef idx=...>) still need the parent master's <a:fmtScheme> to
-    # resolve, hence the SlideRef.master plumbing below.
     if role == "master":
         master_for_theme: PartRef | None = part
     else:
@@ -240,8 +169,6 @@ def assemble_part_solo(
     if bg_xml:
         body_parts.append(bg_xml)
 
-    # Walk shapes. Placeholders are visualized as lightweight layout guides in
-    # layered master/layout SVGs so template slots remain machine-visible.
     for node in walk_sp_tree(part.xml):
         if _is_placeholder_node(node):
             chunk = _convert_placeholder_guide(node, ctx, top_level=True)
@@ -265,9 +192,6 @@ def assemble_part_solo(
     return svg, ctx.media
 
 
-# ---------------------------------------------------------------------------
-# Per-node dispatch
-# ---------------------------------------------------------------------------
 
 def _convert_node(node: ShapeNode, ctx: AssemblyContext, *, top_level: bool) -> str:
     if node.hidden and not ctx.keep_hidden:
@@ -285,15 +209,10 @@ def _convert_node(node: ShapeNode, ctx: AssemblyContext, *, top_level: bool) -> 
     return ""
 
 
-# ---------------------------------------------------------------------------
-# Shape (<p:sp>)
-# ---------------------------------------------------------------------------
 
 def _convert_shape(node: ShapeNode, ctx: AssemblyContext, *, top_level: bool) -> str:
     sp_pr = node.xml.find("p:spPr", NS)
 
-    # Check for blipFill (image-filled shape, e.g. Canva exports where images
-    # are expressed as <p:sp> + <a:blipFill> rather than <p:pic>).
     geom = _resolve_geometry(node, sp_pr)
 
     blip_fill_elem = sp_pr.find("a:blipFill", NS) if sp_pr is not None else None
@@ -309,10 +228,8 @@ def _convert_shape(node: ShapeNode, ctx: AssemblyContext, *, top_level: bool) ->
             blip_image = _clip_blip_image(blip_result.svg, geom, ctx)
             ctx.media.update(blip_result.media)
 
-    # Geometry (fill is "none" when blipFill is present, so only stroke draws)
     geom_xml = _build_geometry_xml(node, sp_pr, ctx, geom=geom)
 
-    # Text body (a:txBody)
     tx_body = node.xml.find("p:txBody", NS)
     is_vertical = is_vertical_txbody(tx_body, node.xfrm)
     text_default_fill = _resolve_text_style_default(node, ctx)
@@ -330,7 +247,6 @@ def _convert_shape(node: ShapeNode, ctx: AssemblyContext, *, top_level: bool) ->
         ) if tx_body is not None else TextResult()
 
     if is_vertical:
-        # Vertical text: geometry + image in one group, text in separate group
         geom_inner = (blip_image + "\n" + geom_xml) if blip_image else geom_xml
         shape_xml = _wrap_shape_group(geom_inner, node, ctx, top_level=top_level)
         if not text_result.svg:
@@ -342,7 +258,6 @@ def _convert_shape(node: ShapeNode, ctx: AssemblyContext, *, top_level: bool) ->
         )
         return f"{shape_xml}\n{text_group}"
 
-    # Normal: image (behind) + geometry (stroke) + text (top)
     inner_parts = []
     if blip_image:
         inner_parts.append(blip_image)
@@ -355,7 +270,6 @@ def _convert_shape(node: ShapeNode, ctx: AssemblyContext, *, top_level: bool) ->
 
 
 def _resolve_geometry(node: ShapeNode, sp_pr: ET.Element | None) -> GeomResult | None:
-    """Resolve a DrawingML shape geometry into an absolute SVG geometry model."""
     prst_geom = sp_pr.find("a:prstGeom", NS) if sp_pr is not None else None
     cust_geom = sp_pr.find("a:custGeom", NS) if sp_pr is not None else None
 
@@ -364,14 +278,12 @@ def _resolve_geometry(node: ShapeNode, sp_pr: ET.Element | None) -> GeomResult |
         prst = prst_geom.attrib.get("prst", "rect")
         geom = convert_prst_geom(prst, node.xfrm, prst_geom)
         if geom is None:
-            # Unknown prst — fall back to rect bounding box
             geom = convert_prst_geom("rect", node.xfrm, None)
     elif cust_geom is not None:
         d = convert_custom_geom(cust_geom, node.xfrm)
         if d:
             geom = GeomResult(tag="path", path_d=d)
     else:
-        # No geometry hint at all — render bounding rect
         geom = convert_prst_geom("rect", node.xfrm, None)
 
     if geom is None:
@@ -384,17 +296,13 @@ def _resolve_geometry(node: ShapeNode, sp_pr: ET.Element | None) -> GeomResult |
 def _build_geometry_xml(node: ShapeNode, sp_pr: ET.Element | None,
                         ctx: AssemblyContext,
                         geom: GeomResult | None = None) -> str:
-    """Build the SVG geometry element with fill/stroke/effect attributes."""
     if geom is None:
         geom = _resolve_geometry(node, sp_pr)
     if geom is None:
         return ""
 
-    # Resolve style defaults early so markers can adopt the theme stroke color
-    # when <a:ln> doesn't carry an explicit solidFill.
     style_defaults = _resolve_shape_style_defaults(node, ctx)
 
-    # Fill / stroke / effect
     fill = resolve_fill(sp_pr, ctx.palette,
                         id_prefix="g", id_seq=ctx.grad_seq)
     stroke = resolve_stroke(
@@ -416,14 +324,9 @@ def _build_geometry_xml(node: ShapeNode, sp_pr: ET.Element | None,
     if filter_id is not None:
         attrs["filter"] = f"url(#{filter_id})"
 
-    # Default fill / stroke when not specified by spPr (matches PowerPoint
-    # behavior: a:noFill on shape-level fill if there's a txBody, else any
-    # explicit fill present in spPr should already have been captured).
     if "fill" not in attrs:
         attrs["fill"] = "none"
     if "stroke" not in attrs:
-        # Spec default for shapes is no stroke unless ln says otherwise.
-        # Skip emitting stroke="none" to keep markup tight.
         pass
 
     geom_attrs_xml = _attrs_to_xml({**geom.attrs, **attrs})
@@ -431,12 +334,6 @@ def _build_geometry_xml(node: ShapeNode, sp_pr: ET.Element | None,
 
 
 def _resolve_shape_style_defaults(node: ShapeNode, ctx: AssemblyContext) -> dict[str, str]:
-    """Resolve minimal p:style defaults used when spPr omits explicit style.
-
-    Full theme style matrix reproduction is intentionally out of scope here;
-    this only prevents common theme-styled placeholders/shapes from becoming
-    transparent or unstroked when their visible color lives in p:style.
-    """
     style = node.xml.find("p:style", NS)
     if style is None:
         return {}
@@ -458,7 +355,6 @@ def _resolve_shape_style_defaults(node: ShapeNode, ctx: AssemblyContext) -> dict
 
 
 def _resolve_text_style_default(node: ShapeNode, ctx: AssemblyContext) -> str:
-    """Resolve p:style fontRef color used by runs without explicit fill."""
     style = node.xml.find("p:style", NS)
     if style is None:
         return "#000000"
@@ -474,7 +370,6 @@ def _resolve_ref_color(ref_elem: ET.Element | None, ctx: AssemblyContext) -> str
 
 
 def _geom_to_svg(geom: GeomResult, attrs_xml: str = "") -> str:
-    """Serialize a resolved geometry with optional SVG attributes."""
     if not attrs_xml:
         attrs_xml = _attrs_to_xml(geom.attrs)
     if geom.tag == "path":
@@ -486,7 +381,6 @@ def _geom_to_svg(geom: GeomResult, attrs_xml: str = "") -> str:
 
 def _clip_blip_image(image_xml: str, geom: GeomResult | None,
                      ctx: AssemblyContext) -> str:
-    """Clip image fills to the owning shape geometry when it is not a plain rect."""
     if geom is None or geom.tag == "line":
         return image_xml
     if geom.tag == "rect" and not geom.attrs.get("rx") and not geom.attrs.get("ry"):
@@ -511,9 +405,6 @@ def _inject_clip_path(image_xml: str, clip_id: str) -> str:
     return image_xml
 
 
-# ---------------------------------------------------------------------------
-# Picture (<p:pic>)
-# ---------------------------------------------------------------------------
 
 def _convert_picture(node: ShapeNode, ctx: AssemblyContext, *, top_level: bool) -> str:
     result = convert_picture(
@@ -528,9 +419,6 @@ def _convert_picture(node: ShapeNode, ctx: AssemblyContext, *, top_level: bool) 
     return _wrap_shape_group(result.svg, node, ctx, top_level=top_level)
 
 
-# ---------------------------------------------------------------------------
-# Connector (<p:cxnSp>)
-# ---------------------------------------------------------------------------
 
 def _convert_connector(node: ShapeNode, ctx: AssemblyContext, *, top_level: bool) -> str:
     sp_pr = node.xml.find("p:spPr", NS)
@@ -538,12 +426,8 @@ def _convert_connector(node: ShapeNode, ctx: AssemblyContext, *, top_level: bool
     return _wrap_shape_group(geom_xml, node, ctx, top_level=top_level)
 
 
-# ---------------------------------------------------------------------------
-# Group (<p:grpSp>)
-# ---------------------------------------------------------------------------
 
 def _convert_group(node: ShapeNode, ctx: AssemblyContext, *, top_level: bool) -> str:
-    """Render group contents flat (children already remapped to slide space)."""
     inner_parts: list[str] = []
     for child in node.children:
         chunk = _convert_node(child, ctx, top_level=False)
@@ -555,23 +439,9 @@ def _convert_group(node: ShapeNode, ctx: AssemblyContext, *, top_level: bool) ->
     return _wrap_shape_group(inner, node, ctx, top_level=top_level)
 
 
-# ---------------------------------------------------------------------------
-# Graphic frame fallback (<p:graphicFrame>)
-# ---------------------------------------------------------------------------
 
 def _convert_graphic_fallback(node: ShapeNode, ctx: AssemblyContext,
                               *, top_level: bool) -> str:
-    """Render a <p:graphicFrame> by dispatching on its graphicData uri.
-
-    Currently:
-    - ``...drawingml/2006/table`` → real table renderer (`convert_tbl`)
-    - ``...presentationml/2006/ole`` → render the ``mc:Fallback`` preview
-      bitmap that PowerPoint bakes alongside every embedded OLE object.
-      Visually identical to what PowerPoint shows for an unedited embed.
-    - everything else (chart / SmartArt / diagram) → labelled bounding
-      rectangle so the slide composition is preserved even though the inner
-      content can't be drawn yet.
-    """
     graphic_data = node.xml.find("a:graphic/a:graphicData", NS)
     uri = graphic_data.attrib.get("uri", "graphicFrame") if graphic_data is not None else "graphicFrame"
 
@@ -617,7 +487,6 @@ def _graphic_preview_label(node: ShapeNode, label: str) -> str:
 
 def _render_graphic_table(node: ShapeNode, ctx: AssemblyContext,
                           graphic_data: ET.Element | None) -> str:
-    """Convert the <a:tbl> child of a graphicFrame to SVG, or return ''."""
     if graphic_data is None:
         return ""
     tbl = graphic_data.find("a:tbl", NS)
@@ -636,31 +505,15 @@ def _render_graphic_table(node: ShapeNode, ctx: AssemblyContext,
 
 
 def _render_graphic_preview(node: ShapeNode, ctx: AssemblyContext) -> str:
-    """Render a graphicFrame's baked fallback preview bitmap when present.
-
-    PowerPoint stores a static raster preview for many embedded graphics
-    inside ``mc:AlternateContent``. The Fallback branch is normally a plain
-    ``p:pic`` (sometimes nested), so any conformant viewer that can't speak
-    the richer object paints the preview. We do the same for flat preview SVGs.
-
-    Falls back to '' when the deck has no Fallback pic (very old or
-    third-party authoring tools sometimes omit it). Caller then emits the
-    dashed placeholder.
-    """
     ac = node.xml.find("a:graphic/a:graphicData/mc:AlternateContent", NS)
     if ac is None:
         return ""
     pic = ac.find("mc:Fallback//p:pic", NS)
     if pic is None:
-        # Some authoring tools put the preview directly in mc:Choice.
         pic = ac.find("mc:Choice//p:pic", NS)
         if pic is None:
             return ""
 
-    # The inner pic carries its own absolute xfrm in this deck (and in every
-    # well-formed PPTX I've seen — PowerPoint copies the graphicFrame xfrm
-    # there during save). If it's missing, fall back to the graphicFrame's
-    # xfrm so the preview at least lands somewhere visible.
     inner_xfrm = node.xfrm
     pic_xfrm_elem = pic.find("p:spPr/a:xfrm", NS)
     if pic_xfrm_elem is not None:
@@ -681,13 +534,9 @@ def _render_graphic_preview(node: ShapeNode, ctx: AssemblyContext) -> str:
     return result.svg
 
 
-# ---------------------------------------------------------------------------
-# Background
-# ---------------------------------------------------------------------------
 
 def _emit_background(slide: SlideRef, ctx: AssemblyContext,
                      w: float, h: float) -> str:
-    """Inspect <p:bg> on slide / layout / master in inheritance order."""
     for part in (slide.part, slide.layout, slide.master):
         if part is None:
             continue
@@ -717,7 +566,6 @@ def _emit_background(slide: SlideRef, ctx: AssemblyContext,
         ctx.defs.extend(fill.defs)
         if not fill.attrs:
             return ""
-        # Convert dict to attributes
         attrs_xml = _attrs_to_xml(fill.attrs)
         return (f'<rect x="0" y="0" width="{fmt_num(w)}" height="{fmt_num(h)}"'
                 f"{attrs_xml}/>")
@@ -726,15 +574,6 @@ def _emit_background(slide: SlideRef, ctx: AssemblyContext,
 
 def _emit_part_background(slide: SlideRef, ctx: AssemblyContext,
                           w: float, h: float) -> str:
-    """Render the background declared on the part itself only.
-
-    Distinct from `_emit_background`, which walks the slide → layout →
-    master inheritance chain. Used by the layered solo renderer so each
-    standalone master / layout SVG carries only its own ``<p:bg>`` — the
-    inheritance is rebuilt by consumers re-stacking the layers, and we'd
-    rather output nothing than have master decoration leak into a layout
-    file.
-    """
     bg = get_background(slide.part.xml)
     if bg is None:
         return ""
@@ -773,7 +612,6 @@ def _emit_background_image(
     w: float,
     h: float,
 ) -> str:
-    """Render a slide/layout/master background image fill as a full-canvas image."""
     blip_fill = bg_pr.find("a:blipFill", NS)
     if blip_fill is None:
         return ""
@@ -797,7 +635,6 @@ def _theme_background_fill(
     ctx: AssemblyContext,
     bg_ref: ET.Element,
 ) -> ET.Element | None:
-    """Resolve p:bgRef idx into the theme background fill style list."""
     idx_raw = bg_ref.attrib.get("idx")
     if not idx_raw:
         return None
@@ -805,7 +642,6 @@ def _theme_background_fill(
         idx = int(idx_raw)
     except ValueError:
         return None
-    # ECMA style matrix background fill references are 1001-based.
     bg_fill_index = idx - 1001
     if bg_fill_index < 0:
         return None
@@ -854,7 +690,6 @@ def _is_placeholder_node(node: ShapeNode) -> bool:
 
 def _convert_placeholder_guide(node: ShapeNode, ctx: AssemblyContext,
                                *, top_level: bool) -> str:
-    """Emit a lightweight visible guide for template placeholder slots."""
     ph = node.placeholder
     label_parts = ["ph"]
     if ph is not None:
@@ -874,14 +709,9 @@ def _convert_placeholder_guide(node: ShapeNode, ctx: AssemblyContext,
     return _wrap_shape_group(guide, node, ctx, top_level=top_level)
 
 
-# ---------------------------------------------------------------------------
-# Wrap / utilities
-# ---------------------------------------------------------------------------
 
 def _wrap_shape_group(inner: str, node: ShapeNode, ctx: AssemblyContext,
                       *, top_level: bool) -> str:
-    """Wrap a shape's body in a <g> that carries the transform (rotation /
-    flip) and an id for animation anchoring."""
     if not inner.strip():
         return ""
 

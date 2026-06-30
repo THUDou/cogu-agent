@@ -1,4 +1,3 @@
-"""Core PPTX assembly: create_pptx_with_native_svg."""
 
 from __future__ import annotations
 
@@ -46,7 +45,6 @@ from .pptx_slide_xml import (
     create_slide_xml_with_svg, create_slide_rels_xml,
 )
 
-# Re-import create_transition_xml only if available
 try:
     from pptx_animations import (
         create_transition_xml,
@@ -64,7 +62,6 @@ def _append_relationship(
     rel_type: str,
     target: str,
 ) -> str:
-    """Append a relationship entry with the next available rId."""
     with open(rels_path, 'r', encoding='utf-8') as f:
         rels_content = f.read()
 
@@ -85,7 +82,6 @@ def _append_relationship(
 
 
 def _add_default_content_type(content_types: str, extension: str, content_type: str) -> str:
-    """Add a Default content type if it is not already present."""
     ext = extension.lstrip(".")
     if f'Extension="{ext}"' in content_types:
         return content_types
@@ -237,11 +233,6 @@ def _prerender_legacy_pngs(
     workers: int,
     verbose: bool,
 ) -> dict[int, bool]:
-    """Render every SVG→PNG into media_dir in parallel.
-
-    Returns {1-based slide index: success}. Falls back to sequential when
-    workers<=1 or len(svg_files)<=2.
-    """
     results: dict[int, bool] = {}
     targets: list[tuple[int, Path, Path]] = [
         (i, svg, media_dir / f'image{i}.png')
@@ -307,45 +298,13 @@ def create_pptx_with_native_svg(
     cache_dir: Path | None = None,
     workers: int | None = None,
 ) -> bool:
-    """Create a PPTX file with native SVG.
-
-    Args:
-        svg_files: List of SVG files.
-        output_path: Output PPTX path.
-        canvas_format: Canvas format key.
-        verbose: Whether to output detailed information.
-        transition: Transition effect name.
-        transition_duration: Transition duration in seconds.
-        auto_advance: Auto-advance interval in seconds.
-        use_compat_mode: Use Office compatibility mode (PNG + SVG dual format).
-        notes: Notes dict, key is SVG stem, value is notes content.
-        enable_notes: Whether to enable notes embedding.
-        use_native_shapes: Convert SVG to native DrawingML shapes.
-        animation: Per-element entrance animation mode (single effect name,
-            'mixed', 'random', or None to disable). Native shapes mode only.
-        animation_duration: Per-element entrance duration in seconds.
-        animation_stagger: Delay between elements in ``after-previous``
-            trigger mode (seconds). Ignored otherwise.
-        animation_trigger: PowerPoint Start mode — ``'after-previous'`` (default),
-            ``'on-click'``, or ``'with-previous'``.
-        animation_config: Optional sidecar overrides loaded from animations.json.
-        animation_cli_overrides: Flags indicating explicit CLI overrides.
-        narration_audio: Optional dict mapping SVG stem to narration audio file.
-        use_narration_timings: Whether to set slide auto-advance from audio duration.
-        narration_padding: Extra seconds added after each narration before advancing.
-
-    Returns:
-        Whether all slides were successfully created.
-    """
     if not svg_files:
         print("Error: No SVG files found")
         return False
 
-    # Native shapes mode takes priority over compat mode
     if use_native_shapes:
         use_compat_mode = False
 
-    # Check compatibility mode dependencies
     renderer_name, renderer_status, renderer_hint = get_png_renderer_info()
     if not use_native_shapes and use_compat_mode and PNG_RENDERER is None:
         print("Warning: No PNG rendering library installed, cannot use compatibility mode")
@@ -353,7 +312,6 @@ def create_pptx_with_native_svg(
         print("  Will use pure SVG mode (may not display in Office LTSC 2021 and similar versions)")
         use_compat_mode = False
 
-    # Auto-detect canvas format or get dimensions from viewBox
     custom_pixels: tuple[int, int] | None = None
     if canvas_format is None:
         canvas_format = detect_format_from_svg(svg_files[0])
@@ -400,7 +358,6 @@ def create_pptx_with_native_svg(
     temp_dir = Path(tempfile.mkdtemp())
 
     try:
-        # Create base PPTX with python-pptx
         prs = Presentation()
         prs.slide_width = width_emu
         prs.slide_height = height_emu
@@ -412,7 +369,6 @@ def create_pptx_with_native_svg(
         base_pptx = temp_dir / 'base.pptx'
         prs.save(str(base_pptx))
 
-        # Extract PPTX
         extract_dir = temp_dir / 'pptx_content'
         with zipfile.ZipFile(base_pptx, 'r') as zf:
             zf.extractall(extract_dir)
@@ -450,7 +406,6 @@ def create_pptx_with_native_svg(
             slide_num = i
 
             try:
-                # ---- Native shapes mode ----
                 if use_native_shapes:
                     slide_cfg = _slide_config(animation_config, svg_path.stem)
                     slide_xml, media_files_dict, rel_entries, anim_targets = (
@@ -481,10 +436,6 @@ def create_pptx_with_native_svg(
                         animation_cli_overrides,
                     )
 
-                    # Order matters: OOXML schema requires <p:transition>
-                    # to precede <p:timing> inside <p:sld>. Both use the same
-                    # </p:sld> string-replace anchor, so transition must be
-                    # injected first and timing second.
                     if slide_transition and ANIMATIONS_AVAILABLE and create_transition_xml:
                         transition_xml = '\n' + create_transition_xml(
                             effect=slide_transition,
@@ -519,12 +470,10 @@ def create_pptx_with_native_svg(
                             timing_xml + '\n</p:sld>',
                         )
 
-                    # Write slide XML
                     slide_xml_path = extract_dir / 'ppt' / 'slides' / f'slide{slide_num}.xml'
                     with open(slide_xml_path, 'w', encoding='utf-8') as f:
                         f.write(slide_xml)
 
-                    # Write media files
                     media_name_map: dict[str, str] = {}
                     for media_name, media_data in media_files_dict.items():
                         ext = media_name.rsplit('.', 1)[-1].lower()
@@ -549,7 +498,6 @@ def create_pptx_with_native_svg(
                         if mapped_name:
                             rel['target'] = f'../media/{mapped_name}'
 
-                    # Build relationships XML
                     rels_dir = extract_dir / 'ppt' / 'slides' / '_rels'
                     rels_dir.mkdir(exist_ok=True)
                     rels_path = rels_dir / f'slide{slide_num}.xml.rels'
@@ -568,14 +516,12 @@ def create_pptx_with_native_svg(
                     with open(rels_path, 'w', encoding='utf-8') as f:
                         f.write(rels_xml)
 
-                    # Track image formats for Content_Types
                     for media_name in media_name_map.values():
                         ext = media_name.rsplit('.', 1)[-1].lower()
                         _content_type_for_extension(ext)
                         image_exts_used.add(ext)
                         has_any_image = True
 
-                # ---- Legacy SVG embedding mode ----
                 else:
                     slide_cfg = _slide_config(animation_config, svg_path.stem)
                     slide_transition, slide_transition_duration, slide_auto_advance = (
@@ -637,7 +583,6 @@ def create_pptx_with_native_svg(
                     with open(rels_path, 'w', encoding='utf-8') as f:
                         f.write(rels_xml)
 
-                # --- Process notes (shared between native and legacy mode) ---
                 notes_content = ''
                 if enable_notes:
                     svg_stem = svg_path.stem
@@ -666,7 +611,6 @@ def create_pptx_with_native_svg(
                         )
                         notes_slides_created.add(slide_num)
 
-                # --- Process narration audio (shared between native and legacy mode) ---
                 svg_stem = svg_path.stem
                 audio_path = narration_audio.get(svg_stem) if narration_audio else None
                 if audio_path:
@@ -747,7 +691,6 @@ def create_pptx_with_native_svg(
                 if use_native_shapes:
                     raise
 
-        # Update [Content_Types].xml
         content_types_path = extract_dir / '[Content_Types].xml'
         with open(content_types_path, 'r', encoding='utf-8') as f:
             content_types = f.read()
@@ -779,7 +722,6 @@ def create_pptx_with_native_svg(
             with open(content_types_path, 'w', encoding='utf-8') as f:
                 f.write(content_types)
 
-        # Add notesSlides content types
         if enable_notes and notes_slides_created:
             for i in sorted(notes_slides_created):
                 override = (
@@ -791,8 +733,6 @@ def create_pptx_with_native_svg(
             with open(content_types_path, 'w', encoding='utf-8') as f:
                 f.write(content_types)
 
-        # Repackage PPTX to a temporary file first. The public output path is
-        # replaced only after every slide and relationship has succeeded.
         temp_output_path = temp_dir / 'result.pptx'
         with zipfile.ZipFile(temp_output_path, 'w', zipfile.ZIP_DEFLATED) as zf:
             for file_path in extract_dir.rglob('*'):

@@ -1,10 +1,3 @@
-/**
- * @file ttf转svg
- * @author mengke01(kekee000@gmail.com)
- *
- * references:
- * http://www.w3.org/TR/SVG11/fonts.html
- */
 
 import string from '../common/string';
 import utilString from './util/string';
@@ -14,11 +7,8 @@ import unicode2xml from './util/unicode2xml';
 import error from './error';
 import config from './data/default';
 
-// svg font id
 const SVG_FONT_ID = config.fontId;
 
-// xml 模板
-/* eslint-disable no-multi-spaces */
 const XML_TPL = ''
     + '<?xml version="1.0" standalone="no"?>'
     +   '<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd" >'
@@ -33,23 +23,12 @@ const XML_TPL = ''
     +       '${glyphList}'
     +   '</font></defs>'
     + '</svg>';
-/* eslint-enable no-multi-spaces */
-// glyph 模板
 const GLYPH_TPL = '<glyph glyph-name="${name}" unicode="${unicode}" d="${d}" />';
 
-/**
- * ttf数据结构转svg
- *
- * @param {ttfObject} ttf ttfObject对象
- * @param {Object} options 选项
- * @param {string} options.metadata 字体相关的信息
- * @return {string} svg字符串
- */
 function ttfobject2svg(ttf, options) {
 
     const OS2 = ttf['OS/2'];
 
-    // 用来填充xml的数据
     const xmlObject = {
         id: ttf.name.uniqueSubFamily || SVG_FONT_ID,
         metadata: string.encodeHTML(options.metadata || ''),
@@ -71,19 +50,16 @@ function ttfobject2svg(ttf, options) {
             + '-' + string.pad(OS2.usLastCharIndex.toString(16), 4)
     };
 
-    // glyf 第一个为missing glyph
     xmlObject.missing = {};
     xmlObject.missing.advanceWidth = ttf.glyf[0].advanceWidth || 0;
     xmlObject.missing.d = ttf.glyf[0].contours && ttf.glyf[0].contours.length
         ? 'd="' + contours2svg(ttf.glyf[0].contours) + '"'
         : '';
 
-    // glyf 信息
     let glyphList = '';
     for (let i = 1, l = ttf.glyf.length; i < l; i++) {
         const glyf = ttf.glyf[i];
 
-        // 筛选简单字形，并且有轮廓，有编码
         if (!glyf.compound && glyf.contours && glyf.unicode && glyf.unicode.length) {
             const glyfObject = {
                 name: utilString.escape(glyf.name),
@@ -99,18 +75,8 @@ function ttfobject2svg(ttf, options) {
 }
 
 
-/**
- * ttf格式转换成svg字体格式
- *
- * @param {ArrayBuffer|ttfObject} ttfBuffer ttf缓冲数组或者ttfObject对象
- * @param {Object} options 选项
- * @param {Object} options.metadata 字体相关的信息
- *
- * @return {string} svg字符串
- */
 export default function ttf2svg(ttfBuffer, options = {}) {
 
-    // 读取ttf二进制流
     if (ttfBuffer instanceof ArrayBuffer) {
         const reader = new TTFReader();
         const ttfObject = reader.read(ttfBuffer);
@@ -118,7 +84,6 @@ export default function ttf2svg(ttfBuffer, options = {}) {
 
         return ttfobject2svg(ttfObject, options);
     }
-    // 读取ttfObject
     else if (ttfBuffer.version && ttfBuffer.glyf) {
 
         return ttfobject2svg(ttfBuffer, options);

@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-"""Aggregate all page cards into a lightweight Markdown summary for two-step final summarization."""
 
 from __future__ import annotations
 

@@ -26,7 +26,6 @@ LOOP_BUDGET_PROMPT = """# Loop Budget Guard
 
 Run at the **start** and **end** of every loop iteration.
 
-## Start of run
 
 1. Read `loop-budget.md` for daily caps and kill-switch flags.
 2. Read recent entries in `loop-run-log.md` (last 24h).
@@ -35,7 +34,6 @@ Run at the **start** and **end** of every loop iteration.
 5. If spend >= 100% or `loop-pause-all` is set -> **exit immediately** with a one-line note in STATE.md.
 6. If watchlist/state has no actionable items -> **exit in <5k tokens** (do not spawn sub-agents).
 
-## End of run
 
 Append one JSON object to `loop-run-log.md`:
 
@@ -52,9 +50,7 @@ Append one JSON object to `loop-run-log.md`:
 }
 ```
 
-## Rules
 
 - Never exceed `max sub-agent spawns/run` from `loop-budget.md`.
 - High-cadence patterns (CI Sweeper, PR Babysitter) **must** early-exit when nothing is actionable.
 - On self-throttle, append a line to `loop-budget.md` under **Alerts This Period**.
-"""

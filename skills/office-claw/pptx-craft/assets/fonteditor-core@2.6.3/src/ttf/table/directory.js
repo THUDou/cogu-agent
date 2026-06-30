@@ -1,9 +1,3 @@
-/**
- * @file directory 表, 读取和写入ttf表索引
- * @author mengke01(kekee000@gmail.com)
- *
- * https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6.html
- */
 
 import table from './table';
 

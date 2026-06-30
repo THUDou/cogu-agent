@@ -1,9 +1,3 @@
-/**
- * @file GPOS
- * @author fr33z00(https://github.com/fr33z00)
- *
- * @reference: https://learn.microsoft.com/en-us/typography/opentype/spec/gpos
- */
 
 import table from './table';
 

@@ -1,13 +1,3 @@
-#!/usr/bin/env python3
-"""
-将 PPTX 拆分为单页文件
-用法:
-  python split_pptx.py --input=a.pptx --output=./single_ppt [--max-slides=10]
-退出码: 0=成功, 1=失败
-
-注意: 输出的 ZIP 文件可能包含孤立的幻灯片 XML。这是 python-pptx 的已知限制 —
-drop_rel() 和 del _sldIdLst 操作不会从 ZIP 中移除底层 XML 文件。
-"""
 import sys
 import os
 import argparse
@@ -28,7 +18,6 @@ def split_pptx(input_path, output_folder, max_slides=0):
     for i in range(count):
         prs = Presentation(input_path)
 
-        # pylint: disable=protected-access
         for j in range(total_slides - 1, i, -1):
             slide_id = prs.slides._sldIdLst[j].rId
             prs.part.drop_rel(slide_id)
@@ -38,7 +27,6 @@ def split_pptx(input_path, output_folder, max_slides=0):
             slide_id = prs.slides._sldIdLst[j].rId
             prs.part.drop_rel(slide_id)
             del prs.slides._sldIdLst[j]
-        # pylint: enable=protected-access
 
         save_path = os.path.join(output_folder, f"slide_{i+1:03d}.pptx")
         prs.save(save_path)

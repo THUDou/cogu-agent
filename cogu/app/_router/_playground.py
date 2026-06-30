@@ -1,4 +1,3 @@
-"""Prompt Playground REST API — Prompt调试与版本管理"""
 from __future__ import annotations
 
 import json

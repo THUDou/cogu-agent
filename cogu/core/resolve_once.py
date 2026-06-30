@@ -1,8 +1,3 @@
-"""ResolveOnce — 双标志原子权限决策
-
-基于源码: Claude Code 权限系统 ResolveOnce 模式
-         claimed (同步) + delivered (异步) 双标志
-"""
 from __future__ import annotations
 
 import asyncio
@@ -11,7 +6,6 @@ from typing import Any, Optional
 
 
 class ResolveOnce:
-    """双标志原子决策 — 确保在多个异步响应源竞争时只有一个结果生效"""
 
     def __init__(self):
         self._claimed: bool = False
@@ -20,14 +14,12 @@ class ResolveOnce:
         self._event: asyncio.Event = asyncio.Event()
 
     def claim(self) -> bool:
-        """同步声明 — 立即阻止其他竞争者"""
         if self._claimed:
             return False
         self._claimed = True
         return True
 
     def deliver(self, value: Any) -> bool:
-        """异步送达 — 确保结果只被传递一次"""
         if self._delivered:
             return False
         self._delivered = True
@@ -44,12 +36,10 @@ class ResolveOnce:
         return self._claimed
 
     async def wait(self, timeout: float = 30.0) -> Any:
-        """等待结果送达"""
         await asyncio.wait_for(self._event.wait(), timeout=timeout)
         return self._value
 
     def reset(self) -> None:
-        """重置状态"""
         self._claimed = False
         self._delivered = False
         self._value = None
@@ -57,7 +47,6 @@ class ResolveOnce:
 
 
 class PermissionCache:
-    """权限缓存 — 按工具+输入哈希缓存权限决策"""
 
     def __init__(self, ttl_seconds: float = 300.0):
         self._cache: dict[str, tuple[Any, float]] = {}

@@ -26,12 +26,10 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
  * ynakajima/ttf.js
  * https://github.com/ynakajima/ttf.js
  */
-// 检查数组支持情况
 if (typeof ArrayBuffer === 'undefined' || typeof DataView === 'undefined') {
   throw new Error('not support ArrayBuffer and DataView');
 }
 
-// 数据类型
 var dataType = {
   Int8: 1,
   Int16: 2,
@@ -43,15 +41,6 @@ var dataType = {
   Float64: 8
 };
 var Reader = exports.default = /*#__PURE__*/function () {
-  /**
-   * 读取器
-   *
-   * @constructor
-   * @param {Array.<byte>} buffer 缓冲数组
-   * @param {number} offset 起始偏移
-   * @param {number} length 数组长度
-   * @param {boolean} littleEndian 是否小尾
-   */
   function Reader(buffer, offset, length, littleEndian) {
     _classCallCheck(this, Reader);
     var bufferLength = buffer.byteLength || buffer.length;
@@ -61,28 +50,17 @@ var Reader = exports.default = /*#__PURE__*/function () {
     this.view = new DataView(buffer, this.offset, this.length);
   }
 
-  /**
-   * 读取指定的数据类型
-   *
-   * @param {string} type 数据类型
-   * @param {number=} offset 位移
-   * @param {boolean=} littleEndian 是否小尾
-   * @return {number} 返回值
-   */
   return _createClass(Reader, [{
     key: "read",
     value: function read(type, offset, littleEndian) {
-      // 使用当前位移
       if (undefined === offset) {
         offset = this.offset;
       }
 
-      // 使用小尾
       if (undefined === littleEndian) {
         littleEndian = this.littleEndian;
       }
 
-      // 扩展方法
       if (undefined === dataType[type]) {
         return this['read' + type](offset, littleEndian);
       }
@@ -91,13 +69,6 @@ var Reader = exports.default = /*#__PURE__*/function () {
       return this.view['get' + type](offset, littleEndian);
     }
 
-    /**
-     * 获取指定的字节数组
-     *
-     * @param {number} offset 偏移
-     * @param {number} length 字节长度
-     * @return {Array} 字节数组
-     */
   }, {
     key: "readBytes",
     value: function readBytes(offset) {
@@ -117,13 +88,6 @@ var Reader = exports.default = /*#__PURE__*/function () {
       return buffer;
     }
 
-    /**
-     * 读取一个string
-     *
-     * @param {number} offset 偏移
-     * @param {number} length 长度
-     * @return {string} 字符串
-     */
   }, {
     key: "readString",
     value: function readString(offset) {
@@ -144,24 +108,12 @@ var Reader = exports.default = /*#__PURE__*/function () {
       return value;
     }
 
-    /**
-     * 读取一个字符
-     *
-     * @param {number} offset 偏移
-     * @return {string} 字符串
-     */
   }, {
     key: "readChar",
     value: function readChar(offset) {
       return this.readString(offset, 1);
     }
 
-    /**
-     * 读取一个uint24整形
-     *
-     * @param {number} offset 偏移
-     * @return {number}
-     */
   }, {
     key: "readUint24",
     value: function readUint24(offset) {
@@ -173,12 +125,6 @@ var Reader = exports.default = /*#__PURE__*/function () {
       return (i << 16) + (j << 8) + k;
     }
 
-    /**
-     * 读取fixed类型
-     *
-     * @param {number} offset 偏移
-     * @return {number} float
-     */
   }, {
     key: "readFixed",
     value: function readFixed(offset) {
@@ -189,12 +135,6 @@ var Reader = exports.default = /*#__PURE__*/function () {
       return Math.ceil(val * 100000) / 100000;
     }
 
-    /**
-     * 读取长日期
-     *
-     * @param {number} offset 偏移
-     * @return {Date} Date对象
-     */
   }, {
     key: "readLongDateTime",
     value: function readLongDateTime(offset) {
@@ -202,7 +142,6 @@ var Reader = exports.default = /*#__PURE__*/function () {
         offset = this.offset;
       }
 
-      // new Date(1970, 1, 1).getTime() - new Date(1904, 1, 1).getTime();
       var delta = -2077545600000;
       var time = this.readUint32(offset + 4, false);
       var date = new Date();
@@ -210,12 +149,6 @@ var Reader = exports.default = /*#__PURE__*/function () {
       return date;
     }
 
-    /**
-     * 跳转到指定偏移
-     *
-     * @param {number} offset 偏移
-     * @return {Object} this
-     */
   }, {
     key: "seek",
     value: function seek(offset) {
@@ -229,9 +162,6 @@ var Reader = exports.default = /*#__PURE__*/function () {
       return this;
     }
 
-    /**
-     * 注销
-     */
   }, {
     key: "dispose",
     value: function dispose() {

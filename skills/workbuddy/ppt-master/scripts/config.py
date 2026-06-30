@@ -1,18 +1,3 @@
-#!/usr/bin/env python3
-"""
-PPT Master - Unified Configuration Management Module
-
-Centrally manages all project configuration items to ensure consistency and maintainability.
-
-Usage:
-    from config import Config, CANVAS_FORMATS, DESIGN_COLORS
-
-    # Get canvas format
-    ppt169 = Config.get_canvas_format('ppt169')
-
-    # Get color scheme
-    colors = Config.get_color_scheme('consulting')
-"""
 
 from pathlib import Path
 from typing import Dict, List, Optional, Any
@@ -20,38 +5,27 @@ import json
 import os
 
 
-# ============================================================
-# Path Configuration
-# ============================================================
 
-# Project root directory
 PROJECT_ROOT = Path(__file__).parent.parent
 
-# Core directories
 SCRIPTS_DIR = PROJECT_ROOT / 'scripts'
 REFERENCES_DIR = PROJECT_ROOT / 'references'
 TEMPLATES_DIR = PROJECT_ROOT / 'templates'
 WORKFLOWS_DIR = PROJECT_ROOT / 'workflows'
 
-# Repository root directory
 REPO_ROOT = PROJECT_ROOT.parent.parent
 EXAMPLES_DIR = REPO_ROOT / 'examples'
 PROJECTS_DIR = REPO_ROOT / 'projects'
 
-# Template subdirectories
 CHART_TEMPLATES_DIR = TEMPLATES_DIR / 'charts'
 
 
-# ============================================================
-# Environment Configuration
-# ============================================================
 
 USER_CONFIG_DIR = Path.home() / '.ppt-master'
 USER_ENV_FILE = USER_CONFIG_DIR / '.env'
 
 
 def get_env_candidates() -> list[Path]:
-    """Return the supported .env lookup order."""
     return [
         Path.cwd() / '.env',
         REPO_ROOT / '.env',
@@ -60,12 +34,6 @@ def get_env_candidates() -> list[Path]:
 
 
 def resolve_env_path() -> Path:
-    """
-    Return the first existing .env path.
-
-    If no candidate exists, return the CWD .env path so callers can no-op
-    consistently while still showing a useful default location in messages.
-    """
     candidates = get_env_candidates()
     for candidate in candidates:
         if candidate.exists():
@@ -74,19 +42,12 @@ def resolve_env_path() -> Path:
 
 
 def strip_env_quotes(value: str) -> str:
-    """Strip matching surrounding quotes from a .env value."""
     if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
         return value[1:-1]
     return value
 
 
 def strip_inline_env_comment(value: str) -> str:
-    """Strip an unquoted inline ``#`` comment from a .env value.
-
-    Matches standard dotenv behavior: a ``#`` outside surrounding quotes
-    starts a comment and is dropped along with the rest of the line. To keep
-    a literal ``#`` in the value, wrap it in single or double quotes.
-    """
     stripped = value.lstrip()
     if stripped.startswith(('"', "'")):
         quote = stripped[0]
@@ -110,14 +71,6 @@ def load_prefixed_env_file(
     *,
     deprecated_keys: Optional[dict[str, str]] = None,
 ) -> Optional[Path]:
-    """
-    Load matching keys from the first supported .env file.
-
-    Existing process environment variables always win. Keys outside the
-    requested prefixes are ignored so one shared .env can hold image, search,
-    and narration credentials without leaking unrelated values into the
-    process.
-    """
     env_path = resolve_env_path()
     if not env_path.exists():
         return None
@@ -154,9 +107,6 @@ def load_prefixed_env_file(
     return env_path
 
 
-# ============================================================
-# Canvas Format Configuration
-# ============================================================
 
 CANVAS_FORMATS = {
     'ppt169': {
@@ -234,9 +184,6 @@ CANVAS_FORMATS = {
 }
 
 
-# ============================================================
-# Design Color Configuration
-# ============================================================
 
 DESIGN_COLORS = {
     'consulting': {
@@ -308,9 +255,6 @@ DESIGN_COLORS = {
 }
 
 
-# ============================================================
-# Industry Color Templates
-# ============================================================
 
 INDUSTRY_COLORS = {
     'finance': {
@@ -400,9 +344,6 @@ INDUSTRY_COLORS = {
 }
 
 
-# ============================================================
-# Font Configuration
-# ============================================================
 
 FONTS = {
     'system_ui': "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
@@ -423,9 +364,6 @@ FONT_SIZES = {
 }
 
 
-# ============================================================
-# Layout Configuration
-# ============================================================
 
 LAYOUT_MARGINS = {
     'ppt169': {
@@ -479,48 +417,27 @@ LAYOUT_MARGINS = {
 }
 
 
-# ============================================================
-# SVG Technical Specifications
-# ============================================================
 
 SVG_CONSTRAINTS = {
-    # Forbidden elements - PPT incompatible
     'forbidden_elements': [
-        # Clipping / Masking
-        # Note: `clipPath` on <image> elements is conditionally allowed — the
-        # converter maps qualifying clip shapes to DrawingML picture geometry.
-        # See references/shared-standards.md §1.2. It is NOT listed here
-        # because this flat list has no per-parent-element semantics; the
-        # actual validation is in svg_quality_checker._check_forbidden_elements.
         'mask',
-        # Style system
         'style',
-        # Structure / Nesting
         'foreignObject',
-        # Text / Fonts
         'textPath',
-        # Animation / Interaction
         'animate',
         'animateMotion',
         'animateTransform',
         'animateColor',
         'set',
         'script',
-        # Others
         'iframe',
     ],
-    # Forbidden attributes
-    # Note: marker-start / marker-end are NOT banned — they are conditionally
-    # allowed (see references/shared-standards.md §1.1). The svg_to_pptx
-    # converter maps qualifying <marker> defs to native DrawingML
-    # <a:headEnd>/<a:tailEnd>.
     'forbidden_attributes': [
         'class',
         'id',
         'onclick', 'onload', 'onmouseover', 'onmouseout',
         'onfocus', 'onblur', 'onchange',
     ],
-    # Forbidden patterns (regex matching)
     'forbidden_patterns': [
         r'@font-face',  # Web fonts
         r'rgba\s*\(',   # rgba colors (PPT incompatible)
@@ -541,137 +458,53 @@ SVG_CONSTRAINTS = {
 }
 
 
-# ============================================================
-# Configuration Manager Class
-# ============================================================
 
 class Config:
-    """Configuration manager."""
 
     @staticmethod
     def get_canvas_format(format_key: str) -> Optional[Dict]:
-        """
-        Get canvas format configuration.
-
-        Args:
-            format_key: Format key name (e.g. 'ppt169', 'xiaohongshu')
-
-        Returns:
-            Format configuration dict, or None if not found
-        """
         return CANVAS_FORMATS.get(format_key)
 
     @staticmethod
     def get_all_canvas_formats() -> Dict:
-        """Get all canvas formats."""
         return CANVAS_FORMATS.copy()
 
     @staticmethod
     def get_color_scheme(style: str) -> Optional[Dict]:
-        """
-        Get color scheme.
-
-        Args:
-            style: Style name (e.g. 'consulting', 'general', 'tech')
-
-        Returns:
-            Color scheme dict
-        """
         return DESIGN_COLORS.get(style)
 
     @staticmethod
     def get_industry_colors(industry: str) -> Optional[Dict]:
-        """
-        Get industry color palette.
-
-        Args:
-            industry: Industry name (e.g. 'finance', 'healthcare')
-
-        Returns:
-            Industry color dict
-        """
         return INDUSTRY_COLORS.get(industry)
 
     @staticmethod
     def get_all_industries() -> List[str]:
-        """Get list of all industries."""
         return list(INDUSTRY_COLORS.keys())
 
     @staticmethod
     def get_layout_margins(format_key: str) -> Optional[Dict]:
-        """
-        Get layout margin configuration.
-
-        Args:
-            format_key: Format key name
-
-        Returns:
-            Margin configuration dict
-        """
         return LAYOUT_MARGINS.get(format_key)
 
     @staticmethod
     def get_font(font_type: str = 'system_ui') -> str:
-        """
-        Get font declaration.
-
-        Args:
-            font_type: Font type ('system_ui', 'sans_serif', 'monospace')
-
-        Returns:
-            Font declaration string
-        """
         return FONTS.get(font_type, FONTS['system_ui'])
 
     @staticmethod
     def get_font_size(size_name: str) -> int:
-        """
-        Get font size.
-
-        Args:
-            size_name: Size name (e.g. 'title', 'body', 'caption')
-
-        Returns:
-            Font size (pixels)
-        """
         return FONT_SIZES.get(size_name, FONT_SIZES['body'])
 
     @staticmethod
     def validate_svg_element(element_name: str) -> bool:
-        """
-        Validate whether an SVG element is allowed.
-
-        Args:
-            element_name: Element name
-
-        Returns:
-            Whether the element is allowed
-        """
         return element_name.lower() not in [e.lower() for e in SVG_CONSTRAINTS['forbidden_elements']]
 
     @staticmethod
     def get_project_path(subdir: str = '') -> Path:
-        """
-        Get project path.
-
-        Args:
-            subdir: Subdirectory name
-
-        Returns:
-            Full path
-        """
         if subdir:
             return PROJECT_ROOT / subdir
         return PROJECT_ROOT
 
     @staticmethod
     def export_config(output_file: str = 'config_export.json'):
-        """
-        Export configuration to a JSON file.
-
-        Args:
-            output_file: Output file path
-        """
         config_data = {
             'canvas_formats': CANVAS_FORMATS,
             'design_colors': DESIGN_COLORS,
@@ -687,12 +520,8 @@ class Config:
         print(f"Configuration exported to: {output_file}")
 
 
-# ============================================================
-# Command Line Interface
-# ============================================================
 
 def print_usage() -> None:
-    """Print CLI usage information."""
     print("PPT Master - Configuration Management Tool\n")
     print("Usage:")
     print("  python3 scripts/config.py list-formats     # List all canvas formats")
@@ -703,7 +532,6 @@ def print_usage() -> None:
 
 
 def main() -> None:
-    """Command line entry point."""
     import sys
 
     if len(sys.argv) < 2:

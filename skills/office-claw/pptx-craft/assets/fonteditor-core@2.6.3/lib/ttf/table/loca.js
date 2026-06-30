@@ -7,15 +7,10 @@ exports.default = void 0;
 var _table = _interopRequireDefault(require("./table"));
 var _struct = _interopRequireDefault(require("./struct"));
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-/**
- * @file loca表
- * @author mengke01(kekee000@gmail.com)
- */
 var _default = exports.default = _table.default.create('loca', [], {
   read: function read(reader, ttf) {
     var offset = this.offset;
     var indexToLocFormat = ttf.head.indexToLocFormat;
-    // indexToLocFormat有2字节和4字节的区别
     var type = _struct.default.names[indexToLocFormat === 0 ? _struct.default.Uint16 : _struct.default.Uint32];
     var size = indexToLocFormat === 0 ? 2 : 4; // 字节大小
     var sizeRatio = indexToLocFormat === 0 ? 2 : 1; // 真实地址偏移
@@ -43,7 +38,6 @@ var _default = exports.default = _table.default.create('loca', [], {
       offset += glyfSupport[i].size * sizeRatio;
     }
 
-    // write extra
     if (indexToLocFormat) {
       writer.writeUint32(offset);
     } else {

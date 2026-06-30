@@ -1,4 +1,3 @@
-"""SVG path parsing, normalization, and DrawingML path command generation."""
 
 from __future__ import annotations
 
@@ -11,12 +10,10 @@ from .drawingml_utils import px_to_emu
 
 @dataclass
 class PathCommand:
-    """A single SVG path command with its arguments."""
     cmd: str  # M, L, C, Z, etc. (uppercase = absolute)
     args: list[float] = field(default_factory=list)
 
 
-# Argument counts per SVG path command
 _ARG_COUNTS = {
     'M': 2, 'm': 2, 'L': 2, 'l': 2,
     'H': 1, 'h': 1, 'V': 1, 'v': 1,
@@ -27,7 +24,6 @@ _ARG_COUNTS = {
 
 
 def parse_svg_path(d: str) -> list[PathCommand]:
-    """Parse SVG path d attribute into a list of PathCommands."""
     if not d:
         return []
 
@@ -51,7 +47,6 @@ def parse_svg_path(d: str) -> list[PathCommand]:
             i = 0
             while i + n <= len(current_args):
                 commands.append(PathCommand(current_cmd, current_args[i:i + n]))
-                # After first M, implicit commands become L
                 if current_cmd == 'M':
                     current_cmd = 'L'
                 elif current_cmd == 'm':
@@ -75,7 +70,6 @@ def parse_svg_path(d: str) -> list[PathCommand]:
 
 
 def svg_path_to_absolute(commands: list[PathCommand]) -> list[PathCommand]:
-    """Convert all relative path commands to absolute."""
     result: list[PathCommand] = []
     cx, cy = 0.0, 0.0  # current point
     sx, sy = 0.0, 0.0  # subpath start
@@ -158,7 +152,6 @@ def _reflect_control_point(
     cp_x: float, cp_y: float,
     cx: float, cy: float,
 ) -> tuple[float, float]:
-    """Reflect a control point through the current point."""
     return 2 * cx - cp_x, 2 * cy - cp_y
 
 
@@ -167,7 +160,6 @@ def _quad_to_cubic(
     p0_x: float, p0_y: float,
     p3_x: float, p3_y: float,
 ) -> list[float]:
-    """Convert quadratic bezier control point to cubic bezier control points."""
     cp1_x = p0_x + 2.0 / 3.0 * (qp_x - p0_x)
     cp1_y = p0_y + 2.0 / 3.0 * (qp_y - p0_y)
     cp2_x = p3_x + 2.0 / 3.0 * (qp_x - p3_x)
@@ -182,11 +174,6 @@ def _arc_to_cubic_beziers(
     large_arc: int, sweep: int,
     x2: float, y2: float,
 ) -> list[PathCommand]:
-    """Convert SVG arc (endpoint parameterization) to cubic bezier curves.
-
-    Uses the algorithm from the SVG spec (F.6.5) to convert endpoint to center
-    parameterization, then approximates each arc segment with cubic beziers.
-    """
     x1, y1 = cx_, cy_
 
     if abs(x1 - x2) < 1e-10 and abs(y1 - y2) < 1e-10:
@@ -201,19 +188,16 @@ def _arc_to_cubic_beziers(
     cos_phi = math.cos(phi_rad)
     sin_phi = math.sin(phi_rad)
 
-    # Step 1: Compute (x1', y1')
     dx = (x1 - x2) / 2.0
     dy = (y1 - y2) / 2.0
     x1p = cos_phi * dx + sin_phi * dy
     y1p = -sin_phi * dx + cos_phi * dy
 
-    # Step 2: Compute (cx', cy')
     x1p2 = x1p * x1p
     y1p2 = y1p * y1p
     rx2 = rx * rx
     ry2 = ry * ry
 
-    # Ensure radii are large enough
     lam = x1p2 / rx2 + y1p2 / ry2
     if lam > 1:
         lam_sqrt = math.sqrt(lam)
@@ -232,11 +216,9 @@ def _arc_to_cubic_beziers(
     cxp = sq * rx * y1p / ry
     cyp = -sq * ry * x1p / rx
 
-    # Step 3: Compute (cx, cy)
     arc_cx = cos_phi * cxp - sin_phi * cyp + (x1 + x2) / 2.0
     arc_cy = sin_phi * cxp + cos_phi * cyp + (y1 + y2) / 2.0
 
-    # Step 4: Compute theta1 and dtheta
     def angle_between(ux: float, uy: float, vx: float, vy: float) -> float:
         n = math.sqrt((ux * ux + uy * uy) * (vx * vx + vy * vy))
         if n < 1e-10:
@@ -258,7 +240,6 @@ def _arc_to_cubic_beziers(
     elif sweep == 1 and dtheta < 0:
         dtheta += 2 * math.pi
 
-    # Split arc into segments of at most 90 degrees
     n_segs = max(1, int(math.ceil(abs(dtheta) / (math.pi / 2))))
     d_per_seg = dtheta / n_segs
 
@@ -298,10 +279,6 @@ def _arc_to_cubic_beziers(
 
 
 def normalize_path_commands(commands: list[PathCommand]) -> list[PathCommand]:
-    """Normalize path commands to M/L/C/Z only.
-
-    Converts S -> C, Q -> C, T -> C, A -> C sequences.
-    """
     result: list[PathCommand] = []
     cx, cy = 0.0, 0.0
     last_cp_x, last_cp_y = 0.0, 0.0
@@ -370,15 +347,9 @@ def path_commands_to_drawingml(
     scale_x: float = 1.0,
     scale_y: float = 1.0,
 ) -> tuple[str, float, float, float, float]:
-    """Convert normalized path commands to DrawingML <a:path> inner XML.
-
-    Returns:
-        (path_xml, min_x, min_y, width, height) in scaled+offset coordinates.
-    """
     if not commands:
         return '', 0, 0, 0, 0
 
-    # First pass: calculate bounding box
     points: list[tuple[float, float]] = []
     for cmd in commands:
         if cmd.cmd in ('M', 'L'):
@@ -404,7 +375,6 @@ def path_commands_to_drawingml(
     width = max(max_x - min_x, 1)
     height = max(max_y - min_y, 1)
 
-    # Second pass: generate DrawingML path commands (EMU, relative to shape)
     parts: list[str] = []
     for cmd in commands:
         if cmd.cmd == 'M':

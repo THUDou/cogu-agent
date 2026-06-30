@@ -1,8 +1,3 @@
-"""ContextEngine — 插件式上下文处理器链
-
-灵感来源: openjiuwen core/context_engine (处理器链 + 上下文池 + 注册器)
-COGU 实现: 轻量处理器链模式，支持插件式注册和上下文池化
-"""
 from __future__ import annotations
 
 import asyncio
@@ -63,7 +58,6 @@ class ContextWindow:
 
 
 class ContextProcessor(ABC):
-    """上下文处理器基类"""
 
     @abstractmethod
     async def process(self, window: ContextWindow) -> ContextWindow:
@@ -78,7 +72,6 @@ class ContextProcessor(ABC):
 
 
 class SlidingWindowProcessor(ContextProcessor):
-    """滑动窗口处理器 — 保留最近 N 条消息"""
 
     def __init__(self, max_messages: int = 50, keep_system: bool = True):
         self.max_messages = max_messages
@@ -101,7 +94,6 @@ class SlidingWindowProcessor(ContextProcessor):
 
 
 class TokenBudgetProcessor(ContextProcessor):
-    """Token 预算处理器 — 确保不超预算"""
 
     def __init__(self, budget_ratio: float = 0.85):
         self.budget_ratio = budget_ratio
@@ -121,7 +113,6 @@ class TokenBudgetProcessor(ContextProcessor):
 
 
 class SummaryProcessor(ContextProcessor):
-    """摘要处理器 — 将旧消息压缩为摘要"""
 
     def __init__(self, llm_client: Any = None, keep_recent: int = 10):
         self.llm = llm_client
@@ -169,7 +160,6 @@ class SummaryProcessor(ContextProcessor):
 
 
 class DeduplicationProcessor(ContextProcessor):
-    """去重处理器 — 移除连续重复消息"""
 
     def processor_type(self) -> str:
         return "deduplication"
@@ -189,7 +179,6 @@ class DeduplicationProcessor(ContextProcessor):
 
 
 class ContextEngine:
-    """上下文引擎 — 管理处理器链和上下文池"""
 
     _PROCESSOR_MAP: dict[str, type[ContextProcessor]] = {}
 

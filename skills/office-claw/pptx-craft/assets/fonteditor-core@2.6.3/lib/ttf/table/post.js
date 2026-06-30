@@ -9,21 +9,13 @@ var _struct = _interopRequireDefault(require("./struct"));
 var _string = _interopRequireDefault(require("../util/string"));
 var _unicodeName = _interopRequireDefault(require("../enum/unicodeName"));
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-/**
- * @file post 表
- * @author mengke01(kekee000@gmail.com)
- *
- * https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6post.html
- */
 
 var Posthead = _table.default.create('posthead', [['format', _struct.default.Fixed], ['italicAngle', _struct.default.Fixed], ['underlinePosition', _struct.default.Int16], ['underlineThickness', _struct.default.Int16], ['isFixedPitch', _struct.default.Uint32], ['minMemType42', _struct.default.Uint32], ['maxMemType42', _struct.default.Uint32], ['minMemType1', _struct.default.Uint32], ['maxMemType1', _struct.default.Uint32]]);
 var _default = exports.default = _table.default.create('post', [], {
   read: function read(reader, ttf) {
     var format = reader.readFixed(this.offset);
-    // 读取表头
     var tbl = new Posthead(this.offset).read(reader, ttf);
 
-    // format2
     if (format === 2) {
       var numberOfGlyphs = reader.readUint16();
       var glyphNameIndex = [];
@@ -36,7 +28,6 @@ var _default = exports.default = _table.default.create('post', [], {
       tbl.nameIndex = glyphNameIndex; // 设置glyf名字索引
       tbl.names = _string.default.getPascalString(pascalStringBytes); // glyf名字数组
     }
-    // deprecated
     else if (format === 2.5) {
       tbl.format = 3;
     }
@@ -47,7 +38,6 @@ var _default = exports.default = _table.default.create('post', [], {
       format: 3
     };
 
-    // write header
     writer.writeFixed(post.format); // format
     writer.writeFixed(post.italicAngle || 0); // italicAngle
     writer.writeInt16(post.underlinePosition || 0); // underlinePosition
@@ -58,17 +48,14 @@ var _default = exports.default = _table.default.create('post', [], {
     writer.writeUint32(post.minMemType1 || 0); // minMemType1
     writer.writeUint32(post.maxMemType1 || 0); // maxMemType1
 
-    // version 3 不设置post信息
     if (post.format === 2) {
       var numberOfGlyphs = ttf.glyf.length;
       writer.writeUint16(numberOfGlyphs); // numberOfGlyphs
-      // write glyphNameIndex
       var nameIndex = ttf.support.post.nameIndex;
       for (var i = 0, l = nameIndex.length; i < l; i++) {
         writer.writeUint16(nameIndex[i]);
       }
 
-      // write names
       ttf.support.post.names.forEach(function (name) {
         writer.writeBytes(name);
       });
@@ -80,20 +67,16 @@ var _default = exports.default = _table.default.create('post', [], {
     ttf.post.format = ttf.post.format || 3;
     ttf.post.maxMemType1 = numberOfGlyphs;
 
-    // version 3 不设置post信息
     if (ttf.post.format === 3 || ttf.post.format === 1) {
       return 32;
     }
 
-    // version 2
     var size = 34 + numberOfGlyphs * 2; // header + numberOfGlyphs + numberOfGlyphs * 2
     var glyphNames = [];
     var nameIndexArr = [];
     var nameIndex = 0;
 
-    // 获取 name的大小
     for (var i = 0; i < numberOfGlyphs; i++) {
-      // .notdef
       if (i === 0) {
         nameIndexArr.push(0);
       } else {
@@ -103,7 +86,6 @@ var _default = exports.default = _table.default.create('post', [], {
         if (undefined !== unicodeNameIndex) {
           nameIndexArr.push(unicodeNameIndex);
         } else {
-          // 这里需要注意，"" 有可能是"\3" length不为0，但是是空字符串
           var name = glyf.name;
           if (!name || name.charCodeAt(0) < 32) {
             nameIndexArr.push(258 + nameIndex++);

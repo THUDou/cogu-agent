@@ -1,8 +1,3 @@
-"""Evolution Analyzer — 进化分析器
-
-灵感来源: EvoMaster evomaster/evolution/analyzer.py
-COGU 实现: LLM + 启发式双路径分析，生成 EvolutionCandidates
-"""
 from __future__ import annotations
 
 import json
@@ -36,34 +31,6 @@ Return JSON only:
 }
 
 Use only agent_names from known_agents.
-"""
-
-_ISSUE_PATTERN = re.compile(r"(traceback|exception|error|failed|timeout|exit code|oom)", re.IGNORECASE)
-
-
-def _extract_json_object(text: str) -> dict[str, Any] | None:
-    stripped = text.strip()
-    if stripped.startswith("```"):
-        stripped = re.sub(r"^```(?:json)?\s*", "", stripped)
-        stripped = re.sub(r"\s*```$", "", stripped)
-    try:
-        parsed = json.loads(stripped)
-        return parsed if isinstance(parsed, dict) else None
-    except json.JSONDecodeError:
-        pass
-    start = stripped.find("{")
-    end = stripped.rfind("}")
-    if start >= 0 and end > start:
-        try:
-            parsed = json.loads(stripped[start:end + 1])
-            return parsed if isinstance(parsed, dict) else None
-        except json.JSONDecodeError:
-            return None
-    return None
-
-
-class EvolutionAnalyzer:
-    """LLM + 启发式双路径进化分析器"""
 
     def __init__(self, llm_client: Any = None, use_llm: bool = True):
         self.llm = llm_client

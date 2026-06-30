@@ -1,4 +1,3 @@
-"""MiniMax T2A backend for narration audio generation."""
 
 from __future__ import annotations
 
@@ -12,7 +11,6 @@ from tts_backends.backend_common import extension_from_format, post_json, read_a
 DEFAULT_ENDPOINT = "https://api.minimaxi.com/v1/t2a_v2"
 DEFAULT_MODEL = "speech-2.8-hd"
 
-# International fallback: set MINIMAX_TTS_BASE_URL=https://api.minimax.io if needed.
 
 
 def output_extension(audio_format: str) -> str:

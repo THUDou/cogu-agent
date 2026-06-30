@@ -1,8 +1,3 @@
-"""Dream Optimizer — /dream 记忆优化
-
-基于源码: Claude Code Best /dream 命令 + Claude Code 记忆系统
-COGU 实现: 记忆整理 + 遗忘 + 重要性提升 + 压缩
-"""
 from __future__ import annotations
 
 import json
@@ -23,7 +18,6 @@ class DreamResult:
 
 
 class DreamOptimizer:
-    """Dream 记忆优化器 — /dream 命令触发"""
 
     def __init__(self, memory_dir: str | Path = ".cogu/memory", llm_client: Any = None):
         self.memory_dir = Path(memory_dir)

@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-"""
-重复文件扫描器（升级版）
-扫描指定目录，支持多维度重复文件识别
-- 内容识别：基于文件哈希值
-- 元数据识别：基于文件名、大小、修改时间
-- 智能合并：综合多种识别结果
-"""
 
 import argparse
 import hashlib
@@ -18,16 +10,6 @@ from typing import Dict, List, Optional, Set
 
 
 def calculate_file_hash(file_path: str, chunk_size: int = 8192) -> Optional[str]:
-    """
-    计算文件的MD5哈希值
-
-    Args:
-        file_path: 文件路径
-        chunk_size: 每次读取的块大小
-
-    Returns:
-        文件的MD5哈希值，如果出错返回None
-    """
     try:
         md5_hash = hashlib.md5()
         with open(file_path, "rb") as f:
@@ -40,15 +22,6 @@ def calculate_file_hash(file_path: str, chunk_size: int = 8192) -> Optional[str]
 
 
 def get_file_info(file_path: str) -> Dict:
-    """
-    获取文件信息
-
-    Args:
-        file_path: 文件路径
-
-    Returns:
-        包含文件信息的字典
-    """
     try:
         stat = os.stat(file_path)
         modified_time = datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S")
@@ -75,17 +48,6 @@ def scan_by_content(
     min_size: int = 1024,
     extensions: Optional[List[str]] = None
 ) -> Dict[str, List[Dict]]:
-    """
-    基于文件内容（哈希值）扫描重复文件
-
-    Args:
-        directory: 要扫描的目录
-        min_size: 最小文件大小（字节）
-        extensions: 文件扩展名过滤列表
-
-    Returns:
-        字典，键为哈希值，值为文件信息列表
-    """
     hash_map = {}
     total_files = 0
 
@@ -133,17 +95,6 @@ def scan_by_metadata(
     min_size: int = 1024,
     extensions: Optional[List[str]] = None
 ) -> Dict[str, List[Dict]]:
-    """
-    基于元数据（文件名、大小、修改时间）扫描重复文件
-
-    Args:
-        directory: 要扫描的目录
-        min_size: 最小文件大小（字节）
-        extensions: 文件扩展名过滤列表
-
-    Returns:
-        字典，键为元数据签名，值为文件信息列表
-    """
     metadata_map = {}
     total_files = 0
 
@@ -170,7 +121,6 @@ def scan_by_metadata(
                 if file_ext not in extensions:
                     continue
 
-            # 创建元数据签名（文件名+大小+修改时间）
             file_info = get_file_info(file_path)
             metadata_key = f"{file_info['size']}_{file_info['extension']}_{file_info['modified']}"
 
@@ -191,17 +141,6 @@ def merge_scan_results(
     content_map: Dict[str, List[Dict]],
     metadata_map: Dict[str, List[Dict]]
 ) -> List[Dict]:
-    """
-    合并多种扫描结果
-
-    Args:
-        content_map: 内容扫描结果
-        metadata_map: 元数据扫描结果
-
-    Returns:
-        合并后的重复文件组列表
-    """
-    # 使用内容识别的结果作为基础
     duplicate_groups = []
 
     for file_hash, files in content_map.items():
@@ -214,12 +153,10 @@ def merge_scan_results(
                 "files": sorted_files
             })
 
-    # 补充仅在元数据中发现的重复文件（内容不同但元数据相同）
     content_hashes = set(content_map.keys())
 
     for metadata_key, files in metadata_map.items():
         if len(files) > 1:
-            # 检查这些文件是否已经在内容识别中被发现
             already_found = False
             for file in files:
                 file_hash = calculate_file_hash(file["path"])
@@ -236,7 +173,6 @@ def merge_scan_results(
                     "files": sorted_files
                 })
 
-    # 按文件大小降序排序
     duplicate_groups.sort(key=lambda x: x["file_size"], reverse=True)
 
     return duplicate_groups
@@ -248,25 +184,12 @@ def generate_report(
     scan_directory: str,
     scan_strategy: str
 ) -> Dict:
-    """
-    生成扫描报告（OpenClaw SDK兼容格式）
-
-    Args:
-        duplicate_groups: 重复文件组列表
-        total_files: 扫描的文件总数
-        scan_directory: 扫描的目录
-        scan_strategy: 扫描策略
-
-    Returns:
-        包含扫描结果的字典
-    """
     total_duplicate_files = sum(len(group["files"]) for group in duplicate_groups)
     total_wasted_space = sum(
         (len(group["files"]) - 1) * group["file_size"]
         for group in duplicate_groups
     )
 
-    # 统计文件类型
     file_types = {}
     for group in duplicate_groups:
         for file in group["files"]:
@@ -290,15 +213,6 @@ def generate_report(
 
 
 def format_size(bytes_size: int) -> str:
-    """
-    格式化文件大小
-
-    Args:
-        bytes_size: 字节大小
-
-    Returns:
-        格式化后的字符串（如 "1.23 MB"）
-    """
     for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
         if bytes_size < 1024.0:
             return f"{bytes_size:.2f} {unit}"
@@ -307,12 +221,6 @@ def format_size(bytes_size: int) -> str:
 
 
 def print_summary(report: Dict):
-    """
-    打印扫描摘要
-
-    Args:
-        report: 扫描报告
-    """
     print("\n" + "=" * 60)
     print("扫描摘要")
     print("=" * 60)
@@ -338,140 +246,10 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:
-  # 使用综合识别策略（默认）
   python duplicate_scanner.py --directory ~/Pictures --output report.json
 
-  # 仅使用内容识别
   python duplicate_scanner.py --directory ~/Documents --strategy content --extensions docx,pdf
 
-  # 使用元数据识别（更快）
   python duplicate_scanner.py --directory ~/Downloads --strategy metadata
 
-  # 扫描大于100KB的文件
   python duplicate_scanner.py --directory ~ --min-size 102400 --output report.json
-        """
-    )
-
-    parser.add_argument(
-        "--directory",
-        required=True,
-        help="要扫描的目录路径"
-    )
-
-    parser.add_argument(
-        "--output",
-        help="输出报告文件路径（JSON格式）"
-    )
-
-    parser.add_argument(
-        "--strategy",
-        choices=["comprehensive", "content", "metadata"],
-        default="comprehensive",
-        help="识别策略：comprehensive(综合), content(内容), metadata(元数据)"
-    )
-
-    parser.add_argument(
-        "--min-size",
-        type=int,
-        default=1024,
-        help="最小文件大小（字节），默认1024（1KB）"
-    )
-
-    parser.add_argument(
-        "--extensions",
-        help="文件扩展名过滤，逗号分隔（如 jpg,png,gif）"
-    )
-
-    args = parser.parse_args()
-
-    # 验证目录
-    if not os.path.isdir(args.directory):
-        print(f"错误：目录不存在或无法访问: {args.directory}", file=sys.stderr)
-        sys.exit(1)
-
-    # 解析扩展名列表
-    extensions = None
-    if args.extensions:
-        extensions = [ext.strip() for ext in args.extensions.split(',')]
-
-    print(f"开始扫描目录: {args.directory}")
-    print(f"识别策略: {args.strategy}")
-    print(f"最小文件大小: {args.min_size} 字节")
-    if extensions:
-        print(f"文件类型过滤: {', '.join(extensions)}")
-    print("-" * 60)
-
-    # 执行扫描
-    content_map = {}
-    metadata_map = {}
-    total_files = 0
-
-    if args.strategy in ["content", "comprehensive"]:
-        content_map = scan_by_content(args.directory, args.min_size, extensions)
-
-    if args.strategy in ["metadata", "comprehensive"]:
-        metadata_map = scan_by_metadata(args.directory, args.min_size, extensions)
-
-    # 合并结果
-    if args.strategy == "comprehensive":
-        duplicate_groups = merge_scan_results(content_map, metadata_map)
-    elif args.strategy == "content":
-        duplicate_groups = [
-            {
-                "hash": h,
-                "match_type": "content",
-                "file_size": files[0]["size"],
-                "files": sorted(files, key=lambda x: x["modified"])
-            }
-            for h, files in content_map.items()
-            if len(files) > 1
-        ]
-    else:  # metadata
-        duplicate_groups = [
-            {
-                "hash": k,
-                "match_type": "metadata",
-                "file_size": files[0]["size"],
-                "files": sorted(files, key=lambda x: x["modified"])
-            }
-            for k, files in metadata_map.items()
-            if len(files) > 1
-        ]
-
-    # 按文件大小排序
-    duplicate_groups.sort(key=lambda x: x["file_size"], reverse=True)
-
-    # 计算总文件数
-    total_files = 0
-    if args.strategy in ["content", "comprehensive"]:
-        total_files += sum(len(files) for files in content_map.values())
-    if args.strategy == "metadata" or (args.strategy == "comprehensive" and not content_map):
-        total_files = sum(len(files) for files in metadata_map.values())
-
-    # 生成报告
-    report = generate_report(
-        duplicate_groups,
-        total_files,
-        args.directory,
-        args.strategy
-    )
-
-    # 打印摘要
-    print_summary(report)
-
-    # 输出结果
-    if args.output:
-        try:
-            with open(args.output, 'w', encoding='utf-8') as f:
-                json.dump(report, f, indent=2, ensure_ascii=False)
-            print(f"\n详细报告已保存到: {args.output}")
-        except IOError as e:
-            print(f"错误：无法写入输出文件: {e}", file=sys.stderr)
-            sys.exit(1)
-    else:
-        print("\n详细报告:")
-        print(json.dumps(report, indent=2, ensure_ascii=False))
-
-
-if __name__ == "__main__":
-    main()

@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""合并多个 PDF 文档。"""
 
 import os
 

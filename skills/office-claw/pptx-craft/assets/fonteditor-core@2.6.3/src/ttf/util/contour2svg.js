@@ -1,15 +1,4 @@
-/**
- * @file 将ttf路径转换为svg路径`d`
- * @author mengke01(kekee000@gmail.com)
- */
 
-/**
- * 将路径转换为svg路径
- *
- * @param {Array} contour 轮廓序列
- * @param {number} precision 精确度
- * @return {string} 路径
- */
 export default function contour2svg(contour, precision = 2) {
     if (!contour.length) {
         return '';
@@ -29,7 +18,6 @@ export default function contour2svg(contour, precision = 2) {
         prevPoint = i === 0 ? contour[l - 1] : contour[i - 1];
         nextPoint = i === l - 1 ? contour[0] : contour[i + 1];
 
-        // 起始坐标
         if (i === 0) {
             if (curPoint.onCurve) {
                 x = curPoint.x;
@@ -48,7 +36,6 @@ export default function contour2svg(contour, precision = 2) {
             }
         }
 
-        // 直线
         if (curPoint.onCurve && nextPoint.onCurve) {
             pathArr.push('l' + ceil(nextPoint.x - x)
                 + ' ' + ceil(nextPoint.y - y));

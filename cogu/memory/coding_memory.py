@@ -1,8 +1,3 @@
-"""Coding Memory — 项目级代码记忆
-
-灵感来源: jiuwenswarm CodingMemoryRail + 项目级 .md 文件 + Rail 注入
-COGU 实现: 独立模块，按项目名分目录存储 .md 文件
-"""
 from __future__ import annotations
 
 import os
@@ -33,11 +28,6 @@ class CodingMemoryStatus:
 
 
 class CodingMemory:
-    """项目级代码记忆系统
-
-    存储结构: <workspace>/coding_memory/<project_name>/*.md
-    每个项目独立目录，文件为 Markdown 格式
-    """
 
     def __init__(self, workspace_dir: str | Path = ".", project_dir: str | Path | None = None):
         self.workspace = Path(workspace_dir)

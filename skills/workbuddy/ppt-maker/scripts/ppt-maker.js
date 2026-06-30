@@ -1,13 +1,6 @@
-/**
- * PPT Maker - Markdown to PPTX Generator
- * Supports auto charts (pie/bar/line), multiple themes, ending page detection.
- */
 
 var PptxGenJS = require("pptxgenjs");
 
-// ══════════════════════════════════════════════════════
-//  1. Themes & Colors (no # prefix)
-// ══════════════════════════════════════════════════════
 
 var THEMES = {
   sunset:   { bg: 'FFF8F3', title: 'E85D04', text: '3D405B', accent: 'F48C06', secondary: 'FAA307', light: 'FFECD2', lighter: 'FFF5EB' },
@@ -35,9 +28,6 @@ var CHART_RULES = [
 
 var ENDING_KEYWORDS = ['感谢', '谢谢', 'thank', 'thanks', 'q&a', 'q & a', '问答', '结束', 'the end', '再见', '联系方式', '联系我们'];
 
-// ══════════════════════════════════════════════════════
-//  2. Utility Functions
-// ══════════════════════════════════════════════════════
 
 function stripInlineMarkdown(text) {
   if (!text) return '';
@@ -86,9 +76,6 @@ function ensureColors(colors, needed) {
   return result;
 }
 
-// ══════════════════════════════════════════════════════
-//  3. Markdown Parser
-// ══════════════════════════════════════════════════════
 
 function parse(text) {
   var slides = [];
@@ -201,9 +188,6 @@ function parse(text) {
   return slides;
 }
 
-// ══════════════════════════════════════════════════════
-//  4. Chart Detection
-// ══════════════════════════════════════════════════════
 
 function extractSeries(table) {
   if (!table.rows || table.rows.length < 2) return null;
@@ -275,9 +259,6 @@ function detectChart(table, slide, tableIndex) {
   return null;
 }
 
-// ══════════════════════════════════════════════════════
-//  5. Chart Type Resolution (multi-version compat)
-// ══════════════════════════════════════════════════════
 
 function getChartType(pres, name) {
   var MAP = { pie: 'PIE', line: 'LINE', bar: 'BAR' };
@@ -289,9 +270,6 @@ function getChartType(pres, name) {
   return name;
 }
 
-// ══════════════════════════════════════════════════════
-//  6. Chart Rendering
-// ══════════════════════════════════════════════════════
 
 function addChartToSlide(s, pres, chartData, colors, t, layout) {
   var lx = (layout && layout.x) || 0.5;
@@ -350,9 +328,6 @@ function addChartToSlide(s, pres, chartData, colors, t, layout) {
   s.addChart(chartType, data, opts);
 }
 
-// ══════════════════════════════════════════════════════
-//  7. Content Rendering
-// ══════════════════════════════════════════════════════
 
 function renderTable(s, tableItem, t, startY, maxY, startX, totalW) {
   if (!tableItem.rows || tableItem.rows.length === 0) return startY;
@@ -486,9 +461,6 @@ function renderContent(s, content, t, opts) {
   return y;
 }
 
-// ══════════════════════════════════════════════════════
-//  8. Slide Renderers
-// ══════════════════════════════════════════════════════
 
 function addDecorations(s, t) {
   s.addShape('rect', { x: 0, y: 0, w: 10, h: 0.12, fill: { color: t.accent } });
@@ -595,9 +567,6 @@ function renderContentSlide(s, pres, slide, slideIndex, totalSlides, colors, t) 
   });
 }
 
-// ══════════════════════════════════════════════════════
-//  9. Main Generator
-// ══════════════════════════════════════════════════════
 
 function createPPTX(markdownText, options) {
   options = options || {};
@@ -642,9 +611,6 @@ function createPPTX(markdownText, options) {
   return pres;
 }
 
-// ══════════════════════════════════════════════════════
-//  10. Module Export
-// ══════════════════════════════════════════════════════
 
 module.exports = {
   createPPTX: createPPTX,

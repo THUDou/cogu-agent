@@ -6,17 +6,7 @@ Object.defineProperty(exports, "__esModule", {
 exports.default = polygon2contour;
 var _parseParams = _interopRequireDefault(require("./parseParams"));
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-/**
- * @file 多边形转换成轮廓
- * @author mengke01(kekee000@gmail.com)
- */
 
-/**
- * 多边形转换成轮廓
- *
- * @param {Array} points 多边形点集合
- * @return {Array} contours
- */
 function polygon2contour(points) {
   if (!points || !points.length) {
     return null;

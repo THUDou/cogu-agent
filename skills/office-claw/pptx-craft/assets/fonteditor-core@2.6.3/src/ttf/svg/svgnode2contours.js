@@ -1,7 +1,3 @@
-/**
- * @file svg节点转字形轮廓
- * @author mengke01(kekee000@gmail.com)
- */
 
 import path2contours from './path2contours';
 import oval2contour from './oval2contour';
@@ -10,7 +6,6 @@ import rect2contour from './rect2contour';
 import parseTransform from './parseTransform';
 import contoursTransform from './contoursTransform';
 
-// 支持的解析器集合
 const support = {
 
     path: {
@@ -45,12 +40,6 @@ const support = {
     }
 };
 
-/**
- * svg节点转字形轮廓
- *
- * @param {Array} xmlNodes xml节点集合
- * @return {Array|false} 轮廓数组
- */
 export default function svgnode2contours(xmlNodes) {
     let i;
     let length;
@@ -107,7 +96,6 @@ export default function svgnode2contours(xmlNodes) {
             if (contour && contour.length) {
                 let contours = parser.contours ? contour : [contour];
 
-                // 如果有变换则应用变换规则
                 if (segment.transform) {
                     contours = contoursTransform(contours, segment.transform);
                 }

@@ -1,8 +1,3 @@
-"""ExecPolicy — 执行策略规则引擎
-
-基于源码: OpenAI Codex execpolicy (Starlark规则引擎)
-COGU 实现: 轻量级规则评估 + 风险评分
-"""
 from __future__ import annotations
 
 import re
@@ -41,7 +36,6 @@ class PolicyResult:
 
 
 class ExecPolicy:
-    """执行策略引擎 — 规则评估 + 风险评分"""
 
     def __init__(self):
         self._rules: list[PolicyRule] = []

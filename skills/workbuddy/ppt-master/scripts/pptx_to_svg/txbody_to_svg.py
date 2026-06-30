@@ -1,24 +1,3 @@
-"""DrawingML <p:txBody> -> SVG <text> conversion.
-
-Reverse of svg_to_pptx/drawingml_elements.convert_text.
-
-Strategy (v1):
-- Each <a:p> paragraph emits one <text> element (one line of baseline).
-  Multiple <a:r> runs in one paragraph become <tspan>s sharing the text
-  element's x.
-- Vertical layout: y of first paragraph is determined by anchor (t/ctr/b)
-  and tIns/bIns. Subsequent paragraphs stack downward with line height
-  derived from the largest font in the paragraph * 1.2 (default leading).
-- Horizontal layout: text-anchor follows pPr@algn. x is computed from the
-  text frame plus lIns/rIns and the alignment.
-- No automatic word wrap (PPT's wrap is layout-time; v1 trusts the existing
-  text frame width and emits text as-is). a:br produces an explicit linebreak.
-- Bullet points (a:buChar / a:buAutoNum) are rendered as literal prefixes
-  so the visual lands without relying on PowerPoint list semantics.
-
-Color / font / size attributes propagate from a:rPr; missing attributes fall
-back to the paragraph's endParaRPr or to spec-default values.
-"""
 
 from __future__ import annotations
 
@@ -31,14 +10,9 @@ from .emu_units import (
 )
 
 
-# ---------------------------------------------------------------------------
-# Defaults (matches DrawingML spec)
-# ---------------------------------------------------------------------------
 
-# Default body insets when bodyPr omits them: 0.1 inch left/right, 0.05 top/bot.
 DEFAULT_INSETS_EMU = {"l": 91440, "t": 45720, "r": 91440, "b": 45720}
 
-# Default font size = 1800 (= 18 pt = 24 px). Spec is actually 1800 (18pt).
 DEFAULT_FONT_SIZE_PX = 24.0
 DEFAULT_LINE_HEIGHT_RATIO = 1.2  # leading multiplier
 DEFAULT_FILL_HEX = "#000000"
@@ -46,7 +20,6 @@ DEFAULT_FILL_HEX = "#000000"
 
 @dataclass
 class TextRun:
-    """A single run with resolved style + text."""
 
     text: str
     font_size_px: float
@@ -63,7 +36,6 @@ class TextRun:
 
 @dataclass
 class TextParagraph:
-    """One <a:p>: a list of runs sharing alignment + level."""
 
     runs: list[TextRun] = field(default_factory=list)
     align: str = "l"  # l / ctr / r / just / dist
@@ -78,11 +50,6 @@ class TextParagraph:
 
 @dataclass
 class TextResult:
-    """Resolved text body ready for SVG emission.
-
-    `svg` is one or more <text> elements, already absolutely positioned
-    inside the slide coordinate system. `defs` is empty for now.
-    """
 
     svg: str = ""
     defs: list[str] = field(default_factory=list)
@@ -91,9 +58,6 @@ class TextResult:
 VERTICAL_TEXT_MODES = {"eaVert", "vert", "wordArtVert", "wordArtVertRtl"}
 
 
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
 
 def convert_txbody(
     tx_body: ET.Element | None,
@@ -103,7 +67,6 @@ def convert_txbody(
     theme_fonts: dict[str, str] | None = None,
     default_fill: str = DEFAULT_FILL_HEX,
 ) -> TextResult:
-    """Convert <p:txBody> under the given shape geometry to SVG <text>(s)."""
     if tx_body is None:
         return TextResult()
 
@@ -114,7 +77,6 @@ def convert_txbody(
     if not paragraphs or not _has_visible_text(paragraphs):
         return TextResult()
 
-    # Insets + anchor + wrap
     lins = _read_emu_attr(body_pr, "lIns", DEFAULT_INSETS_EMU["l"])
     tins = _read_emu_attr(body_pr, "tIns", DEFAULT_INSETS_EMU["t"])
     rins = _read_emu_attr(body_pr, "rIns", DEFAULT_INSETS_EMU["r"])
@@ -127,13 +89,11 @@ def convert_txbody(
     inner_w = max(xfrm.w - lins - rins, 1.0)
     inner_h = max(xfrm.h - tins - bins, 1.0)
 
-    # Pre-wrap each paragraph into concrete display lines.
     wrap_width = inner_w if wrap_mode == "square" else float("inf")
     para_lines: list[list[list[TextRun]]] = [
         _wrap_paragraph_into_lines(p, wrap_width) for p in paragraphs
     ]
 
-    # Pre-compute heights to support anchor=ctr / b
     para_heights = [
         _paragraph_height_from_lines(p, lines)
         for p, lines in zip(paragraphs, para_lines)
@@ -181,13 +141,6 @@ def convert_vertical_txbody(
     theme_fonts: dict[str, str] | None = None,
     default_fill: str = DEFAULT_FILL_HEX,
 ) -> TextResult:
-    """Render East Asian vertical text as upright stacked glyphs.
-
-    PowerPoint often combines ``bodyPr@vert=eaVert`` with a rotated text box.
-    Rendering the text inside the rotated shape group makes Chinese glyphs lie
-    sideways. This helper computes the final rotated box and places glyphs
-    upright in slide coordinates.
-    """
     if tx_body is None:
         return TextResult()
 
@@ -267,7 +220,6 @@ def _looks_like_auto_stacked_cjk(
     body_pr: ET.Element,
     xfrm: Xfrm | None,
 ) -> bool:
-    """Detect PowerPoint's narrow-box CJK vertical layout without vert=eaVert."""
     if xfrm is None or xfrm.w <= 0 or xfrm.h <= 0:
         return False
     if body_pr.attrib.get("wrap", "square") != "square":
@@ -290,7 +242,6 @@ def _looks_like_auto_stacked_cjk(
 
 
 def _plain_text(tx_body: ET.Element) -> str:
-    """Return concatenated literal text for layout heuristics."""
     parts: list[str] = []
     for text_elem in tx_body.findall(".//a:t", NS):
         if text_elem.text:
@@ -298,12 +249,8 @@ def _plain_text(tx_body: ET.Element) -> str:
     return "".join(parts)
 
 
-# ---------------------------------------------------------------------------
-# Parsing helpers
-# ---------------------------------------------------------------------------
 
 def _read_emu_attr(elem: ET.Element | None, attr: str, default_emu: int) -> float:
-    """Read an EMU integer attribute and return px."""
     if elem is None:
         return emu_to_px(default_emu)
     val = elem.attrib.get(attr)
@@ -322,7 +269,6 @@ def _parse_paragraphs(
     *,
     default_fill: str = DEFAULT_FILL_HEX,
 ) -> list[TextParagraph]:
-    """Walk <a:p> children producing TextParagraph objects."""
     paragraphs: list[TextParagraph] = []
     autonum_state: dict[int, int] = {}
 
@@ -382,10 +328,8 @@ def _parse_paragraph(
             except ValueError:
                 pass
 
-        # Bullet / basic auto-numbering
         para.bullet_prefix = _resolve_bullet_prefix(p_pr, para.level, autonum_state)
 
-    # Default endParaRPr style (applies if a run has no rPr)
     end_rpr = p_elem.find("a:endParaRPr", NS)
 
     for child in list(p_elem):
@@ -408,7 +352,6 @@ def _parse_paragraph(
                 is_break=True,
             ))
         elif local == "fld":
-            # Field (datetime / slidenum). Use the literal a:t fallback.
             rpr = child.find("a:rPr", NS)
             text_elem = child.find("a:t", NS)
             text = text_elem.text or "" if text_elem is not None else ""
@@ -431,22 +374,17 @@ def _build_run(
     *,
     default_fill: str = DEFAULT_FILL_HEX,
 ) -> TextRun:
-    """Resolve a single <a:r> run from its rPr (with endParaRPr as default)."""
-    # font-size: rPr@sz; default 1800 (18pt = 24px)
     sz = _attr_chain((rpr, end_rpr), "sz")
     font_size_px = hundredths_pt_to_px(sz, DEFAULT_FONT_SIZE_PX)
 
-    # Bold / italic
     bold = _attr_chain((rpr, end_rpr), "b") == "1"
     italic = _attr_chain((rpr, end_rpr), "i") == "1"
 
-    # Underline / strike
     u_val = _attr_chain((rpr, end_rpr), "u")
     underline = u_val not in (None, "", "none")
     strike_val = _attr_chain((rpr, end_rpr), "strike")
     strikethrough = strike_val in ("sngStrike", "dblStrike")
 
-    # Letter spacing (rPr@spc, in 1/100 pt)
     spc = _attr_chain((rpr, end_rpr), "spc")
     letter_spacing_px = 0.0
     if spc is not None:
@@ -455,7 +393,6 @@ def _build_run(
         except ValueError:
             pass
 
-    # Color
     fill = default_fill
     fill_opacity = 1.0
     color_source = None
@@ -473,12 +410,10 @@ def _build_run(
             fill = hex_
             fill_opacity = alpha
 
-    # Font typeface
     latin_face = _typeface(rpr, "latin") or _typeface(end_rpr, "latin")
     ea_face = _typeface(rpr, "ea") or _typeface(end_rpr, "ea")
     cs_face = _typeface(rpr, "cs") or _typeface(end_rpr, "cs")
 
-    # Resolve theme refs (e.g. typeface="+mn-lt" / "+mj-ea")
     latin_face = _resolve_theme_typeface(latin_face, theme_fonts)
     ea_face = _resolve_theme_typeface(ea_face, theme_fonts)
     cs_face = _resolve_theme_typeface(cs_face, theme_fonts)
@@ -500,7 +435,6 @@ def _build_run(
 
 
 def _attr_chain(sources: tuple[ET.Element | None, ...], attr: str) -> str | None:
-    """Return the first non-empty value of `attr` from any source element."""
     for src in sources:
         if src is None:
             continue
@@ -521,7 +455,6 @@ def _typeface(rpr: ET.Element | None, child_tag: str) -> str | None:
 
 
 def _resolve_theme_typeface(face: str | None, theme_fonts: dict[str, str]) -> str | None:
-    """Theme references look like '+mj-lt' (major latin) / '+mn-ea' (minor EA)."""
     if not face or not face.startswith("+"):
         return face
     code = face[1:]
@@ -537,25 +470,17 @@ def _resolve_theme_typeface(face: str | None, theme_fonts: dict[str, str]) -> st
 
 
 def _build_font_stack(latin: str | None, ea: str | None, cs: str | None) -> str:
-    """Build a CSS font-family stack: original PPT names first, then fallbacks."""
     parts: list[str] = []
     seen: set[str] = set()
     for face in (latin, ea, cs):
         if face and face not in seen:
             parts.append(_quote_font(face))
             seen.add(face)
-    # Generic fallback so the browser can render even if PPT fonts are absent.
     parts.append("sans-serif")
     return ", ".join(parts)
 
 
 def _quote_font(name: str) -> str:
-    """Quote a font name if it contains spaces or non-ASCII chars.
-
-    Uses XML entity-escaped double quotes (&quot;) so the resulting CSS string
-    survives being embedded inside an SVG attribute that itself uses double
-    quotes. CSS parsers accept the unescaped form after attribute parsing.
-    """
     if any(c.isspace() or ord(c) > 127 for c in name):
         return f"&quot;{name}&quot;"
     return name
@@ -566,7 +491,6 @@ def _resolve_bullet_prefix(
     level: int,
     autonum_state: dict[int, int],
 ) -> str:
-    """Render bullet glyphs / numbering as a literal text prefix."""
     bu_none = p_pr.find("a:buNone", NS)
     if bu_none is not None:
         autonum_state.pop(level, None)
@@ -639,9 +563,6 @@ def _roman_number(value: int) -> str:
     return "".join(parts)
 
 
-# ---------------------------------------------------------------------------
-# Layout / emission
-# ---------------------------------------------------------------------------
 
 def _has_visible_text(paragraphs: list[TextParagraph]) -> bool:
     for p in paragraphs:
@@ -651,12 +572,8 @@ def _has_visible_text(paragraphs: list[TextParagraph]) -> bool:
     return False
 
 
-# ---------------------------------------------------------------------------
-# Word-wrap / text measurement
-# ---------------------------------------------------------------------------
 
 def _is_cjk(ch: str) -> bool:
-    """Check if a character is CJK (Chinese/Japanese/Korean) or full-width."""
     cp = ord(ch)
     return (0x4E00 <= cp <= 0x9FFF or 0x3400 <= cp <= 0x4DBF or
             0x2E80 <= cp <= 0x2EFF or 0x3000 <= cp <= 0x303F or
@@ -665,11 +582,6 @@ def _is_cjk(ch: str) -> bool:
 
 
 def _char_width(ch: str, font_size: float, bold: bool) -> float:
-    """Estimate a single character's rendered width in pixels.
-
-    Mirrors svg_to_pptx/drawingml_utils.estimate_text_width so wrapping breaks
-    align with the same heuristic used to estimate text-box sizes elsewhere.
-    """
     if _is_cjk(ch):
         w = font_size  # CJK is approximately 1em per glyph
     elif ch == ' ':
@@ -680,10 +592,6 @@ def _char_width(ch: str, font_size: float, bold: bool) -> float:
         w = font_size * 0.3
     else:
         w = font_size * 0.55
-    # Bold Latin generally expands a little. CJK glyphs keep their em advance
-    # in common PPT fonts; applying the bold multiplier causes short Chinese
-    # titles such as "少年强国说" to wrap even though PowerPoint keeps them on
-    # one line.
     if bold and not _is_cjk(ch):
         w *= 1.05
     return w
@@ -696,12 +604,6 @@ def _estimate_run_width(text: str, run: TextRun) -> float:
 def _find_break_point(
     text: str, start: int, max_width: float, run: TextRun,
 ) -> tuple[int, float]:
-    """Find the longest prefix of text[start:] that fits in max_width.
-
-    Returns (end_index, used_width). Prefers breaking after whitespace, after
-    CJK characters, or after hyphens. If even the first character doesn't fit,
-    returns (start, 0.0) — the caller should flush the current line first.
-    """
     cur_w = 0.0
     last_break = start
     last_break_w = 0.0
@@ -714,11 +616,9 @@ def _find_break_point(
                 return last_break, last_break_w
             return start, 0.0
         cur_w += ch_w
-        # Update last_break point
         if ch.isspace() or _is_cjk(ch) or ch in "-—、，。！？：；":
             last_break = i + 1
             last_break_w = cur_w
-    # Whole rest fits
     return len(text), cur_w
 
 
@@ -726,14 +626,6 @@ def _wrap_paragraph_into_lines(
     para: TextParagraph,
     max_width: float,
 ) -> list[list[TextRun]]:
-    """Split a paragraph's runs into display lines respecting `max_width`.
-
-    Each line is a list of (possibly truncated) TextRuns. Explicit a:br runs
-    force a new line. When max_width is +inf the original runs are returned
-    unchanged (one logical line per a:br segment).
-
-    Bullet prefix is prepended to the first non-empty run if present.
-    """
     lines: list[list[TextRun]] = [[]]
     cur_w = 0.0
 
@@ -760,15 +652,12 @@ def _wrap_paragraph_into_lines(
             remaining = text[i:]
             avail = max_width - cur_w
             if avail <= 0 and lines[-1]:
-                # Line is full; start a new one
                 lines.append([])
                 cur_w = 0.0
                 avail = max_width
 
             end, used = _find_break_point(remaining, 0, avail, run)
             if end == 0:
-                # Nothing fits even from a fresh line — force one char to avoid
-                # an infinite loop.
                 if lines[-1]:
                     lines.append([])
                     cur_w = 0.0
@@ -782,7 +671,6 @@ def _wrap_paragraph_into_lines(
             i += end
 
             if i < len(text):
-                # More to render — wrap to next line
                 lines.append([])
                 cur_w = 0.0
 
@@ -801,9 +689,6 @@ def _should_keep_single_line(para: TextParagraph, max_width: float) -> bool:
     text = "".join(run.text for run in text_runs)
     non_space_count = sum(1 for ch in text if not ch.isspace())
 
-    # Short labels/titles are usually intentionally single-line in PPT. Let
-    # them overflow slightly rather than inventing a line break from imperfect
-    # font metrics or alignment spaces.
     if non_space_count <= 18:
         return True
 
@@ -828,7 +713,6 @@ def _copy_run(run: TextRun, *, text: str) -> TextRun:
 
 def _paragraph_height_from_lines(p: TextParagraph,
                                  lines: list[list[TextRun]]) -> float:
-    """Total px height after wrapping. Each line uses its own max font size."""
     if not lines:
         return DEFAULT_FONT_SIZE_PX * p.line_height_ratio
     height = 0.0
@@ -848,14 +732,10 @@ def _clip_lines_to_bottom(
     top_y: float,
     bottom_y: float,
 ) -> list[list[TextRun]]:
-    """Return the leading display lines whose line boxes fit in the text frame."""
     visible: list[list[TextRun]] = []
     cursor_y = top_y
     for line in lines:
         line_h = _line_height(para, line)
-        # PowerPoint lets the first line that starts within the box render even
-        # when it slightly exceeds the bottom — only suppress lines whose top
-        # is already at/below the bottom edge.
         if cursor_y >= bottom_y:
             break
         visible.append(line)
@@ -864,7 +744,6 @@ def _clip_lines_to_bottom(
 
 
 def _paragraph_height(p: TextParagraph) -> float:
-    """Legacy helper kept for callers that don't pre-wrap (currently unused)."""
     lines = 1
     max_font = 0.0
     for r in p.runs:
@@ -883,12 +762,6 @@ def _emit_paragraph(
     inner_x: float, inner_w: float,
     top_y: float,
 ) -> str:
-    """Render a paragraph (already split into lines) as one <text> element.
-
-    Each pre-wrapped display line becomes a sequence of <tspan>s: the first
-    tspan on a line carries the explicit x and dy (line-height advance);
-    subsequent tspans on the same line inherit x.
-    """
     align = para.align
     if align == "ctr":
         anchor_x = inner_x + inner_w / 2.0
@@ -903,7 +776,6 @@ def _emit_paragraph(
     if not lines or all(not line for line in lines):
         return ""
 
-    # First non-empty line drives the text-level baseline + default style
     first_line_idx = next((i for i, ln in enumerate(lines) if ln), 0)
     first_line = lines[first_line_idx]
     first_run = first_line[0] if first_line else None
@@ -913,7 +785,6 @@ def _emit_paragraph(
     spans: list[str] = []
     for line_idx, line in enumerate(lines):
         if not line:
-            # Blank line (e.g. consecutive a:br): still advance baseline
             spans.append(
                 f'<tspan x="{fmt_num(anchor_x)}" '
                 f'dy="{fmt_num(first_font * para.line_height_ratio)}"></tspan>'
@@ -923,7 +794,6 @@ def _emit_paragraph(
         for run_idx, run in enumerate(line):
             attrs = _run_tspan_attrs(run)
             if run_idx == 0 and line_idx > 0:
-                # Start-of-line tspan: position via x + dy
                 spans.append(
                     f'<tspan x="{fmt_num(anchor_x)}" '
                     f'dy="{fmt_num(line_font * para.line_height_ratio)}"'
@@ -969,12 +839,6 @@ def _text_base_attrs(run: TextRun | None, x: float, y: float,
 
 
 def _run_tspan_attrs(run: TextRun) -> str:
-    """Per-run overrides on a <tspan>. Only emit attributes that differ from
-    the run that drove the parent <text> (we keep things simple: emit only
-    overrides that can plausibly change run-to-run, never re-emit common
-    defaults). For v1 we just always emit fill / font-size / weight to be
-    safe — tspan inherits when omitted, so callers can simplify later.
-    """
     parts = [
         f'fill="{run.fill}"',
         f'font-size="{fmt_num(run.font_size_px)}"',

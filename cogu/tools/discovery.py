@@ -1,10 +1,3 @@
-"""运行时API发现 — 参考gws-cli
-
-运行时发现API并构建命令树:
-  - discover: 发现API端点
-  - build_skill_from_api: 从API描述构建skill
-  - parse_openapi: 解析OpenAPI规范
-"""
 from __future__ import annotations
 
 import json
@@ -18,7 +11,6 @@ from cogu.tools.base import ToolSpec
 
 @dataclass
 class APIParameter:
-    """API参数"""
     name: str = ""
     location: str = "query"
     type: str = "string"
@@ -39,7 +31,6 @@ class APIParameter:
 
 @dataclass
 class APIDescription:
-    """API端点描述"""
     name: str = ""
     method: str = "GET"
     path: str = ""
@@ -68,7 +59,6 @@ class APIDescription:
 
 @dataclass
 class DiscoveryResult:
-    """发现结果"""
     base_url: str = ""
     total_endpoints: int = 0
     apis: list[APIDescription] = field(default_factory=list)
@@ -88,13 +78,6 @@ class DiscoveryResult:
 
 
 class APIDiscovery:
-    """运行时发现API并构建命令树
-
-    参考gws-cli的动态发现:
-      - 从OpenAPI/Swagger规范解析API端点
-      - 自动构建skill定义
-      - 支持增量发现和缓存
-    """
 
     def __init__(self, llm_client: Any = None, cache_dir: str = ""):
         self.llm = llm_client
@@ -103,15 +86,6 @@ class APIDiscovery:
         self._generated_skills: list[dict] = []
 
     async def discover(self, base_url: str, api_key: str = "") -> list[APIDescription]:
-        """发现API端点
-
-        Args:
-            base_url: API基础URL
-            api_key: API密钥
-
-        Returns:
-            发现的API端点列表
-        """
         apis: list[APIDescription] = []
 
         openapi_url = self._guess_openapi_url(base_url)
@@ -128,14 +102,6 @@ class APIDiscovery:
         return apis
 
     async def build_skill_from_api(self, api_desc: APIDescription) -> dict:
-        """从API描述构建skill
-
-        Args:
-            api_desc: API端点描述
-
-        Returns:
-            skill定义字典
-        """
         param_docs = []
         for p in api_desc.parameters:
             req = "必填" if p.required else "可选"
@@ -178,14 +144,6 @@ class APIDiscovery:
         return skill
 
     def _parse_openapi(self, spec: dict) -> list[APIDescription]:
-        """解析OpenAPI规范
-
-        Args:
-            spec: OpenAPI/Swagger规范字典
-
-        Returns:
-            API端点列表
-        """
         apis: list[APIDescription] = []
         paths = spec.get("paths", {})
 
@@ -241,7 +199,6 @@ class APIDiscovery:
         return apis
 
     def _guess_openapi_url(self, base_url: str) -> str:
-        """猜测OpenAPI文档URL"""
         base = base_url.rstrip("/")
         candidates = [
             f"{base}/openapi.json",
@@ -254,7 +211,6 @@ class APIDiscovery:
         return candidates[0]
 
     async def _fetch_openapi_spec(self, url: str, api_key: str = "") -> Optional[dict]:
-        """获取OpenAPI规范"""
         import urllib.request
         import urllib.error
 
@@ -281,7 +237,6 @@ class APIDiscovery:
         return None
 
     async def _discover_by_crawling(self, base_url: str, api_key: str = "") -> list[APIDescription]:
-        """通过爬取发现API端点"""
         apis: list[APIDescription] = []
 
         if self.llm:
@@ -320,14 +275,12 @@ class APIDiscovery:
 
     @staticmethod
     def _api_to_skill_name(api: APIDescription) -> str:
-        """将API路径转为skill名称"""
         name = api.name or f"{api.method}_{api.path}"
         name = re.sub(r'[^a-zA-Z0-9_]', '_', name)
         name = re.sub(r'_+', '_', name).strip('_').lower()
         return f"api_{name}" if not name.startswith("api") else name
 
     def get_discovered_apis(self, base_url: str = "") -> list[APIDescription]:
-        """获取已发现的API"""
         if base_url:
             return self._discovered_apis.get(base_url, [])
         all_apis: list[APIDescription] = []
@@ -336,11 +289,9 @@ class APIDiscovery:
         return all_apis
 
     def get_generated_skills(self) -> list[dict]:
-        """获取已生成的skill列表"""
         return self._generated_skills
 
     def get_stats(self) -> dict:
-        """获取发现统计"""
         return {
             "base_urls_discovered": len(self._discovered_apis),
             "total_apis": sum(len(apis) for apis in self._discovered_apis.values()),

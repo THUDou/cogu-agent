@@ -1,9 +1,3 @@
-/**
- * @file hhea 表
- * @author mengke01(kekee000@gmail.com)
- *
- * https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6hhea.html
- */
 
 import table from './table';
 import struct from './struct';

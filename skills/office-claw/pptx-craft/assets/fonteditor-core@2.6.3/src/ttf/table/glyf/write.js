@@ -1,26 +1,13 @@
-/**
- * @file 写glyf数据
- * @author mengke01(kekee000@gmail.com)
- */
 
 import componentFlag from '../../enum/componentFlag';
 
-/**
- * 写glyf
- *
- * @param  {Object} writer 写入器
- * @param  {Object} ttf    ttf对象
- * @return {Object}        写入器
- */
 export default function write(writer, ttf) {
     const hinting = ttf.writeOptions ? ttf.writeOptions.hinting : false;
     const writeZeroContoursGlyfData = ttf.writeOptions ? ttf.writeOptions.writeZeroContoursGlyfData : false;
     ttf.glyf.forEach((glyf, index) => {
-        // 非复合图元没有轮廓则不写
         if (!glyf.compound && !writeZeroContoursGlyfData && (!glyf.contours || !glyf.contours.length)) {
             return;
         }
-        // header
         writer.writeInt16(glyf.compound ? -1 : (glyf.contours || []).length);
         writer.writeInt16(glyf.xMin);
         writer.writeInt16(glyf.yMin);
@@ -31,7 +18,6 @@ export default function write(writer, ttf) {
         let l;
         let flags;
 
-        // 复合图元
         if (glyf.compound) {
 
             for (i = 0, l = glyf.glyfs.length; i < l; i++) {
@@ -40,15 +26,12 @@ export default function write(writer, ttf) {
                 flags = g.points
                     ? 0 : (componentFlag.ARGS_ARE_XY_VALUES + componentFlag.ROUND_XY_TO_GRID); // xy values
 
-                // more components
                 if (i < l - 1) {
                     flags += componentFlag.MORE_COMPONENTS;
                 }
 
 
-                // use my metrics
                 flags += g.useMyMetrics ? componentFlag.USE_MY_METRICS : 0;
-                // overlap compound
                 flags += g.overlapCompound ? componentFlag.OVERLAP_COMPOUND : 0;
 
                 const transform = g.transform;
@@ -59,8 +42,6 @@ export default function write(writer, ttf) {
                 const e = g.points ? g.points[0] : transform.e;
                 const f = g.points ? g.points[1] : transform.f;
 
-                // xy values or points
-                // int 8 放不下，则用int16放
                 if (e < 0 || e > 0x7F || f < 0 || f > 0x7F) {
                     flags += componentFlag.ARG_1_AND_2_ARE_WORDS;
                 }
@@ -111,7 +92,6 @@ export default function write(writer, ttf) {
                 writer.writeUint16(endPtsOfContours);
             });
 
-            // instruction
             if (hinting && glyf.instructions) {
                 const instructions = glyf.instructions;
                 writer.writeUint16(instructions.length);
@@ -124,7 +104,6 @@ export default function write(writer, ttf) {
             }
 
 
-            // 获取暂存中的flags
             flags = ttf.support.glyf[index].flags || [];
             for (i = 0, l = flags.length; i < l; i++) {
                 writer.writeUint8(flags[i]);
@@ -151,7 +130,6 @@ export default function write(writer, ttf) {
             }
         }
 
-        // 4字节对齐
         const glyfSize = ttf.support.glyf[index].glyfSize;
 
         if (glyfSize % 4) {

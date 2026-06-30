@@ -1,10 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""PDF IR (Intermediate Representation) 导出。
-
-使用 PyMuPDF 将 PDF 文档结构导出为 JSON 格式的中间表示，
-包含页面、文本块、图片、字体、元数据等结构化信息。
-"""
 
 import json
 import os
@@ -23,7 +16,6 @@ PARAMS = [
 
 
 def handler(params):
-    """导出 PDF 为 IR JSON。"""
     import fitz
     import base64
 
@@ -71,7 +63,6 @@ def handler(params):
             "links": [],
         }
 
-        # 提取文本块
         text_dict = page.get_text("dict", flags=fitz.TEXT_PRESERVE_WHITESPACE)
         for block in text_dict.get("blocks", []):
             if block.get("type") == 0:  # 文本块
@@ -107,7 +98,6 @@ def handler(params):
                 }
                 page_ir["blocks"].append(img_ir)
 
-        # 提取图片信息
         for img_info in page.get_images(full=True):
             xref = img_info[0]
             img_entry = {
@@ -128,7 +118,6 @@ def handler(params):
                     img_entry["data_base64"] = None
             page_ir["images"].append(img_entry)
 
-        # 提取链接
         for link in page.get_links():
             link_ir = {
                 "kind": link.get("kind", 0),
@@ -140,7 +129,6 @@ def handler(params):
 
         ir["pages"].append(page_ir)
 
-    # 字体信息
     if include_fonts:
         fonts = []
         for i in page_indices:
@@ -154,7 +142,6 @@ def handler(params):
                     "name": font_info[3],
                     "encoding": font_info[4] if len(font_info) > 4 else "",
                 })
-        # 去重
         seen = set()
         unique_fonts = []
         for f in fonts:
@@ -166,7 +153,6 @@ def handler(params):
 
     doc.close()
 
-    # 写入输出
     output_dir = os.path.dirname(output_path)
     if output_dir and not os.path.exists(output_dir):
         os.makedirs(output_dir, exist_ok=True)

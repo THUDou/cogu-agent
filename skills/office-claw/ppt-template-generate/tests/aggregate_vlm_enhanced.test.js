@@ -159,10 +159,8 @@ assert.ok(!gradientMd.includes('undefined@'));
 
 console.log('aggregate_vlm_enhanced tests passed');
 
-// ── selectColors background detection ──────────────────────────────────────
 const { buildSpec } = require('../scripts/aggregate.js');
 
-// Near-white fill (#F5F5F5) should become background, not fall through to primary
 const specNearWhite = buildSpec(
   {
     slide_size: { width_px: 1280, height_px: 720, width_cm: 33.87, height_cm: 19.05, aspect_ratio: '16:9' },
@@ -180,7 +178,6 @@ const specNearWhite = buildSpec(
 assert.equal(specNearWhite.colors.background.toUpperCase(), '#F5F5F5', 'near-white should be background');
 assert.notEqual(specNearWhite.colors.background.toUpperCase(), specNearWhite.colors.primary.toUpperCase(), 'background must differ from primary');
 
-// VLM-reported bg takes priority over luminance guess
 const specVlmBg = buildSpec(
   {
     slide_size: { width_px: 1280, height_px: 720, width_cm: 33.87, height_cm: 19.05, aspect_ratio: '16:9' },
@@ -205,7 +202,6 @@ assert.equal(specVlmBg.colors.background.toUpperCase(), '#FAFAFA', 'VLM bg shoul
 
 console.log('selectColors background detection tests passed');
 
-// ── buildVisualAssets path normalisation ───────────────────────────────────
 const { buildSpec: buildSpec2 } = require('../scripts/aggregate.js');
 
 const specWithBgPath = buildSpec2(

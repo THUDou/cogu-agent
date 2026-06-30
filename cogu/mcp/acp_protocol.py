@@ -1,8 +1,3 @@
-"""ACP Protocol — Agent Communication Protocol
-
-基于源码: Claude Code Best ACP (Zed/Cursor integration)
-COGU 实现: Agent 通信协议适配器
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -29,7 +24,6 @@ class ACPAgentCard:
 
 
 class ACPProtocol:
-    """ACP 协议 — Agent 通信协议适配器"""
 
     def __init__(self):
         self._agents: dict[str, ACPAgentCard] = {}

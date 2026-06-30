@@ -1,11 +1,3 @@
-"""Pixabay provider.
-
-Requires ``PIXABAY_API_KEY`` in the environment. Pixabay's Content License
-allows commercial use without attribution, so all returned candidates are
-classified as ``no-attribution``.
-
-API docs: https://pixabay.com/api/docs/
-"""
 
 from __future__ import annotations
 
@@ -33,8 +25,6 @@ API_URL = "https://pixabay.com/api/"
 DEFAULT_PAGE_SIZE = 20
 DEFAULT_TIMEOUT = 30
 
-# Pixabay uses ``horizontal`` / ``vertical`` rather than landscape/portrait,
-# and has no ``square`` value (it falls back to ``all``).
 _ORIENTATION_MAP = {
     "landscape": "horizontal",
     "portrait": "vertical",
@@ -52,7 +42,6 @@ def _require_api_key() -> str:
 
 
 def parse_results(payload: dict) -> list[AssetCandidate]:
-    """Translate a Pixabay response into candidates."""
     candidates: list[AssetCandidate] = []
     for item in payload.get("hits", []) or []:
         download_url = (
@@ -90,11 +79,6 @@ def search(
     page_size: int = DEFAULT_PAGE_SIZE,
     timeout: int = DEFAULT_TIMEOUT,
 ) -> list[AssetCandidate]:
-    """Search Pixabay for candidates.
-
-    Pixabay images are uniformly ``no-attribution``, so the ``"all"`` filter
-    behaves identically to ``"no-attribution-only"``.
-    """
     if license_tier_filter not in {"no-attribution-only", "all"}:
         raise ValueError(f"unsupported license_tier_filter: {license_tier_filter!r}")
 

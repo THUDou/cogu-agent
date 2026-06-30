@@ -1,17 +1,3 @@
-#!/usr/bin/env python3
-"""
-docx-craft template matcher.
-
-Given a document type description, suggest the best matching recipe.
-This is a helper for the Claude agent — the actual matching decision
-is made by the LLM based on semantic understanding.
-
-Usage:
-    python scripts/template_match.py --type "行业分析报告"
-    python scripts/template_match.py --type "学术论文"
-    python scripts/template_match.py --type "通知"
-    python scripts/template_match.py --list
-"""
 
 import argparse
 import json
@@ -36,7 +22,6 @@ RECIPE_KEYWORDS = {
 
 
 def list_recipes():
-    """List all available recipes with their labels."""
     for filename in sorted(os.listdir(RECIPES_DIR)):
         if filename.endswith('.json'):
             filepath = os.path.join(RECIPES_DIR, filename)
@@ -46,7 +31,6 @@ def list_recipes():
 
 
 def match_recipe(doc_type):
-    """Match a document type description to a recipe name."""
     doc_type_lower = doc_type.lower()
     scores = {}
     for recipe_name, keywords in RECIPE_KEYWORDS.items():
@@ -57,7 +41,6 @@ def match_recipe(doc_type):
     if not scores or scores.get(best, 0) == 0:
         return 'report'  # default fallback
 
-    # Load and display the matched recipe
     filepath = os.path.join(RECIPES_DIR, f'{best}.json')
     if os.path.exists(filepath):
         with open(filepath, 'r', encoding='utf-8') as f:

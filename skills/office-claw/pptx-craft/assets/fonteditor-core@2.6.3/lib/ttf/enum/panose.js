@@ -4,13 +4,6 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
-/**
- * @file 字体外观分类器
- * @author mengke01(kekee000@gmail.com)
- *
- * @see:
- * https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6OS2.html
- */
 var _default = exports.default = {
   bFamilyType: ['Any', 'No Fit', 'Text and Display', 'Script', 'Decorative', 'Pictorial'],
   bSerifStyle: ['Any', 'No Fit', 'Cove', 'Obtuse Cove', 'Square Cove', 'Obtuse Square Cove', 'Square', 'Thin', 'Bone', 'Exaggerated', 'Triangle', 'Normal Sans', 'Obtuse Sans', 'Perp Sans', 'Flared', 'Rounded'],

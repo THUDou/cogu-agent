@@ -1,11 +1,9 @@
-"""Shared utilities for skill-creator scripts."""
 
 from pathlib import Path
 
 
 
 def parse_skill_md(skill_path: Path) -> tuple[str, str, str]:
-    """Parse a SKILL.md file, returning (name, description, full_content)."""
     content = (skill_path / "SKILL.md").read_text()
     lines = content.split("\n")
 
@@ -31,7 +29,6 @@ def parse_skill_md(skill_path: Path) -> tuple[str, str, str]:
             name = line[len("name:"):].strip().strip('"').strip("'")
         elif line.startswith("description:"):
             value = line[len("description:"):].strip()
-            # Handle YAML multiline indicators (>, |, >-, |-)
             if value in (">", "|", ">-", "|-"):
                 continuation_lines: list[str] = []
                 i += 1

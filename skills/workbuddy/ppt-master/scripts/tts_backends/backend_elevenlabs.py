@@ -1,4 +1,3 @@
-"""ElevenLabs backend for narration audio generation."""
 
 from __future__ import annotations
 

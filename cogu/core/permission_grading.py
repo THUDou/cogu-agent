@@ -1,8 +1,3 @@
-"""Permission Grading — 权限分级
-
-基于源码: Claude Code 权限系统 (3层决策管道)
-COGU 实现: 权限分级 + 上下文感知 + 缓存
-"""
 from __future__ import annotations
 
 import hashlib
@@ -40,7 +35,6 @@ class PermissionContext:
 
 
 class PermissionGrader:
-    """权限分级器 — 3层决策管道"""
 
     def __init__(self):
         self._rules: list[PermissionRule] = []

@@ -1,8 +1,3 @@
-"""Agent as Markdown — Agent .md 定义
-
-基于源码: ECC agents/ (67 Agent 定义为 .md 文件)
-COGU 实现: Markdown Agent 定义 + 自动发现 + 能力提取
-"""
 from __future__ import annotations
 
 import re
@@ -31,7 +26,6 @@ class AgentDefinition:
 
 
 class AgentAsMarkdown:
-    """Agent .md 定义 — 从 Markdown 文件加载 Agent 定义"""
 
     def __init__(self, agents_dir: str | Path = ".cogu/agents"):
         self._agents_dir = Path(agents_dir)

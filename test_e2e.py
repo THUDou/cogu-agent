@@ -30,65 +30,47 @@ def test(name, args, should_fail=False):
         failed += 1
         return None
 
-# T1: Version
 test("version", ["version"])
 
-# T2: Skills list
 test("skills list", ["skills", "list"])
 
-# T3: Skills list --all
 r = test("skills list --all", ["skills", "list", "--all"])
 if r and "Builtin" in r.stdout:
     print("       -> builtin skills shown")
 if r and "Installed" in r.stdout:
     print("       -> installed skills shown")
 
-# T4: Skills builtin list
 test("skills builtin list", ["skills", "builtin", "list"])
 
-# T5: Skills builtin run
 test("skills builtin run shell --action which --params '{\"program\":\"python\"}'",
      ["skills", "builtin", "run", "shell", "--action", "which", "--params", '{"program":"python"}'])
 
-# T6: Memory stats
 test("memory stats", ["memory", "stats"])
 
-# T7: Memory search
 test("memory search", ["memory", "search", "cogu"])
 
-# T8: Memory reconcile
 test("memory reconcile", ["memory", "reconcile"])
 
-# T9: Help
 r = test("--help", ["--help"])
 if r and "skills run" in r.stdout:
     print("       -> skills run in help")
 
-# T10: Skills help
 test("skills --help", ["skills", "--help"])
 
-# T11: Skills install local
 test("skills install local", ["skills", "install", "skills/hello-world", "--level", "user"])
 
-# T12: Skills info
 test("skills info", ["skills", "info", "hello-world"])
 
-# T13: Skills run (simulated)
 test("skills run simulated", ["skills", "run", "hello-world", "--input", '{"name":"E2E Test"}'])
 
-# T14: Skills run --script
 test("skills run --script", ["skills", "run", "hello-world", "--script", "scripts/greet.py", "--script-args", "E2E"])
 
-# T15: Skills uninstall
 test("skills uninstall", ["skills", "uninstall", "hello-world"])
 
-# T16: Skills info missing
 test("skills info missing", ["skills", "info", "nonexistent"], should_fail=True)
 
-# T17: Skills run missing
 test("skills run missing", ["skills", "run", "nonexistent"], should_fail=True)
 
-# T18: Skills uninstall missing
 test("skills uninstall missing", ["skills", "uninstall", "nonexistent"], should_fail=True)
 
 print(f"\n{'='*50}")
