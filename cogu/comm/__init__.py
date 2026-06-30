@@ -5,8 +5,12 @@ from cogu.comm.matrix_backend import MatrixBackend
 from cogu.comm.grpc_backend import GRPCBackend
 from cogu.comm.manager import CommManager
 from cogu.comm.agent_protocol import (
-    AgentProtocol, AgentMessage, ChannelType as AgentChannelType,
+    AgentProtocol, AgentMessage as ProtocolAgentMessage, ChannelType as AgentChannelType,
     MessageType, MessageStatus, OBOProxy, EventQueue,
+)
+from cogu.comm.agent_runtime import (
+    AgentRuntime, RoutedAgent, AgentMessage as RuntimeAgentMessage,
+    TopicId, Subscription, message_handler,
 )
 
 __all__ = [
@@ -19,10 +23,16 @@ __all__ = [
     "GRPCBackend",
     "CommManager",
     "AgentProtocol",
-    "AgentMessage",
+    "ProtocolAgentMessage",
     "AgentChannelType",
     "MessageType",
     "MessageStatus",
     "OBOProxy",
     "EventQueue",
+    "AgentRuntime",
+    "RoutedAgent",
+    "RuntimeAgentMessage",
+    "TopicId",
+    "Subscription",
+    "message_handler",
 ]

@@ -53,6 +53,7 @@ from cogu.memory.task_memory import TaskMemoryService, TaskMemory, TaskMemoryRes
 from cogu.memory.coding_memory import CodingMemory, CodingMemoryEntry, CodingMemoryStatus, get_coding_memory
 from cogu.memory.memory_folding import MemoryFolding, FoldRecord
 from cogu.memory.brain_memory import BrainMemory, EpisodicMemory, WorkingMemory, ToolMemory
+from cogu.memory.context_window import ContextWindowMemory, Block, ContextWindowOverview
 
 __all__ = [
     "SuperMemory",
@@ -121,4 +122,7 @@ __all__ = [
     "EpisodicMemory",
     "WorkingMemory",
     "ToolMemory",
+    "ContextWindowMemory",
+    "Block",
+    "ContextWindowOverview",
 ]
