@@ -1,3 +1,10 @@
+"""Prompt Playground — Prompt开发调试引擎
+
+参考: Coze Loop backend/modules/prompt/domain/service/execute.go
+核心: Agent循环执行引擎 (格式化Prompt -> LLM调用 -> Tool结果收集 -> 继续判断)
+特性: 模板引擎(Normal/Jinja2/GoTemplate), 变量系统, Snippet片段,
+      单步调试, 对比调试(Compare), 版本管理(Draft->Commit), MCP配置
+"""
 from __future__ import annotations
 
 import copy

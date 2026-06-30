@@ -1,3 +1,7 @@
+"""Plugin Base — 插件基类 + PromptSlot
+
+基于源码: Claude Code Plugin architecture + OpenAI Codex Extension PromptSlots
+"""
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -27,6 +31,7 @@ class PluginManifest:
 
 
 class PluginBase(ABC):
+    """插件基类 — 所有插件必须继承"""
 
     def __init__(self, manifest: PluginManifest | None = None):
         self.manifest = manifest or PluginManifest()

@@ -1,3 +1,8 @@
+"""Curriculum V2 — 自适应课程 v2
+
+基于源码: Agent0 Curriculum Agent + SEAgent task_buffer
+COGU 实现: 自适应难度 + 技能图 + 自动课程生成
+"""
 from __future__ import annotations
 
 import time
@@ -18,6 +23,7 @@ class SkillNode:
 
 
 class CurriculumV2:
+    """自适应课程 v2 — 技能图 + 自动课程生成"""
 
     def __init__(self):
         self._skills: dict[str, SkillNode] = {}

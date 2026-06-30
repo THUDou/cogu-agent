@@ -1,3 +1,8 @@
+"""Voice Mode — 语音模式
+
+基于源码: Claude Code Best voice mode
+COGU 实现: STT/TTS 管线 + 流式音频
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -14,6 +19,7 @@ class VoiceConfig:
 
 
 class VoiceMode:
+    """语音模式 — STT/TTS + 流式音频"""
 
     def __init__(self, config: VoiceConfig | None = None):
         self.config = config or VoiceConfig()

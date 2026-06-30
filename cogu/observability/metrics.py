@@ -1,3 +1,14 @@
+"""预定义指标体系 — Agent/Model/Service/Tool/Feedback 指标
+
+参考: Coze Loop backend/modules/observability/domain/metric/service/metric/
+      General: total_count, fail_ratio, model_latency, model_fail_ratio, tool_latency, tool_fail_ratio
+      Model: qpm/qps, tpm, tpot, tps, ttft, success_ratio, token_count, duration, error_code_pie
+      Service: qpm/qps, duration, trace_count, span_count, success_ratio, user_count, message_count
+      Tool: total_count, duration, success_ratio, error_code_pie
+      Agent: step_avg (model/tool/total)
+      Feedback: count, score, value_distribution, count_by_key/source_pie
+      聚合: avg, min, max, pct50, pct90, pct99, sum
+"""
 from __future__ import annotations
 
 import math

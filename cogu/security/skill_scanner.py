@@ -1,3 +1,8 @@
+"""Skill Scanner — 技能/插件安全扫描
+
+基于源码: copaw/security/skill_scanner
+COGU 实现: 恶意代码模式检测 + 风险评估
+"""
 from __future__ import annotations
 
 import re
@@ -18,6 +23,7 @@ class ScanResult:
 
 
 class SkillScanner:
+    """技能安全扫描器 — 恶意代码模式检测"""
 
     DANGEROUS_PATTERNS = [
         (r"os\.system\(", "high", "System command execution"),

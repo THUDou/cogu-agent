@@ -1,3 +1,12 @@
+"""E2B沙箱管理器 — 参考JoinAI-Agent
+
+Shell/文件/Browser隔离执行:
+  - create_sandbox: 创建隔离沙箱
+  - execute_code: 执行Python代码
+  - execute_shell: 执行Shell命令
+  - read_file/write_file: 文件操作
+  - close_sandbox: 关闭沙箱
+"""
 from __future__ import annotations
 
 import asyncio
@@ -9,6 +18,7 @@ from typing import Any, Optional
 
 @dataclass
 class SandboxInfo:
+    """沙箱实例信息"""
     sandbox_id: str = ""
     template: str = "base"
     status: str = "creating"
@@ -27,6 +37,7 @@ class SandboxInfo:
 
 @dataclass
 class ExecutionResult:
+    """执行结果"""
     exit_code: int = 0
     stdout: str = ""
     stderr: str = ""
@@ -49,6 +60,13 @@ class ExecutionResult:
 
 
 class E2BSandboxManager:
+    """E2B沙箱 — Shell/文件/Browser隔离执行
+
+    参考JoinAI-Agent的沙箱管理:
+      - 支持E2B云端沙箱和本地降级模式
+      - Shell/文件/Browser三维度隔离
+      - 超时控制和资源限制
+    """
 
     def __init__(self, api_key: str = "", timeout: float = 300.0, fallback_local: bool = True):
         self._api_key = api_key
@@ -61,6 +79,7 @@ class E2BSandboxManager:
         self._init_client()
 
     def _init_client(self):
+        """初始化E2B客户端"""
         if self._api_key:
             try:
                 from e2b import Sandbox
@@ -72,6 +91,14 @@ class E2BSandboxManager:
             self._use_e2b = False
 
     async def create_sandbox(self, template: str = "base") -> str:
+        """创建隔离沙箱
+
+        Args:
+            template: 沙箱模板 base/python/node/browser
+
+        Returns:
+            沙箱ID
+        """
         sandbox_id = f"sbx_{int(time.time())}_{template}"
 
         if self._use_e2b and self._e2b_client:
@@ -104,6 +131,15 @@ class E2BSandboxManager:
         raise RuntimeError("无法创建沙箱: E2B不可用且本地降级未启用")
 
     async def execute_code(self, sandbox_id: str, code: str) -> ExecutionResult:
+        """执行Python代码
+
+        Args:
+            sandbox_id: 沙箱ID
+            code: Python代码
+
+        Returns:
+            执行结果
+        """
         info = self._sandboxes.get(sandbox_id)
         if not info or info.status != "running":
             return ExecutionResult(exit_code=1, error="沙箱不存在或未运行")
@@ -127,6 +163,15 @@ class E2BSandboxManager:
         return await self._local_execute_python(sandbox_id, code)
 
     async def execute_shell(self, sandbox_id: str, command: str) -> ExecutionResult:
+        """执行Shell命令
+
+        Args:
+            sandbox_id: 沙箱ID
+            command: Shell命令
+
+        Returns:
+            执行结果
+        """
         info = self._sandboxes.get(sandbox_id)
         if not info or info.status != "running":
             return ExecutionResult(exit_code=1, error="沙箱不存在或未运行")
@@ -151,6 +196,15 @@ class E2BSandboxManager:
         return await self._local_execute_shell(command)
 
     async def read_file(self, sandbox_id: str, path: str) -> str:
+        """读取沙箱内文件
+
+        Args:
+            sandbox_id: 沙箱ID
+            path: 文件路径
+
+        Returns:
+            文件内容
+        """
         info = self._sandboxes.get(sandbox_id)
         if not info or info.status != "running":
             return ""
@@ -175,6 +229,13 @@ class E2BSandboxManager:
         return ""
 
     async def write_file(self, sandbox_id: str, path: str, content: str) -> None:
+        """写入沙箱内文件
+
+        Args:
+            sandbox_id: 沙箱ID
+            path: 文件路径
+            content: 文件内容
+        """
         info = self._sandboxes.get(sandbox_id)
         if not info or info.status != "running":
             return
@@ -196,6 +257,11 @@ class E2BSandboxManager:
                 f.write(content)
 
     async def close_sandbox(self, sandbox_id: str) -> None:
+        """关闭沙箱
+
+        Args:
+            sandbox_id: 沙箱ID
+        """
         info = self._sandboxes.get(sandbox_id)
         if not info:
             return
@@ -211,6 +277,7 @@ class E2BSandboxManager:
         self._sandboxes.pop(sandbox_id, None)
 
     async def _local_execute_python(self, sandbox_id: str, code: str) -> ExecutionResult:
+        """本地降级执行Python代码"""
         start = time.time()
         try:
             proc = await asyncio.create_subprocess_exec(
@@ -242,6 +309,7 @@ class E2BSandboxManager:
             )
 
     async def _local_execute_shell(self, command: str) -> ExecutionResult:
+        """本地降级执行Shell命令"""
         start = time.time()
         try:
             proc = await asyncio.create_subprocess_shell(
@@ -273,9 +341,11 @@ class E2BSandboxManager:
             )
 
     def list_sandboxes(self) -> list[dict]:
+        """列出所有沙箱"""
         return [info.to_dict() for info in self._sandboxes.values()]
 
     def get_stats(self) -> dict:
+        """获取沙箱统计"""
         return {
             "total": len(self._sandboxes),
             "running": sum(1 for s in self._sandboxes.values() if s.status == "running"),

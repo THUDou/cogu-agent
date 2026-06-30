@@ -1,3 +1,8 @@
+"""Trajectory — 完整执行轨迹数据模型
+
+灵感来源: openjiuwen agent_evolving/trajectory/types.py (TrajectoryStep + Trajectory)
+COGU 实现: 独立模块，支持 LLM 调用/工具调用/奖励/token ID 记录
+"""
 from __future__ import annotations
 
 import json
@@ -242,6 +247,7 @@ def _message_to_dict(message: Any) -> dict[str, Any]:
 
 
 class TrajectoryRegistry:
+    """轨迹注册表 — 管理多条轨迹的存储和查询"""
 
     def __init__(self, storage_dir: str | Path = "trajectories"):
         self.storage_dir = Path(storage_dir)

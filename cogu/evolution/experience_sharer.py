@@ -1,3 +1,10 @@
+"""经验跨Agent共享 — 参考openJiuwen agent_evolving/sharing
+
+跨Agent经验沉淀与共享:
+  - 将单个Agent的经验沉淀为可共享知识
+  - 支持跨Agent检索相关经验
+  - 自动合并相似经验，消除冗余
+"""
 from __future__ import annotations
 
 import hashlib
@@ -10,6 +17,7 @@ from typing import Any, Optional
 
 @dataclass
 class SharedExperience:
+    """共享经验条目"""
     experience_id: str = ""
     agent_id: str = ""
     category: str = ""
@@ -57,11 +65,19 @@ class SharedExperience:
         )
 
     def content_hash(self) -> str:
+        """计算内容哈希，用于去重"""
         content = f"{self.category}:{self.title}:{self.solution}"
         return hashlib.md5(content.encode()).hexdigest()[:12]
 
 
 class ExperienceSharer:
+    """跨Agent经验沉淀与共享
+
+    参考openJiuwen agent_evolving/sharing:
+      - share_experience: 将经验沉淀为可共享知识
+      - retrieve_shared: 检索相关经验
+      - merge_experiences: 合并相似经验
+    """
 
     def __init__(self, storage_dir: str = "", llm_client: Any = None):
         if storage_dir:
@@ -75,6 +91,7 @@ class ExperienceSharer:
         self._load_from_disk()
 
     def _load_from_disk(self):
+        """从磁盘加载已有经验"""
         exp_file = self._storage_dir / "experiences.json"
         if exp_file.exists():
             try:
@@ -87,11 +104,21 @@ class ExperienceSharer:
                 pass
 
     def _save_to_disk(self):
+        """持久化经验到磁盘"""
         exp_file = self._storage_dir / "experiences.json"
         data = [exp.to_dict() for exp in self._experiences.values()]
         exp_file.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
     async def share_experience(self, agent_id: str, experience: dict) -> str:
+        """将经验沉淀为可共享知识
+
+        Args:
+            agent_id: 来源Agent ID
+            experience: 经验数据，包含category/title/description/solution等
+
+        Returns:
+            经验ID
+        """
         exp = SharedExperience(
             experience_id=f"exp_{int(time.time())}_{hashlib.md5(json.dumps(experience, sort_keys=True).encode()).hexdigest()[:8]}",
             agent_id=agent_id,
@@ -120,6 +147,15 @@ class ExperienceSharer:
         return exp.experience_id
 
     async def retrieve_shared(self, query: str, limit: int = 5) -> list[dict]:
+        """检索相关经验
+
+        Args:
+            query: 查询关键词
+            limit: 返回数量上限
+
+        Returns:
+            匹配的经验列表
+        """
         results: list[tuple[float, SharedExperience]] = []
         query_lower = query.lower()
         query_words = set(query_lower.split())
@@ -153,6 +189,14 @@ class ExperienceSharer:
         return [exp.to_dict() for _, exp in results[:limit]]
 
     async def merge_experiences(self, experiences: list[dict]) -> dict:
+        """合并相似经验，消除冗余
+
+        Args:
+            experiences: 待合并的经验列表
+
+        Returns:
+            合并后的经验
+        """
         if not experiences:
             return {}
         if len(experiences) == 1:
@@ -179,6 +223,7 @@ class ExperienceSharer:
         return merged.to_dict()
 
     def get_stats(self) -> dict:
+        """获取共享经验统计"""
         categories: dict[str, int] = {}
         for exp in self._experiences.values():
             categories[exp.category] = categories.get(exp.category, 0) + 1

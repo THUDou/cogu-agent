@@ -1,3 +1,12 @@
+"""进化信号检测器 — 参考openJiuwen agent_evolving/signal
+
+从运行时数据中检测进化信号，驱动Agent自进化闭环:
+  - 执行失败信号
+  - 用户意图信号
+  - 轨迹异常信号
+  - 对话审查信号
+  - 工具失败信号
+"""
 from __future__ import annotations
 
 import re
@@ -24,6 +33,7 @@ class SignalSeverity(Enum):
 
 @dataclass
 class EvolutionSignal:
+    """进化信号 — 触发自进化的最小单元"""
     signal_type: EvolutionSignalType
     severity: SignalSeverity = SignalSeverity.MEDIUM
     source: str = ""
@@ -80,6 +90,13 @@ _EXECUTION_FAILURE_PATTERNS = [
 
 
 class SignalDetector:
+    """从运行时数据中检测进化信号
+
+    参考openJiuwen agent_evolving/signal:
+      - 从session数据中提取信号
+      - 从异常中提取信号
+      - 从用户反馈中提取信号
+    """
 
     def __init__(self, llm_client: Any = None):
         self.llm = llm_client
@@ -87,6 +104,14 @@ class SignalDetector:
         self._max_history: int = 1000
 
     def detect_from_session(self, session_data: dict) -> list[EvolutionSignal]:
+        """从session数据中检测进化信号
+
+        Args:
+            session_data: 包含turns/errors/tools等信息的session数据
+
+        Returns:
+            检测到的进化信号列表
+        """
         signals: list[EvolutionSignal] = []
         session_id = session_data.get("session_id", "")
         agent_id = session_data.get("agent_id", "")
@@ -127,6 +152,15 @@ class SignalDetector:
         return signals
 
     def detect_from_error(self, error: Exception, context: dict) -> Optional[EvolutionSignal]:
+        """从异常中检测进化信号
+
+        Args:
+            error: 异常对象
+            context: 上下文信息
+
+        Returns:
+            检测到的进化信号，或None
+        """
         error_msg = str(error)
         error_type = type(error).__name__
         severity = SignalSeverity.MEDIUM
@@ -160,12 +194,21 @@ class SignalDetector:
         return signal
 
     def detect_from_user_feedback(self, feedback: str) -> Optional[EvolutionSignal]:
+        """从用户反馈中检测进化信号
+
+        Args:
+            feedback: 用户反馈文本
+
+        Returns:
+            检测到的进化信号，或None
+        """
         signal = self._detect_intent_from_message(feedback, "", "")
         if signal:
             self._record_signals([signal])
         return signal
 
     def _detect_execution_error(self, error_data: dict, session_id: str, agent_id: str) -> Optional[EvolutionSignal]:
+        """从执行错误中检测信号"""
         error_msg = error_data.get("message", "") or error_data.get("error", "")
         if not error_msg:
             return None
@@ -187,6 +230,7 @@ class SignalDetector:
         )
 
     def _detect_intent_from_message(self, message: str, session_id: str, agent_id: str) -> Optional[EvolutionSignal]:
+        """从用户消息中检测意图信号"""
         for pattern, intent_type in _USER_INTENT_PATTERNS:
             if re.search(pattern, message):
                 severity = SignalSeverity.MEDIUM
@@ -207,6 +251,7 @@ class SignalDetector:
         return None
 
     def _detect_trajectory_issues(self, session_data: dict, session_id: str, agent_id: str) -> list[EvolutionSignal]:
+        """检测轨迹异常"""
         signals: list[EvolutionSignal] = []
         turns = session_data.get("turns", [])
 
@@ -241,11 +286,13 @@ class SignalDetector:
         return signals
 
     def _record_signals(self, signals: list[EvolutionSignal]):
+        """记录信号到历史"""
         self._signal_history.extend(signals)
         if len(self._signal_history) > self._max_history:
             self._signal_history = self._signal_history[-self._max_history:]
 
     def get_signal_history(self, signal_type: Optional[EvolutionSignalType] = None, limit: int = 50) -> list[EvolutionSignal]:
+        """获取信号历史"""
         if signal_type:
             filtered = [s for s in self._signal_history if s.signal_type == signal_type]
         else:
@@ -253,6 +300,7 @@ class SignalDetector:
         return filtered[-limit:]
 
     def get_signal_stats(self) -> dict:
+        """获取信号统计"""
         stats: dict[str, int] = {}
         for sig_type in EvolutionSignalType:
             stats[sig_type.value] = sum(1 for s in self._signal_history if s.signal_type == sig_type)

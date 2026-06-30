@@ -1,3 +1,4 @@
+"""Node Types REST API — 工作流节点类型注册表"""
 from __future__ import annotations
 
 from fastapi import APIRouter

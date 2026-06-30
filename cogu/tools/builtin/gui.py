@@ -1,3 +1,21 @@
+"""
+COGU GUI Agent — 参考 CogAgent (清华KEG+智谱AI) 的 Action Space 设计
+
+Action Space 定义:
+  鼠标操作: CLICK, DOUBLE_CLICK, RIGHT_CLICK, HOVER
+  文本输入: TYPE
+  滚动操作: SCROLL_UP, SCROLL_DOWN, SCROLL_LEFT, SCROLL_RIGHT
+  键盘按键: KEY_PRESS
+  组合键:   GESTURE (KEY_DOWN + KEY_PRESS + KEY_UP)
+  启动应用: LAUNCH
+  引用文本: QUOTE_TEXT (OCR)
+  引用剪贴板: QUOTE_CLIPBOARD
+  调用LLM:  LLM (嵌套推理)
+  截图:     SCREENSHOT
+  结束:     END
+
+坐标系统: box=[[x1,y1,x2,y2]], 值范围 000-999 (归一化坐标 * 1000)
+"""
 
 import asyncio
 import base64

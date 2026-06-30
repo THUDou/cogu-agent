@@ -1,3 +1,8 @@
+"""Benchmark — 自动化基准测试
+
+基于源码: EvoMaster benchmark + OAgents evaluation
+COGU 实现: 模型/工具对比 + 自动化评估
+"""
 from __future__ import annotations
 
 import time
@@ -16,6 +21,7 @@ class BenchmarkResult:
 
 
 class BenchmarkSuite:
+    """自动化基准测试 — 模型/工具对比"""
 
     def __init__(self):
         self._benchmarks: dict[str, Callable] = {}

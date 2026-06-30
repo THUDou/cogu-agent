@@ -1,3 +1,9 @@
+"""Incremental Index — 增量索引
+
+基于源码: Claude Code file-search/ (增量文件索引)
+         + Claude Code ToolSearchTool (工具搜索)
+COGU 实现: 文件增量索引 + 内容搜索 + 变更检测
+"""
 from __future__ import annotations
 
 import hashlib
@@ -28,6 +34,7 @@ class SearchResult:
 
 
 class IncrementalIndex:
+    """增量索引 — 文件索引 + 变更检测 + 内容搜索"""
 
     def __init__(self, index_dir: str | Path = ".cogu/index"):
         self._index_dir = Path(index_dir)

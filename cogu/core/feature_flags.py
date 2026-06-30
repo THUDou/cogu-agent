@@ -1,3 +1,7 @@
+"""Feature Flags — Feature Flag 系统
+
+基于源码: Claude Code Feature Flags + GrowthBook 实验平台
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -15,6 +19,7 @@ class FeatureFlag:
 
 
 class FeatureFlagManager:
+    """Feature Flag 管理器"""
 
     def __init__(self):
         self._flags: dict[str, FeatureFlag] = {}

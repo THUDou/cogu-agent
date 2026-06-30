@@ -1,3 +1,8 @@
+"""Security Auditor — 安全审计
+
+基于源码: ECC AgentShield (1282 tests, 102 rules)
+COGU 实现: 自动化安全扫描 + 漏洞检测
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -17,6 +22,7 @@ class AuditResult:
 
 
 class SecurityAuditor:
+    """安全审计器 — 自动化扫描 + 漏洞检测"""
 
     def __init__(self):
         self._rules: list[dict[str, Any]] = []

@@ -1,3 +1,8 @@
+"""Agent Groups — 多 Agent 协作模式
+
+基于源码: CangjieMagic src/agent_group/ (LinearGroup + LeaderGroup + FreeGroup)
+COGU 实现: 线性管线 + Leader-Worker + 自由讨论
+"""
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -21,6 +26,7 @@ class AgentResponse:
 
 
 class AgentGroup(ABC):
+    """Agent Group 基类 — CangjieMagic 模式"""
 
     @abstractmethod
     def chat(self, request: AgentRequest) -> AgentResponse:
@@ -36,6 +42,7 @@ class AgentGroup(ABC):
 
 
 class LinearGroup(AgentGroup):
+    """线性管线 — 前一个 Agent 的输出作为下一个的输入"""
 
     def __init__(self, members: list[Callable] | None = None):
         self._members = members or []
@@ -63,6 +70,7 @@ class LinearGroup(AgentGroup):
 
 
 class LeaderGroup(AgentGroup):
+    """Leader-Worker 模式 — Leader 分配任务给 Worker"""
 
     def __init__(self, leader: Callable, members: list[Callable] | None = None):
         self._leader = leader
@@ -88,6 +96,7 @@ class LeaderGroup(AgentGroup):
 
 
 class FreeGroup(AgentGroup):
+    """自由讨论模式 — 所有 Agent 同时参与"""
 
     def __init__(self, members: list[Callable] | None = None, max_rounds: int = 3):
         self._members = members or []

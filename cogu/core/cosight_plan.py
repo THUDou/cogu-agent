@@ -1,3 +1,10 @@
+"""CoSight Plan — Plan DAG + 依赖管理 + 并行执行
+
+基于源码: Co-Sight app/cosight/task/todolist.py (Plan DAG + get_ready_steps)
+         + Co-Sight app/cosight/tool/plan_toolkit.py (create_plan/update_plan)
+         + Co-Sight app/cosight/tool/act_toolkit.py (mark_step)
+COGU 实现: Plan DAG + PlanToolkit + ActToolkit + 并行步骤执行
+"""
 from __future__ import annotations
 
 import time
@@ -25,6 +32,7 @@ class PlanStep:
 
 
 class PlanDAG:
+    """Plan DAG — Co-Sight 风格的计划管理"""
 
     def __init__(self, title: str = "", steps: list[str] | None = None, dependencies: dict[int, list[int]] | None = None):
         self.title = title
@@ -125,6 +133,7 @@ class PlanDAG:
 
 
 class PlanToolkit:
+    """PlanToolkit — Co-Sight 风格的计划管理工具"""
 
     def __init__(self, plan: PlanDAG | None = None):
         self.plan = plan or PlanDAG()
@@ -139,6 +148,7 @@ class PlanToolkit:
 
 
 class ActToolkit:
+    """ActToolkit — Co-Sight 风格的步骤执行工具"""
 
     def __init__(self, plan: PlanDAG | None = None):
         self.plan = plan

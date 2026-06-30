@@ -1,3 +1,10 @@
+"""从历史session中蒸馏最佳实践 — 参考MiMo-Code /distill
+
+从历史session中发现重复工作流并打包为可复用skill:
+  - distill: 从session中蒸馏最佳实践
+  - detect_patterns: 检测重复模式
+  - generate_skill_from_pattern: 从模式生成skill
+"""
 from __future__ import annotations
 
 import hashlib
@@ -10,6 +17,7 @@ from typing import Any, Optional
 
 @dataclass
 class DistillResult:
+    """蒸馏结果"""
     pattern_name: str = ""
     pattern_type: str = ""
     occurrences: int = 0
@@ -32,6 +40,7 @@ class DistillResult:
 
 @dataclass
 class WorkflowPattern:
+    """检测到的工作流模式"""
     pattern_id: str = ""
     pattern_type: str = ""
     description: str = ""
@@ -55,6 +64,13 @@ class WorkflowPattern:
 
 
 class Distiller:
+    """从历史session中发现重复工作流并打包为可复用skill
+
+    参考MiMo-Code /distill:
+      - 从历史session中提取工具调用序列
+      - 检测重复出现的工作流模式
+      - 将高频模式打包为可复用skill
+    """
 
     def __init__(self, storage_dir: str = "", llm_client: Any = None):
         if storage_dir:
@@ -71,6 +87,15 @@ class Distiller:
         session_ids: list[str] | None = None,
         min_occurrences: int = 2,
     ) -> list[DistillResult]:
+        """从历史session中蒸馏最佳实践
+
+        Args:
+            session_ids: 指定session，None则扫描全部
+            min_occurrences: 最小出现次数阈值
+
+        Returns:
+            蒸馏结果列表
+        """
         sessions = self._load_sessions(session_ids)
         if not sessions:
             return []
@@ -102,6 +127,13 @@ class Distiller:
         return results
 
     def _detect_patterns(self, sessions: list[dict]) -> list[WorkflowPattern]:
+        """检测重复工作流模式
+
+        策略:
+          1. 工具调用序列模式 — 相同的tool序列重复出现
+          2. 错误恢复模式 — 相同错误→相同修复
+          3. 任务完成模式 — 相同目标→相同步骤
+        """
         patterns: list[WorkflowPattern] = []
 
         tool_seq_map: dict[str, WorkflowPattern] = {}
@@ -178,6 +210,14 @@ class Distiller:
         return patterns
 
     def _generate_skill_from_pattern(self, pattern: WorkflowPattern) -> Optional[dict]:
+        """从模式生成skill定义
+
+        Args:
+            pattern: 检测到的工作流模式
+
+        Returns:
+            skill定义字典，或None
+        """
         if pattern.pattern_type == "tool_sequence":
             steps = []
             for i, tool in enumerate(pattern.tool_sequence, 1):
@@ -222,6 +262,7 @@ class Distiller:
         return None
 
     def _load_sessions(self, session_ids: list[str] | None = None) -> list[dict]:
+        """加载session数据"""
         sessions: list[dict] = []
         sessions_dir = self._storage_dir / "sessions"
         if not sessions_dir.exists():
@@ -241,6 +282,7 @@ class Distiller:
         return sessions
 
     def _save_distilled(self):
+        """持久化蒸馏结果"""
         output_file = self._storage_dir / "distilled_skills.json"
         existing = []
         if output_file.exists():
@@ -256,6 +298,7 @@ class Distiller:
         )
 
     def get_distilled_skills(self) -> list[dict]:
+        """获取已蒸馏的skill列表"""
         output_file = self._storage_dir / "distilled_skills.json"
         if output_file.exists():
             try:
@@ -265,6 +308,7 @@ class Distiller:
         return []
 
     def get_stats(self) -> dict:
+        """获取蒸馏统计"""
         return {
             "patterns_detected": len(self._patterns),
             "skills_distilled": len(self._distilled_skills),

@@ -1,3 +1,9 @@
+"""Hook — 事件驱动钩子系统
+
+基于源码: Claude Code hooks/ (9事件 + command/prompt类型 + exit code语义)
+         + ECC hooks/hooks.json (PreToolUse/PostToolUse/Stop/SessionStart)
+         + OpenAI Codex hooks/ (Pre/Post tool-use hook dispatch)
+"""
 from __future__ import annotations
 
 import asyncio
@@ -194,6 +200,7 @@ class HookManager:
 
 
 class ErrorRecoveryCascade:
+    """7级错误恢复 — 基于 Claude Code 的渐进降级策略"""
 
     def __init__(self):
         self._levels: list[Callable] = []

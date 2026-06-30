@@ -1,3 +1,8 @@
+"""Cloud Sync — Cloud Sync
+
+基于源码: cc-switch cloud sync (Dropbox/OneDrive/iCloud)
+COGU 实现: 记忆/设置跨设备同步
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -21,6 +26,7 @@ class SyncConfig:
 
 
 class CloudSync:
+    """Cloud Sync — 记忆/设置跨设备同步"""
 
     def __init__(self, config: SyncConfig | None = None):
         self.config = config or SyncConfig()

@@ -1,3 +1,11 @@
+"""
+openPangu-Embedded-1B OpenAI 兼容 API 服务器
+
+启动后提供与 OpenAI API 兼容的接口，可被 COGU Agent 的 MultiProviderClient 直接调用。
+
+用法:
+    python -m engine.server [--host 127.0.0.1] [--port 8199]
+"""
 
 import argparse
 import json

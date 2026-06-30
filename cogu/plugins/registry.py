@@ -1,3 +1,7 @@
+"""Plugin Registry — 插件注册 + 生命周期
+
+基于源码: Claude Code Plugin architecture + ECC plugin system
+"""
 from __future__ import annotations
 
 import importlib
@@ -21,6 +25,7 @@ class PluginInfo:
 
 
 class PluginRegistry:
+    """插件注册表 — 发现、加载、生命周期管理"""
 
     def __init__(self, plugin_dirs: list[str | Path] | None = None):
         self._plugins: dict[str, PluginBase] = {}

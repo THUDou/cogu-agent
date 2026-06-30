@@ -1,3 +1,8 @@
+"""Zero Cost — 零成本浏览器模式
+
+基于源码: openclaw-zero-token (浏览器登录免费访问 13+ 提供商)
+COGU 实现: 浏览器自动化 + 零成本推理
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -13,6 +18,7 @@ class ZeroCostProvider:
 
 
 class ZeroCostMode:
+    """零成本模式 — 浏览器自动化免费访问"""
 
     PROVIDERS = [
         ZeroCostProvider("ChatGPT", "https://chat.openai.com", True),

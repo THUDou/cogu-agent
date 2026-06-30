@@ -1,3 +1,10 @@
+"""Practice — 练习任务库 + 经验累积
+
+灵感来源: Youtu-Agent practice/ (rollout_manager + experience_updater + training_free_grpo)
+基于源码: utu/practice/training_free_grpo.py (build→practice→extract)
+         + utu/practice/rollout_manager.py (batch processing pipeline)
+         + utu/practice/experience_updater.py (trajectory→advantages→update)
+"""
 from __future__ import annotations
 
 import time
@@ -128,6 +135,7 @@ class PracticeBank:
 
 
 class ExperienceUpdater:
+    """经验更新器 — 基于 Yantu-Agent experience_updater.py 的简化版"""
 
     def __init__(self, llm_client: Any = None):
         self.llm = llm_client
@@ -179,6 +187,7 @@ class ExperienceUpdater:
 
 
 class PracticeRunner:
+    """练习执行器 — 基于 Youtu-Agent rollout_manager.py 的简化版"""
 
     def __init__(self, agent_handler: Callable[[str], Any] | None = None, evaluator: Callable | None = None):
         self.agent_handler = agent_handler

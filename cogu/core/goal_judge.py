@@ -1,3 +1,14 @@
+"""GoalJudge — 独立目标完成度评估器
+
+借鉴小米 MiMo-Code 的 Goal+Judge 机制，防止 Agent "乐观停止"：
+Agent 声称完成但实际未达成目标时，GoalJudge 独立评估并决定是否继续循环。
+
+核心流程：
+1. Agent 检测到终止信号（声称目标达成）
+2. GoalJudge 独立评估：目标 + 成功标准 + 对话摘要 + Agent声明
+3. ACHIEVED → 真正终止；NOT_ACHIEVED/PARTIAL → 继续循环
+4. 最多重试 max_judge_retries 次
+"""
 from __future__ import annotations
 
 import json
@@ -58,14 +69,19 @@ class JudgeResult:
 
 _JUDGE_PROMPT_TEMPLATE = """你是一个目标完成度评估专家。你需要独立判断Agent是否真正完成了用户设定的目标。
 
+## 目标
 {goal_text}
 
+## 成功标准
 {success_criteria}
 
+## Agent的最终声明
 {agent_claim}
 
+## 对话摘要
 {conversation_summary}
 
+## 评估要求
 1. 逐条检查每个成功标准是否被满足
 2. 不要仅凭Agent的声明判断，要基于实际对话内容
 3. 如果Agent声称完成但对话中没有证据支持，判定为NOT_ACHIEVED

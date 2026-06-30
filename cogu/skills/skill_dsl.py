@@ -1,3 +1,8 @@
+"""Skill DSL — 声明式技能定义
+
+基于源码: CangjieMagic src/skill/ (@agent @tool @prompt DSL 模式)
+COGU 实现: 装饰器式技能定义 + 自动注册
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -19,6 +24,7 @@ _TOOL_REGISTRY: dict[str, Callable] = {}
 
 
 def skill(name: str = "", description: str = "", tools: list[str] | None = None):
+    """装饰器: @skill 定义技能"""
     def decorator(func):
         skill_name = name or func.__name__
         skill_def = SkillDef(name=skill_name, description=description or func.__doc__ or "", tools=tools or [])
@@ -29,6 +35,7 @@ def skill(name: str = "", description: str = "", tools: list[str] | None = None)
 
 
 def tool(name: str = "", description: str = ""):
+    """装饰器: @tool 注册工具"""
     def decorator(func):
         tool_name = name or func.__name__
         _TOOL_REGISTRY[tool_name] = func

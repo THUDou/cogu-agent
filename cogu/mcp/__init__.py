@@ -1,3 +1,7 @@
+"""
+COGU MCP — Model Context Protocol 全栈客户端 + A2A Agent-to-Agent 协议
+融合 Syll MCP (Schema归一化/command_hash/3层认证) + Mini-Agent MCP适配器 + openJiuwen A2A
+"""
 
 from cogu.mcp.manager import MCPManager
 from cogu.mcp.session import MCPSession

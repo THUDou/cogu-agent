@@ -1,3 +1,8 @@
+"""Instinct — Instinct 连续学习
+
+基于源码: ECC continuous-learning-v2/ (Instinct 系统)
+COGU 实现: 从 session 提取模式 + 置信度评分 + 导入/导出
+"""
 from __future__ import annotations
 
 import json
@@ -35,6 +40,7 @@ class Instinct:
 
 
 class InstinctLearner:
+    """Instinct 连续学习器 — 从 session 提取模式"""
 
     def __init__(self, storage_path: str | Path = ".cogu/instincts"):
         self._path = Path(storage_path)
@@ -65,6 +71,7 @@ class InstinctLearner:
             json.dump(data, f, ensure_ascii=False, indent=2)
 
     def extract_instincts(self, session_data: dict[str, Any]) -> list[Instinct]:
+        """从 session 数据提取 instinct"""
         new_instincts = []
         messages = session_data.get("messages", [])
         tool_calls = session_data.get("tool_calls", [])

@@ -1,3 +1,4 @@
+"""Evaluator REST API — 评估器与实验管理"""
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException

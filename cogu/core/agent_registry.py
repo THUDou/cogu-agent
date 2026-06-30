@@ -1,3 +1,8 @@
+"""Agent Registry — Agent 注册 + 能力匹配
+
+基于源码: OpenAI Codex AgentRegistry (多 Agent 编排)
+COGU 实现: Agent 发现 + 能力匹配 + 负载均衡
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -24,6 +29,7 @@ class AgentEntry:
 
 
 class AgentRegistry:
+    """Agent 注册表 — 发现 + 能力匹配 + 负载均衡"""
 
     def __init__(self):
         self._agents: dict[str, AgentEntry] = {}

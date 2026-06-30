@@ -1,3 +1,8 @@
+"""Agent Catalog — 67 Agent .md 目录
+
+基于源码: ECC agents/ (67 Agent 定义为 .md 文件)
+COGU 实现: Agent 目录 + 能力描述 + 自动发现
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -29,6 +34,7 @@ DEFAULT_AGENTS = [
 
 
 class AgentCatalog:
+    """Agent 目录 — 67 Agent .md 定义"""
 
     def __init__(self, catalog_dir: str | Path = ".cogu/agent_catalog"):
         self._catalog_dir = Path(catalog_dir)

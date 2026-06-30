@@ -1,3 +1,4 @@
+"""Knowledge RAG REST API — 知识库检索与索引"""
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException

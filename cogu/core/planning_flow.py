@@ -1,3 +1,8 @@
+"""Planning Flow — 规划流程 + 步骤分发
+
+基于源码: OpenManus PlanningFlow (LLM 驱动计划 + 步骤分发)
+COGU 实现: 步骤标签分发 + 并行执行
+"""
 from __future__ import annotations
 
 import asyncio
@@ -57,6 +62,7 @@ class Plan:
 
 
 class PlanningFlow:
+    """规划流程 — LLM 驱动计划 + 步骤分发"""
 
     def __init__(self, agent_handlers: dict[str, Callable] | None = None):
         self._handlers = agent_handlers or {}

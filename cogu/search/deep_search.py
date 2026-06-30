@@ -1,3 +1,8 @@
+"""DeepSearch — 知识增强深度搜索与研究引擎
+
+灵感来源: openjiuwen DeepSearch (查询规划 → 信息收集 → 理解反思 → 报告生成)
+COGU 实现: 独立模块，支持查询规划 + 多步搜索 + 来源溯源 + 报告生成
+"""
 from __future__ import annotations
 
 import json
@@ -110,6 +115,7 @@ class ResearchReport:
 
 
 class SearchBackend:
+    """搜索后端抽象"""
 
     async def search(self, query: str, limit: int = 10) -> SearchResult:
         return SearchResult(query=query)
@@ -119,6 +125,7 @@ class SearchBackend:
 
 
 class WebSearchBackend(SearchBackend):
+    """基于 DuckDuckGo 的网页搜索"""
 
     async def search(self, query: str, limit: int = 10) -> SearchResult:
         try:
@@ -149,6 +156,7 @@ class WebSearchBackend(SearchBackend):
 
 
 class KnowledgeBaseBackend(SearchBackend):
+    """本地知识库搜索"""
 
     def __init__(self, knowledge_dir: str | Path = "."):
         self.knowledge_dir = Path(knowledge_dir)
@@ -180,6 +188,10 @@ class KnowledgeBaseBackend(SearchBackend):
 
 
 class DeepSearchEngine:
+    """深度搜索引擎
+
+    流程: 查询规划 → 多步搜索 → 来源溯源 → 报告生成
+    """
 
     def __init__(
         self,

@@ -1,3 +1,8 @@
+"""Error Recovery — 7级错误恢复级联
+
+基于源码: Claude Code 7-level error recovery cascade
+         + OpenAI Codex ExecPolicy rule evaluation
+"""
 from __future__ import annotations
 
 import asyncio
@@ -27,6 +32,7 @@ class RecoveryResult:
 
 
 class ErrorRecoveryCascade:
+    """7级错误恢复 — 基于 Claude Code 的渐进降级策略"""
 
     def __init__(self):
         self._levels: list[tuple[RecoveryLevel, Callable]] = []

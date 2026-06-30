@@ -1,3 +1,10 @@
+"""Skill渐进式披露索引器 — 参考万悟openapi2skill/mcp2skill
+
+核心能力:
+  - 扫描所有SKILL.md，生成摘要索引
+  - 按级别返回内容（summary/detail/full）
+  - FTS5全文搜索
+"""
 from __future__ import annotations
 
 import json
@@ -13,6 +20,7 @@ from cogu.skills.skill_schema import SkillManifest, DisclosureLevel
 
 @dataclass
 class SkillIndexEntry:
+    """索引条目 — 每个skill的摘要"""
     name: str = ""
     version: str = ""
     description: str = ""
@@ -36,6 +44,13 @@ class SkillIndexEntry:
 
 
 class SkillIndexer:
+    """Skill渐进式披露索引器
+
+    参考万悟openapi2skill/mcp2skill的渐进式披露设计:
+      - summary: 仅name+description+tags（用于快速浏览）
+      - detail: +persona+recipes+steps（用于决策）
+      - full: 完整SKILL.md内容（用于执行）
+    """
 
     def __init__(self, db_path: str = ""):
         if db_path:
@@ -47,6 +62,7 @@ class SkillIndexer:
         self._init_db()
 
     def _init_db(self):
+        """初始化FTS5搜索数据库"""
         db_dir = Path(self._db_path).parent
         db_dir.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(self._db_path)
@@ -61,6 +77,8 @@ class SkillIndexer:
                 risk_level TEXT,
                 full_content TEXT
             )
+        """)
+        conn.execute("""
             CREATE VIRTUAL TABLE IF NOT EXISTS skill_search USING fts5(
                 name,
                 description,
@@ -71,12 +89,57 @@ class SkillIndexer:
                 content=skill_fts,
                 content_rowid=rowid
             )
+        """)
+        conn.commit()
+        conn.close()
+
+    def build_index(self, skills_dir: str) -> dict:
+        """扫描所有SKILL.md，生成摘要索引
 
         Args:
             skills_dir: skill根目录，递归扫描所有SKILL.md
 
         Returns:
             索引统计 {"total": N, "new": N, "updated": N, "errors": N}
+        """
+        stats = {"total": 0, "new": 0, "updated": 0, "errors": 0}
+        base = Path(skills_dir)
+        if not base.is_dir():
+            return stats
+
+        for skill_md in base.rglob("SKILL.md"):
+            stats["total"] += 1
+            try:
+                manifest = SkillManifest.from_markdown(str(skill_md))
+                if not manifest or not manifest.name:
+                    stats["errors"] += 1
+                    continue
+
+                is_new = manifest.name not in self._manifests
+                if is_new:
+                    stats["new"] += 1
+                else:
+                    stats["updated"] += 1
+
+                self._manifests[manifest.name] = manifest
+                self._entries[manifest.name] = SkillIndexEntry(
+                    name=manifest.name,
+                    version=manifest.version,
+                    description=manifest.description,
+                    category=manifest.category.value,
+                    tags=manifest.tags,
+                    risk_level=manifest.risk_level.value,
+                    source=manifest.source,
+                    indexed_at=time.time(),
+                )
+                self._update_fts(manifest)
+            except Exception:
+                stats["errors"] += 1
+
+        return stats
+
+    def _update_fts(self, manifest: SkillManifest):
+        """更新FTS5索引"""
         conn = sqlite3.connect(self._db_path)
         try:
             persona_role = manifest.persona.role.value if manifest.persona else ""
@@ -86,11 +149,17 @@ class SkillIndexer:
 
             conn.execute("DELETE FROM skill_fts WHERE name = ?", (manifest.name,))
             conn.execute(
+                """INSERT INTO skill_fts (name, description, category, tags,
+                   persona_role, recipe_names, risk_level, full_content)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
                 (manifest.name, manifest.description, manifest.category.value,
                  tags_str, persona_role, recipe_names, manifest.risk_level.value, full_content),
             )
             conn.execute("DELETE FROM skill_search WHERE name = ?", (manifest.name,))
             conn.execute(
+                """INSERT INTO skill_search (name, description, category, tags,
+                   persona_role, recipe_names)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
                 (manifest.name, manifest.description, manifest.category.value,
                  tags_str, persona_role, recipe_names),
             )
@@ -99,6 +168,15 @@ class SkillIndexer:
             conn.close()
 
     def progressive_disclose(self, skill_name: str, level: str = "summary") -> str:
+        """按级别返回内容 — 渐进式披露
+
+        Args:
+            skill_name: skill名称
+            level: summary/detail/full
+
+        Returns:
+            对应级别的skill内容
+        """
         manifest = self._manifests.get(skill_name)
         if not manifest:
             return ""
@@ -111,10 +189,24 @@ class SkillIndexer:
             return manifest.render_summary()
 
     def search_skills(self, query: str, limit: int = 10) -> list[dict]:
+        """FTS5全文搜索
+
+        Args:
+            query: 搜索关键词
+            limit: 返回数量上限
+
+        Returns:
+            匹配的skill列表，每项包含name/description/category/score
+        """
         results = []
         conn = sqlite3.connect(self._db_path)
         try:
             cursor = conn.execute(
+                """SELECT name, description, category, tags, rank
+                   FROM skill_search
+                   WHERE skill_search MATCH ?
+                   ORDER BY rank
+                   LIMIT ?""",
                 (query, limit),
             )
             for row in cursor.fetchall():
@@ -132,6 +224,7 @@ class SkillIndexer:
         return results
 
     def _fallback_search(self, query: str, limit: int) -> list[dict]:
+        """FTS5不可用时的降级搜索"""
         results = []
         query_lower = query.lower()
         for name, entry in self._entries.items():
@@ -155,12 +248,15 @@ class SkillIndexer:
         return results[:limit]
 
     def get_manifest(self, name: str) -> Optional[SkillManifest]:
+        """获取完整manifest"""
         return self._manifests.get(name)
 
     def list_indexed(self) -> list[SkillIndexEntry]:
+        """列出所有已索引skill"""
         return list(self._entries.values())
 
     def get_stats(self) -> dict:
+        """获取索引统计"""
         categories: dict[str, int] = {}
         for entry in self._entries.values():
             categories[entry.category] = categories.get(entry.category, 0) + 1
@@ -171,6 +267,7 @@ class SkillIndexer:
         }
 
     def remove_skill(self, name: str) -> bool:
+        """从索引中移除skill"""
         if name not in self._manifests:
             return False
         del self._manifests[name]

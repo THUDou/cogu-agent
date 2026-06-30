@@ -1,3 +1,9 @@
+"""AutoToolGen — 自动工具生成
+
+灵感来源: Youtu-Agent meta/simple_agent_generator.py + tool_generator_mcp.py
+基于源码: utu/meta/simple_agent_generator.py (4-step pipeline)
+         + utu/meta/tool_generator_mcp.py (MCP tool generation)
+"""
 from __future__ import annotations
 
 import json
@@ -31,6 +37,7 @@ class ToolGenResult:
 
 
 class ToolSpecSynthesizer:
+    """从自然语言描述生成 ToolSpec"""
 
     def __init__(self, llm_client: Any = None):
         self.llm = llm_client
@@ -74,6 +81,7 @@ class ToolSpecSynthesizer:
 
 
 class ToolVerifier:
+    """验证生成工具的可用性"""
 
     def __init__(self):
         self._verified: dict[str, bool] = {}
@@ -108,6 +116,7 @@ class ToolVerifier:
 
 
 class AutoToolGenerator:
+    """自动工具生成管线 — 基于 Yantu-Agent meta/simple_agent_generator.py"""
 
     def __init__(self, llm_client: Any = None):
         self.synthesizer = ToolSpecSynthesizer(llm_client)

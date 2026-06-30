@@ -1,3 +1,10 @@
+"""
+COGU Evolution — 自进化系统
+融合 Hermes Self-Evolution + LoongFlow MAP-Elites + X-OmniClaw Memory Evolution
++ openJiuwen agent_evolving Trajectory
++ Agent0 Curriculum/CoEvolution/ADPO + Youtu-Agent Training-Free GRPO + OpenSkill Verifier
+基于源码: EvoMaster playground.py/evolution/ + Yantu-Agent practice/ + CognitiveKernel-Pro
+"""
 
 from cogu.evolution.config import EvolutionConfig
 from cogu.evolution.fitness import FitnessEvaluator

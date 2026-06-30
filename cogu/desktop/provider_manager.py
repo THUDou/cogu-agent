@@ -1,3 +1,8 @@
+"""Provider Manager — Provider 管理 UI
+
+基于源码: cc-switch provider management
+COGU 实现: Provider CRUD + 配置管理
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -15,6 +20,7 @@ class ProviderConfig:
 
 
 class ProviderManager:
+    """Provider 管理器"""
 
     def __init__(self):
         self._providers: dict[str, ProviderConfig] = {}

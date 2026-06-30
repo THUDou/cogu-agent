@@ -1,3 +1,8 @@
+"""Pipe IPC — 多实例 Agent 协作
+
+基于源码: Claude Code Best Pipe IPC multi-instance
+COGU 实现: 进程间通信 + 消息路由
+"""
 from __future__ import annotations
 
 import asyncio
@@ -18,6 +23,7 @@ class IPCMessage:
 
 
 class PipeIPC:
+    """进程间通信 — 多实例 Agent 协作"""
 
     def __init__(self, agent_id: str):
         self.agent_id = agent_id

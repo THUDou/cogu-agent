@@ -1,3 +1,8 @@
+"""Verifier — 自动验证 + 防泄漏屏障
+
+灵感来源: OpenSkill VirtualVerifier + LeakageBarrier
+基于论文: arXiv 2606.06741 (OpenSkill)
+"""
 from __future__ import annotations
 
 import hashlib

@@ -1,3 +1,20 @@
+"""MCP adapter for COGU — supports stdio / SSE / HTTP / StreamableHTTP.
+
+Ported from Mini-Agent mini_agent/tools/mcp_loader.py (MiniMax),
+with COGU tool system integration.
+
+Requires::
+
+    pip install mcp>=1.0
+
+Usage::
+
+    from cogu.tools.mcp_adapter import load_mcp_tools, cleanup_mcp
+    tools = await load_mcp_tools("mcp.json")
+    # register into ToolRegistry
+    for t in tools:
+        registry.register(t)
+"""
 
 from __future__ import annotations
 
@@ -11,10 +28,16 @@ from typing import Any, Literal
 
 from cogu.tools.base import ToolSpec, ToolResult
 
+# ---------------------------------------------------------------------------
+# Connection type
+# ---------------------------------------------------------------------------
 
 ConnectionType = Literal["stdio", "sse", "http", "streamable_http"]
 
 
+# ---------------------------------------------------------------------------
+# Timeout config
+# ---------------------------------------------------------------------------
 
 @dataclass
 class MCPTimeoutConfig:
@@ -39,8 +62,12 @@ def get_mcp_timeout() -> MCPTimeoutConfig:
     return _default_timeout
 
 
+# ---------------------------------------------------------------------------
+# COGU MCP Tool wrapper
+# ---------------------------------------------------------------------------
 
 class MCPTool(ToolSpec):
+    """COGU Tool wrapping one MCP server tool call."""
 
     def __init__(self, name: str, description: str, parameters: dict[str, Any],
                  session: Any, execute_timeout: float | None = None):
@@ -86,6 +113,9 @@ class MCPTool(ToolSpec):
             return ToolResult(success=False, content="", error=f"MCP error: {e}")
 
 
+# ---------------------------------------------------------------------------
+# MCP Server connection manager
+# ---------------------------------------------------------------------------
 
 class MCPServerConnection:
     def __init__(self, name: str, connection_type: ConnectionType = "stdio",
@@ -170,6 +200,9 @@ class MCPServerConnection:
         await self._safe_close()
 
 
+# ---------------------------------------------------------------------------
+# Config loader
+# ---------------------------------------------------------------------------
 
 def _resolve_config(path: str) -> Path | None:
     p = Path(path)

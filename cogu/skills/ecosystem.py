@@ -1,3 +1,8 @@
+"""Ecosystem — 12 语言生态规则
+
+基于源码: ECC rules/ (12 语言生态系统)
+COGU 实现: 语言规则 + 技能模板
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -73,6 +78,7 @@ ECOSYSTEM_RULES = {
 
 
 class EcosystemManager:
+    """12 语言生态管理器"""
 
     def __init__(self, rules_dir: str | Path = ".cogu/rules"):
         self._rules_dir = Path(rules_dir)

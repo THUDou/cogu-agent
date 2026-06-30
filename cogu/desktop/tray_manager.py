@@ -1,3 +1,8 @@
+"""Tray Manager — System Tray 管理
+
+基于源码: cc-switch system tray (快速切换)
+COGU 实现: System Tray + Provider 切换 + 状态显示
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -13,6 +18,7 @@ class TrayMenuItem:
 
 
 class TrayManager:
+    """System Tray 管理器"""
 
     def __init__(self):
         self._status: str = "Ready"

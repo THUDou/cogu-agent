@@ -1,3 +1,9 @@
+"""Multi-File Edit — 多文件编辑工具
+
+基于源码: Claude Code MultiEditTool (批量文件编辑)
+         + Claude Code WriteTool (原子写入)
+COGU 实现: 多文件批量编辑 + 原子写入 + Diff 可视化
+"""
 from __future__ import annotations
 
 import difflib
@@ -27,6 +33,7 @@ class EditResult:
 
 
 class MultiFileEditTool:
+    """多文件编辑工具 — 批量编辑 + 原子写入 + Diff"""
 
     def __init__(self, workspace: str = "."):
         self.workspace = Path(workspace)

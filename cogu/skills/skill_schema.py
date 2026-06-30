@@ -1,3 +1,10 @@
+"""Skill标准化格式定义 — 参考gws-cli SKILL.md
+
+融合:
+  - Google Workspace CLI 的 Persona/Recipe 分层设计
+  - 万悟 openapi2skill 的渐进式披露
+  - MiMo-Code Compose 模式的结构化配方
+"""
 from __future__ import annotations
 
 import re
@@ -44,6 +51,7 @@ class PersonaRole(str, Enum):
 
 @dataclass
 class SkillPersona:
+    """角色定义 — 10种预设角色，参考gws-cli Persona层"""
     role: PersonaRole = PersonaRole.DEVELOPER
     system_prompt: str = ""
     expertise: list[str] = field(default_factory=list)
@@ -73,6 +81,7 @@ class SkillPersona:
 
 @dataclass
 class SkillRecipe:
+    """场景化配方 — 参考gws-cli的50+ recipe"""
     name: str = ""
     description: str = ""
     trigger: str = ""
@@ -106,6 +115,12 @@ class SkillRecipe:
 
 @dataclass
 class SkillManifest:
+    """SKILL.md标准化格式 — 参考gws-cli
+
+    与 cogu.core.skills_system.SkillManifest 互补:
+      - core 版本关注运行时执行（entry_point, requires_gpu等）
+      - 本版本关注声明式元数据（persona, recipe, 渐进式披露）
+    """
     name: str = ""
     version: str = "1.0.0"
     description: str = ""
@@ -139,6 +154,7 @@ class SkillManifest:
         return result
 
     def to_frontmatter(self) -> str:
+        """导出为SKILL.md的YAML frontmatter格式"""
         fm = {
             "name": self.name,
             "version": self.version,
@@ -158,6 +174,7 @@ class SkillManifest:
         return yaml.dump(fm, allow_unicode=True, default_flow_style=False)
 
     def to_skill_md(self) -> str:
+        """生成完整SKILL.md内容"""
         parts = [f"---\n{self.to_frontmatter()}---\n"]
         if self.body:
             parts.append(self.body)
@@ -213,6 +230,7 @@ class SkillManifest:
 
     @classmethod
     def from_markdown(cls, filepath: str) -> Optional["SkillManifest"]:
+        """从SKILL.md文件解析"""
         path = Path(filepath)
         if not path.exists():
             return None
@@ -239,6 +257,7 @@ class SkillManifest:
         return fm, body
 
     def render_summary(self) -> str:
+        """渐进式披露 — summary级别"""
         parts = [f"**{self.name}** (v{self.version})"]
         if self.description:
             parts.append(f"  {self.description}")
@@ -247,6 +266,7 @@ class SkillManifest:
         return "\n".join(parts)
 
     def render_detail(self) -> str:
+        """渐进式披露 — detail级别"""
         parts = [self.render_summary()]
         if self.persona:
             parts.append(f"  角色: {self.persona.role.value}")
@@ -265,6 +285,7 @@ class SkillManifest:
         return "\n".join(parts)
 
     def render_full(self) -> str:
+        """渐进式披露 — full级别"""
         return self.to_skill_md()
 
 

@@ -1,3 +1,8 @@
+"""Summarized Memory — 层次化压缩记忆
+
+基于源码: OpenManus-RL summarized_memory.py (LLM 压缩历史)
+COGU 实现: 层次化压缩 + 相关性衰减
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -14,6 +19,7 @@ class MemoryEntry:
 
 
 class SummarizedMemory:
+    """层次化压缩记忆 — 历史压缩 + 相关性衰减"""
 
     def __init__(self, max_entries: int = 100, summary_threshold: int = 20):
         self._entries: list[MemoryEntry] = []

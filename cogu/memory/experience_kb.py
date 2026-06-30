@@ -108,17 +108,67 @@ class AgenticKnowledgeBase:
                 created_at REAL NOT NULL,
                 access_count INTEGER DEFAULT 0
             )
+        """)
+        conn.execute("""
             CREATE VIRTUAL TABLE IF NOT EXISTS workflows_fts
             USING fts5(query, planning, experience, domain, workflow_id UNINDEXED,
                        content='workflows', content_rowid='rowid')
+        """)
+        conn.execute("""
             CREATE TRIGGER IF NOT EXISTS workflows_ai AFTER INSERT ON workflows BEGIN
                 INSERT INTO workflows_fts(rowid, query, planning, experience, domain)
                 VALUES (new.rowid, new.query, new.planning, new.experience, new.domain);
             END
+        """)
+        conn.execute("""
             CREATE TRIGGER IF NOT EXISTS workflows_ad AFTER DELETE ON workflows BEGIN
                 INSERT INTO workflows_fts(workflows_fts, rowid, query, planning, experience, domain)
                 VALUES ('delete', old.rowid, old.query, old.planning, old.experience, old.domain);
             END
+        """)
+        conn.commit()
+        conn.close()
+
+    def _load_from_db(self) -> None:
+        conn = sqlite3.connect(self._db_path)
+        rows = conn.execute(
+            "SELECT workflow_id, query, planning, experience, domain, tags_json, success, created_at, access_count FROM workflows"
+        ).fetchall()
+        conn.close()
+
+        for row in rows:
+            wf = WorkflowInstance(
+                workflow_id=row[0],
+                query=row[1],
+                planning=row[2],
+                experience=row[3],
+                domain=row[4],
+                tags=json.loads(row[5]) if row[5] else [],
+                success=bool(row[6]),
+                created_at=row[7],
+                access_count=row[8],
+            )
+            self._workflows[wf.workflow_id] = wf
+
+        self._rebuild_bm25()
+
+    def _rebuild_bm25(self) -> None:
+        self._bm25 = BM25Scorer()
+        for wf in self._workflows.values():
+            text = f"{wf.query} {wf.planning} {wf.experience} {wf.domain}"
+            self._bm25.index(wf.workflow_id, text)
+        self._bm25_indexed = True
+
+    def add_workflow(self, workflow: WorkflowInstance) -> str:
+        if not workflow.workflow_id:
+            workflow.workflow_id = uuid.uuid4().hex[:16]
+
+        with self._lock:
+            self._workflows[workflow.workflow_id] = workflow
+
+            conn = sqlite3.connect(self._db_path)
+            conn.execute(
+                """INSERT OR REPLACE INTO workflows
                    (workflow_id, query, planning, experience, domain, tags_json, success, created_at, access_count)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
@@ -163,6 +213,8 @@ class AgenticKnowledgeBase:
     def _fts_search(self, query: str, top_k: int = 10) -> list[tuple[str, float]]:
         conn = sqlite3.connect(self._db_path)
         results = conn.execute(
+            """SELECT workflow_id, rank FROM workflows_fts
+               WHERE workflows_fts MATCH ? ORDER BY rank LIMIT ?""",
             (query, top_k),
         ).fetchall()
         conn.close()

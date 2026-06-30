@@ -1,3 +1,8 @@
+"""Update Checker — 自动更新检查
+
+基于源码: cc-switch auto-update pattern
+COGU 实现: 版本检查 + 更新通知
+"""
 from __future__ import annotations
 
 import time
@@ -16,6 +21,7 @@ class UpdateInfo:
 
 
 class UpdateChecker:
+    """自动更新检查器"""
 
     def __init__(self, current_version: str = "", check_url: str = ""):
         self.current_version = current_version

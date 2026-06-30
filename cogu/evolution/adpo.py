@@ -1,3 +1,8 @@
+"""ADPO — 自适应 Direct Preference Optimization
+
+灵感来源: Agent0 ADPO (Adaptive DPO for text evolution)
+基于源码: Youtu-Agent experience_updater.py (semantic group advantages)
+"""
 from __future__ import annotations
 
 import math

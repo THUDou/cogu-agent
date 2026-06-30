@@ -1,3 +1,8 @@
+"""Browser Vision — BrowserAgent 视觉
+
+基于源码: OpenManus BrowserAgent (视觉截图 + 状态注入)
+COGU 实现: 浏览器截图 + 元素检测 + 视觉状态
+"""
 from __future__ import annotations
 
 import base64
@@ -15,6 +20,7 @@ class BrowserState:
 
 
 class BrowserVision:
+    """BrowserAgent 视觉 — 截图 + 元素检测"""
 
     def __init__(self):
         self._browser_handler: Any = None

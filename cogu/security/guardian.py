@@ -1,3 +1,8 @@
+"""Guardian — 独立审查系统
+
+基于源码: OpenAI Codex ext/guardian (独立审查 Agent)
+COGU 实现: 工具输出审查 + 风险评估
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -15,6 +20,7 @@ class ReviewResult:
 
 
 class Guardian:
+    """独立审查系统 — 在工具输出交付用户前进行审查"""
 
     def __init__(self):
         self._reviewers: list[Callable] = []

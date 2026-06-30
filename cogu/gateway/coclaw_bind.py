@@ -1,3 +1,9 @@
+"""CoClaw Bind — 设备绑定 + Claim Code + Web Agent
+
+基于源码: Co-Claw server/src/services/claw-binding.svc.js (绑定码生成+验证)
+         + Co-Claw server/src/services/web-agent.svc.js (Web Agent管理)
+COGU 实现: 设备绑定 + Claim Code + Web Agent 追踪
+"""
 from __future__ import annotations
 
 import hashlib
@@ -29,6 +35,7 @@ class WebAgent:
 
 
 class BindingService:
+    """设备绑定服务 — Co-Claw 风格"""
 
     def __init__(self):
         self._bindings: dict[str, DeviceBinding] = {}
@@ -56,6 +63,7 @@ class BindingService:
 
 
 class WebAgentManager:
+    """Web Agent 管理器 — Co-Claw 风格"""
 
     def __init__(self):
         self._agents: dict[str, WebAgent] = {}

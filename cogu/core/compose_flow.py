@@ -1,3 +1,12 @@
+"""Spec→Plan→Build三阶段工作流 — 参考MiMo-Code Compose模式
+
+结构化开发工作流:
+  - SPEC: 需求规格化，明确目标和约束
+  - PLAN: 拆解任务，生成执行计划
+  - BUILD: 按计划逐步构建
+  - REVIEW: 审查构建结果
+  - VERIFY: 验证最终产出
+"""
 from __future__ import annotations
 
 import json
@@ -17,6 +26,7 @@ class ComposePhase(str, Enum):
 
 @dataclass
 class PhaseResult:
+    """阶段执行结果"""
     phase: ComposePhase = ComposePhase.SPEC
     status: str = "pending"
     output: dict[str, Any] = field(default_factory=dict)
@@ -39,6 +49,7 @@ class PhaseResult:
 
 @dataclass
 class ComposeResult:
+    """Compose工作流完整结果"""
     spec: Optional[PhaseResult] = None
     plan: Optional[PhaseResult] = None
     build: Optional[PhaseResult] = None
@@ -61,6 +72,7 @@ class ComposeResult:
 
 @dataclass
 class TaskNode:
+    """计划中的任务节点"""
     task_id: str = ""
     title: str = ""
     description: str = ""
@@ -71,6 +83,15 @@ class TaskNode:
 
 
 class ComposeFlow:
+    """Specs驱动的结构化开发工作流
+
+    参考MiMo-Code Compose模式:
+      - Spec阶段: 将自然语言需求转为结构化规格
+      - Plan阶段: 拆解为有序任务节点
+      - Build阶段: 逐步执行任务
+      - Review阶段: 审查产出质量
+      - Verify阶段: 验证最终结果
+    """
 
     def __init__(self, llm_client: Any = None, workspace: str = ""):
         self.llm = llm_client
@@ -78,6 +99,15 @@ class ComposeFlow:
         self._phase_history: list[PhaseResult] = []
 
     async def run(self, spec: str, workspace: str = "") -> ComposeResult:
+        """执行完整Compose工作流
+
+        Args:
+            spec: 自然语言需求描述
+            workspace: 工作空间路径
+
+        Returns:
+            完整工作流结果
+        """
         ws = workspace or self.workspace
         result = ComposeResult()
         start = time.time()
@@ -114,6 +144,7 @@ class ComposeFlow:
         return result
 
     async def _spec_phase(self, spec: str) -> PhaseResult:
+        """Spec阶段 — 需求规格化"""
         start = time.time()
         result = PhaseResult(phase=ComposePhase.SPEC)
 
@@ -159,6 +190,7 @@ class ComposeFlow:
         return result
 
     async def _plan_phase(self, spec_result: dict) -> PhaseResult:
+        """Plan阶段 — 任务拆解"""
         start = time.time()
         result = PhaseResult(phase=ComposePhase.PLAN)
 
@@ -225,6 +257,7 @@ class ComposeFlow:
         return result
 
     async def _build_phase(self, plan_result: dict) -> PhaseResult:
+        """Build阶段 — 按计划逐步构建"""
         start = time.time()
         result = PhaseResult(phase=ComposePhase.BUILD)
 
@@ -277,6 +310,7 @@ class ComposeFlow:
         return result
 
     async def _review_phase(self, build_result: dict) -> PhaseResult:
+        """Review阶段 — 审查构建结果"""
         start = time.time()
         result = PhaseResult(phase=ComposePhase.REVIEW)
 
@@ -323,6 +357,7 @@ class ComposeFlow:
         return result
 
     async def _verify_phase(self, review_result: dict) -> PhaseResult:
+        """Verify阶段 — 验证最终产出"""
         start = time.time()
         result = PhaseResult(phase=ComposePhase.VERIFY)
 
@@ -356,6 +391,7 @@ class ComposeFlow:
 
     @staticmethod
     def _parse_json_response(response: str) -> dict:
+        """解析LLM返回的JSON"""
         text = response.strip()
         if text.startswith("```"):
             lines = text.split("\n")
@@ -373,6 +409,7 @@ class ComposeFlow:
             return {"raw_response": text}
 
     def get_phase_history(self, phase: Optional[ComposePhase] = None) -> list[PhaseResult]:
+        """获取阶段执行历史"""
         if phase:
             return [r for r in self._phase_history if r.phase == phase]
         return self._phase_history

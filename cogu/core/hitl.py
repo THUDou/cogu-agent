@@ -1,3 +1,11 @@
+"""Human-in-the-Loop系统 — 参考万悟OpenCode Question系统
+
+SSE事件流 + HTTP回复:
+  - ask_human: 向用户提问并等待回复
+  - ask_approval: 请求用户审批
+  - create_question_event: 创建SSE提问事件
+  - wait_for_reply: 等待HTTP回复
+"""
 from __future__ import annotations
 
 import asyncio
@@ -25,6 +33,7 @@ class QuestionStatus(str, Enum):
 
 @dataclass
 class Question:
+    """HITL提问"""
     question_id: str = ""
     question_type: QuestionType = QuestionType.TEXT
     question: str = ""
@@ -76,6 +85,7 @@ class Question:
 
 @dataclass
 class ApprovalRequest:
+    """审批请求"""
     request_id: str = ""
     action: str = ""
     risk_level: str = "low"
@@ -101,6 +111,13 @@ class ApprovalRequest:
 
 
 class HITLManager:
+    """Human-in-the-Loop — SSE事件流 + HTTP回复
+
+    参考万悟OpenCode Question系统:
+      - 通过SSE事件流向客户端推送问题
+      - 客户端通过HTTP接口回复
+      - 支持超时自动处理
+    """
 
     def __init__(self, event_callback: Optional[Callable] = None, auto_approve_low_risk: bool = False):
         self._event_callback = event_callback
@@ -116,6 +133,16 @@ class HITLManager:
         options: list[str] | None = None,
         timeout: float = 300.0,
     ) -> str:
+        """向用户提问并等待回复
+
+        Args:
+            question: 提问内容
+            options: 可选项列表（选择题模式）
+            timeout: 超时秒数
+
+        Returns:
+            用户回复内容
+        """
         question_id = f"q_{uuid.uuid4().hex[:12]}"
         q_type = QuestionType.CHOICE if options else QuestionType.TEXT
 
@@ -146,6 +173,16 @@ class HITLManager:
         risk_level: str = "low",
         details: str = "",
     ) -> bool:
+        """请求用户审批
+
+        Args:
+            action: 待审批的操作描述
+            risk_level: 风险等级 low/medium/high
+            details: 详细说明
+
+        Returns:
+            是否批准
+        """
         request_id = f"apr_{uuid.uuid4().hex[:12]}"
 
         if self._auto_approve_low_risk and risk_level == "low":
@@ -203,6 +240,16 @@ class HITLManager:
         question: str,
         options: list[str] | None = None,
     ) -> dict:
+        """创建SSE提问事件
+
+        Args:
+            question_id: 问题ID
+            question: 问题内容
+            options: 可选项
+
+        Returns:
+            SSE事件数据
+        """
         return {
             "event": "hitl_question",
             "data": {
@@ -214,6 +261,15 @@ class HITLManager:
         }
 
     async def wait_for_reply(self, question_id: str, timeout: float = 300.0) -> str:
+        """等待HTTP回复
+
+        Args:
+            question_id: 问题ID
+            timeout: 超时秒数
+
+        Returns:
+            回复内容
+        """
         loop = asyncio.get_event_loop()
         future: asyncio.Future[str] = loop.create_future()
         self._pending_questions[question_id] = future
@@ -227,6 +283,15 @@ class HITLManager:
             self._pending_questions.pop(question_id, None)
 
     def submit_reply(self, question_id: str, answer: str) -> bool:
+        """提交回复（由HTTP接口调用）
+
+        Args:
+            question_id: 问题ID
+            answer: 回答内容
+
+        Returns:
+            是否成功提交
+        """
         future = self._pending_questions.get(question_id)
         if future and not future.done():
             future.set_result(answer)
@@ -234,6 +299,16 @@ class HITLManager:
         return False
 
     def submit_approval(self, request_id: str, approved: bool, reason: str = "") -> bool:
+        """提交审批结果（由HTTP接口调用）
+
+        Args:
+            request_id: 审批请求ID
+            approved: 是否批准
+            reason: 原因
+
+        Returns:
+            是否成功提交
+        """
         future = self._pending_approvals.get(request_id)
         if future and not future.done():
             future.set_result(approved)
@@ -247,6 +322,7 @@ class HITLManager:
         risk_level: str,
         details: str,
     ) -> dict:
+        """创建审批SSE事件"""
         return {
             "event": "hitl_approval",
             "data": {
@@ -259,18 +335,21 @@ class HITLManager:
         }
 
     def get_pending_questions(self) -> list[dict]:
+        """获取待回答问题列表"""
         return [
             q.to_dict() for q in self._question_history
             if q.status == QuestionStatus.PENDING
         ]
 
     def get_pending_approvals(self) -> list[dict]:
+        """获取待审批列表"""
         return [
             a.to_dict() for a in self._approval_history
             if a.status == QuestionStatus.PENDING
         ]
 
     def get_stats(self) -> dict:
+        """获取HITL统计"""
         return {
             "questions_asked": len(self._question_history),
             "questions_answered": sum(1 for q in self._question_history if q.status == QuestionStatus.ANSWERED),

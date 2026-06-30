@@ -1,3 +1,12 @@
+"""OpenAPI 插件系统 — 基于OpenAPI 3.0规范的插件定义与执行
+
+参考: Coze Studio backend/domain/plugin/
+      PluginInfo: Manifest + OpenapiDoc + ServerURL
+      PluginService: Draft Plugin, Online Plugin, Draft Tool, Agent Tool, Execute Tool, OAuth
+      执行: buildToolExecutor() -> acquireAccessTokenIfNeed() -> HTTP Request -> Response
+
+COGU 实现: 纯Python本地版，支持OpenAPI 3.0解析、插件市场、OAuth模拟、工具执行
+"""
 from __future__ import annotations
 
 import json

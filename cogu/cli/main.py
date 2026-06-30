@@ -61,3 +61,571 @@ Examples:
   cogu config set deepseek sk-xxxx
   cogu config list
   cogu serve --port 8080
+        """,
+    )
+    parser.add_argument("--version", action="version", version=f"cogu {__version__}")
+    parser.add_argument("--workspace", "-w", default=os.getcwd(), help="Workspace directory")
+    parser.add_argument("--model", "-m", default="deepseek-chat", help="Model to use")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
+
+    sub = parser.add_subparsers(dest="command", help="Commands")
+
+    run_parser = sub.add_parser("run", help="Run the agent with a prompt")
+    run_parser.add_argument("prompt", nargs="+", help="The prompt to run")
+    run_parser.add_argument("--strategy", default="hybrid", choices=["fts", "semantic", "hybrid", "comprehensive"], help="Memory recall strategy")
+    run_parser.add_argument("--no-memory", action="store_true", help="Disable memory")
+    run_parser.add_argument("--skills", nargs="*", help="Skills to load")
+
+    goal_parser = sub.add_parser("goal", help="Run agent in GOAL mode (autonomous loop until done or budget exhausted)")
+    goal_parser.add_argument("goal_text", nargs="+", help="Goal description (e.g. 'Make all tests pass')")
+    goal_parser.add_argument("--max-tokens", type=int, default=200000, help="Max tokens before kill")
+    goal_parser.add_argument("--max-iterations", type=int, default=50, help="Max iterations")
+    goal_parser.add_argument("--max-wall", type=float, default=600.0, help="Max wall time in seconds")
+    goal_parser.add_argument("--no-kill", action="store_true", help="Do not kill on budget exceed")
+    goal_parser.add_argument("--state-dir", default="", help="State/log persistence directory")
+
+    debate_parser = sub.add_parser("debate", help="Run expert debate")
+    debate_parser.add_argument("topic", nargs="+", help="Debate topic")
+    debate_parser.add_argument("--mode", default="standard", choices=["standard", "swarm", "court", "dialectic"], help="Debate mode")
+    debate_parser.add_argument("--rounds", type=int, default=2, help="Debate rounds")
+    debate_parser.add_argument("--experts", type=int, default=5, help="Number of experts")
+
+    skills_parser = sub.add_parser("skills", help="Manage skills")
+    skills_sub = skills_parser.add_subparsers(dest="skills_command")
+    list_parser = skills_sub.add_parser("list", help="List installed skills")
+    list_parser.add_argument("--all", action="store_true", help="Include builtin skills")
+    install_parser = skills_sub.add_parser("install", help="Install a skill")
+    install_parser.add_argument("source", help="Path or URL to skill")
+    install_parser.add_argument("--level", default="user", choices=["user", "project"], help="Install level")
+    uninstall_parser = skills_sub.add_parser("uninstall", help="Uninstall a skill")
+    uninstall_parser.add_argument("name", help="Skill name")
+    skills_sub.add_parser("discover", help="Discover skills from search paths")
+    info_parser = skills_sub.add_parser("info", help="Show skill info")
+    info_parser.add_argument("name", help="Skill name")
+    run_parser = skills_sub.add_parser("run", help="Execute a Markdown skill")
+    run_parser.add_argument("name", help="Skill name")
+    run_parser.add_argument("--input", default="{}", help="JSON input data for the skill")
+    run_parser.add_argument("--context", default="", help="Context string passed to skill")
+    run_parser.add_argument("--script", default="", help="Script path within skill to execute")
+    run_parser.add_argument("--script-args", nargs="*", help="Arguments for the script")
+    builtin_parser = skills_sub.add_parser("builtin", help="Manage builtin skills")
+    builtin_sub = builtin_parser.add_subparsers(dest="builtin_command")
+    builtin_sub.add_parser("list", help="List builtin skills")
+    builtin_run = builtin_sub.add_parser("run", help="Execute a builtin skill")
+    builtin_run.add_argument("name", help="Skill name")
+    builtin_run.add_argument("--action", default="", help="Skill action")
+    builtin_run.add_argument("--params", default="{}", help="JSON params")
+
+    memory_parser = sub.add_parser("memory", help="Memory operations")
+    memory_sub = memory_parser.add_subparsers(dest="memory_command")
+    memory_sub.add_parser("stats", help="Show memory statistics")
+    search_parser = memory_sub.add_parser("search", help="Search memory")
+    search_parser.add_argument("query", help="Search query")
+    reconcile_parser = memory_sub.add_parser("reconcile", help="Reconcile memory stores")
+
+    serve_parser = sub.add_parser("serve", help="Start API server")
+    serve_parser.add_argument("--port", type=int, default=8080, help="Port to listen on")
+    serve_parser.add_argument("--host", default="127.0.0.1", help="Host to bind")
+
+    studio_parser = sub.add_parser("studio", help="Start Studio UI (visual workflow editor)")
+    studio_parser.add_argument("--port", type=int, default=5174, help="Studio UI dev server port")
+    studio_parser.add_argument("--api-port", type=int, default=8080, help="Backend API port")
+
+    config_parser = sub.add_parser("config", help="Manage API keys and settings")
+    config_sub = config_parser.add_subparsers(dest="config_command")
+    config_sub.add_parser("list", help="List configured providers")
+    config_sub.add_parser("env", help="Show environment config path")
+    set_parser = config_sub.add_parser("set", help="Set API key for a provider")
+    set_parser.add_argument("provider", help="Provider name (deepseek/openai/claude/zhipu/qwen/moonshot/doubao/huawei_cloud/tencent_cloud/ollama)")
+    set_parser.add_argument("api_key", help="API key")
+    remove_parser = config_sub.add_parser("remove", help="Remove API key for a provider")
+    remove_parser.add_argument("provider", help="Provider name")
+    model_parser = config_sub.add_parser("model", help="Set default model")
+    model_parser.add_argument("model", help="Model name")
+    model_parser.add_argument("--provider", default="deepseek", help="Provider name")
+
+    register_loop_start_parser(sub)
+    register_loop_audit_parser(sub)
+    register_loop_cost_parser(sub)
+
+    sub.add_parser("version", help="Show version")
+
+    tui_parser = sub.add_parser("tui", help="Launch interactive TUI")
+    tui_parser.add_argument("--workspace", "-w", default=os.getcwd(), help="Workspace directory")
+
+    pangu_parser = sub.add_parser("pangu-mini", help=argparse.SUPPRESS)
+    pangu_sub = pangu_parser.add_subparsers(dest="pangu_command")
+    pangu_serve = pangu_sub.add_parser("serve", help=argparse.SUPPRESS)
+    pangu_serve.add_argument("--port", type=int, default=8199)
+    pangu_serve.add_argument("--backend", default="auto", choices=["auto", "transformers", "gguf"])
+    pangu_serve.add_argument("--device", default="auto")
+    pangu_sub.add_parser("status", help=argparse.SUPPRESS)
+    pangu_sub.add_parser("memorial", help=argparse.SUPPRESS)
+
+    return parser
+
+
+class CLI:
+    def __init__(self, args: argparse.Namespace):
+        self.args = args
+        self.workspace = args.workspace
+        self.config_mgr = ConfigManager(self.workspace)
+        self.settings = self.config_mgr.load_settings()
+        self._init_memory()
+        self._init_skills()
+        self._init_debate()
+        self._init_agent()
+
+    def _init_memory(self):
+        db_dir = os.path.join(self.workspace, ".cogu", "memory")
+        file_root = os.path.join(self.workspace, ".cogu", "memory_files")
+        config = EnhancedMemoryConfig(
+            db_dir=db_dir,
+            file_root=file_root,
+            auto_compress=True,
+            auto_entity_extract=False,
+        )
+        self.memory = EnhancedSuperMemory(config)
+
+    def _init_skills(self):
+        self.skill_registry = SkillRegistry(workspace=self.workspace)
+        self.skill_registry.discover()
+
+    def _init_debate(self):
+        self.debate = DebateOrchestrator(
+            config=DebateConfig(max_rounds=getattr(self.args, "rounds", 2)),
+        )
+
+    def _init_agent(self):
+        api_key = self.config_mgr.get_api_key("deepseek") or os.environ.get("DEEPSEEK_API_KEY", "")
+        from cogu.core.api_config import ApiTokenManager, Provider
+        token_mgr = ApiTokenManager()
+        for p in Provider:
+            key = self.config_mgr.get_api_key(p.value) or os.environ.get(f"{p.value.upper()}_API_KEY", "")
+            if key:
+                token_mgr.add_provider(p, key)
+        active = token_mgr.get_active_config()
+        if active:
+            from cogu.api.client import MultiProviderClient
+            client = MultiProviderClient()
+            client.add_provider(active.provider.value, active.api_key, active.base_url, active.default_model)
+            client.model = active.default_model
+        else:
+            client = DeepSeekClient(
+                api_key=api_key,
+                model=self.args.model,
+            )
+        tool_registry = ToolRegistry()
+        register_builtin_tools(tool_registry)
+        self.agent = ReActAgent(
+            settings=self.settings,
+            client=client,
+            tool_registry=tool_registry,
+            session=Session(workspace=self.workspace),
+        )
+
+    async def cmd_run(self) -> int:
+        prompt = " ".join(self.args.prompt)
+        if self.args.verbose:
+            print(f"COGU v{__version__} | model={self.args.model} | workspace={self.workspace}")
+            stats = await self.memory.get_stats()
+            print(f"Memory: {stats}")
+            skills = self.args.skills or []
+            if skills:
+                print(f"Skills: {skills}")
+
+        # ✅ 设置进度回调（显示加载状态）
+        def progress_callback(msg: str):
+            # 使用 stderr 输出进度，避免干扰最终输出
+            import sys
+            print(f"\r{msg}", end="", flush=True, file=sys.stderr)
+            # 换行（为最终输出做准备）
+            if "完成" in msg:
+                print(file=sys.stderr)
+        
+        self.agent.set_progress_callback(progress_callback)
+
+        strategy_map = {
+            "fts": RecallStrategy.FTS_ONLY,
+            "semantic": RecallStrategy.SEMANTIC_ONLY,
+            "hybrid": RecallStrategy.HYBRID,
+            "comprehensive": RecallStrategy.COMPREHENSIVE,
+        }
+        strategy = strategy_map.get(self.args.strategy, RecallStrategy.HYBRID)
+
+        if not self.args.no_memory:
+            recall_results = await self.memory.recall(query=prompt, strategy=strategy, limit=5)
+            if recall_results:
+                memory_context = "\n".join([r.content[:500] for r in recall_results[:3]])
+                self.agent.session.add_message("system", f"Relevant memory:\n{memory_context}")
+
+        if self.args.skills:
+            skill_context = self.skill_registry.build_context(self.args.skills)
+            if skill_context:
+                self.agent.session.add_message("system", f"Loaded skills:\n{skill_context}")
+
+        result = await self.agent.invoke(user_message=prompt)
+        print(result.content)
+        return 0
+
+    async def cmd_goal(self) -> int:
+        goal_text = " ".join(self.args.goal_text)
+
+        state_dir = self.args.state_dir
+        if not state_dir:
+            state_dir = str(Path(self.workspace) / ".cogu" / "loop")
+
+        loop_config = self.settings.loop
+        config = GoalRunnerConfig(
+            max_tokens=self.args.max_tokens or loop_config.max_tokens,
+            max_iterations=self.args.max_iterations or loop_config.max_iterations,
+            max_wall_seconds=self.args.max_wall or loop_config.max_wall_seconds,
+            warning_ratio=loop_config.warning_ratio,
+            kill_on_exceed=not self.args.no_kill,
+            state_dir=state_dir,
+            log_enabled=True,
+            checkpoint_enabled=True,
+            progress_callback=lambda msg: print(f"\r{msg}", end="", flush=True),
+        )
+
+        runner = GoalRunner(config=config)
+        runner.bind_agent(self.agent)
+
+        print(f"GOAL mode: {goal_text}")
+        print(f"  Budget: {config.max_tokens} tokens | {config.max_iterations} iter | {config.max_wall_seconds}s\n")
+
+        result = await runner.run(goal_text)
+
+        print(f"\n{'='*60}")
+        print(result.summary())
+        print(f"{'='*60}")
+
+        return 0 if result.ok else 1
+
+    async def cmd_debate(self) -> int:
+        topic = " ".join(self.args.topic)
+        mode_map = {
+            "standard": DebateMode.STANDARD,
+            "swarm": DebateMode.SWARM,
+            "court": DebateMode.COURT,
+            "dialectic": DebateMode.DIALECTIC,
+        }
+        mode = mode_map.get(self.args.mode, DebateMode.STANDARD)
+
+        self.debate.build_default_team("cli_debate_team")
+        consensus = await self.debate.debate(
+            topic=topic,
+            mode=mode,
+            rounds=self.args.rounds,
+        )
+
+        print(f"\n{'='*60}")
+        print(f"DEBATE: {topic}")
+        print(f"Mode: {mode.value} | Rounds: {consensus.debate_rounds} | Confidence: {consensus.confidence:.2f}")
+        print(f"{'='*60}\n")
+
+        if consensus.main_proposal:
+            print(consensus.main_proposal.content)
+
+        if consensus.minority_reports:
+            print(f"\n--- Minority Reports ({len(consensus.minority_reports)}) ---")
+            for mr in consensus.minority_reports[:3]:
+                print(f"\n[{mr.expert_name}] {mr.content[:200]}...")
+
+        return 0
+
+    async def cmd_skills(self) -> int:
+        sc = self.args.skills_command
+        if sc == "list":
+            show_all = getattr(self.args, "all", False)
+            names = self.skill_registry.list_all()
+
+            if show_all:
+                print("=== Builtin Skills ===")
+                builtin = get_builtin_skill_registry()
+                await builtin.initialize()
+                for s in builtin.list_all():
+                    print(f"  [{s.manifest.category.value}] {s.manifest.name}: {s.manifest.description[:60]}")
+                print(f"\n=== Installed Skills ===")
+
+            if names:
+                print(f"Installed skills ({len(names)}):")
+                for name in names:
+                    spec = self.skill_registry.load(name)
+                    desc = spec.description[:60] if spec and spec.description else ""
+                    print(f"  - {name}: {desc}")
+            elif not show_all:
+                print("No skills installed. Use 'cogu skills discover' or 'cogu skills install <path>'")
+                print("Use 'cogu skills list --all' to see builtin skills")
+        elif sc == "builtin":
+            bc = self.args.builtin_command
+            builtin = get_builtin_skill_registry()
+            await builtin.initialize()
+            if bc == "list":
+                for s in builtin.list_all():
+                    print(f"  [{s.manifest.category.value:15s}] {s.manifest.name:25s} [{s.manifest.level.value}] {s.manifest.description[:60]}")
+                print(f"\nTotal: {len(builtin.list_all())} builtin skills")
+            elif bc == "run":
+                name = self.args.name
+                action = self.args.action
+                import json as _json
+                params = _json.loads(self.args.params)
+                if action:
+                    params["action"] = action
+                result = await builtin.execute(name, **params)
+                print(_json.dumps(result, indent=2, ensure_ascii=False))
+        elif sc == "discover":
+            found = self.skill_registry.discover()
+            print(f"Discovered {len(found)} skills:")
+            for s in found:
+                print(f"  - {s.name}: {s.description[:60]}")
+        elif sc == "install":
+            source = self.args.source
+            level = getattr(self.args, "level", "user")
+            spec = self.skill_registry.install_skill(source, level)
+            if spec:
+                print(f"Installed: {spec.name} [{level}]")
+            else:
+                print(f"Failed to install from: {source}")
+                return 1
+        elif sc == "uninstall":
+            name = self.args.name
+            ok = self.skill_registry.uninstall_skill(name)
+            if ok:
+                print(f"Uninstalled: {name}")
+            else:
+                print(f"Skill not found: {name}")
+                return 1
+        elif sc == "info":
+            spec = self.skill_registry.load(self.args.name)
+            if spec:
+                print(json.dumps(spec.to_dict(), indent=2, ensure_ascii=False))
+                print(f"\nBody preview: {spec.body[:200]}...")
+            else:
+                print(f"Skill not found: {self.args.name}")
+                return 1
+        elif sc == "run":
+            executor = SkillExecutor(registry=self.skill_registry)
+            name = self.args.name
+            inputs = json.loads(getattr(self.args, "input", "{}"))
+            context = getattr(self.args, "context", "")
+            script = getattr(self.args, "script", "")
+            script_args = getattr(self.args, "script_args", None)
+
+            if script:
+                result = await executor.execute_script(name, script, script_args)
+            else:
+                result = await executor.execute(name, inputs=inputs, context=context)
+
+            print(json.dumps(result.to_dict(), indent=2, ensure_ascii=False))
+            if result.status != SkillExecStatus.COMPLETED:
+                return 1
+        return 0
+
+    async def cmd_memory(self) -> int:
+        mc = self.args.memory_command
+        if mc == "stats":
+            stats = await self.memory.get_stats()
+            print(json.dumps(stats, indent=2, ensure_ascii=False))
+        elif mc == "search":
+            results = await self.memory.recall(query=self.args.query, strategy=RecallStrategy.HYBRID, limit=10)
+            for r in results:
+                print(f"[{r.source}:{r.level.value}] score={r.score:.3f}")
+                print(f"  {r.content[:200]}")
+                print()
+        elif mc == "reconcile":
+            result = await self.memory.reconcile()
+            print(json.dumps(result, indent=2, ensure_ascii=False))
+        return 0
+
+    async def cmd_serve(self) -> int:
+        from cogu.gateway import get_gateway
+        from cogu.tools.builtin import register_builtin_tools
+
+        await Runner.start(self.settings)
+        register_builtin_tools(Runner.tool_registry())
+
+        gateway = get_gateway(self.args.host, self.args.port)
+        try:
+            await gateway.start()
+        except KeyboardInterrupt:
+            print("\nShutting down...")
+        finally:
+            await Runner.stop()
+
+        return 0
+
+    async def cmd_tui(self) -> int:
+        try:
+            from cogu.tui.app import run_tui
+            run_tui()
+        except ImportError:
+            print("TUI requires textual: pip install textual")
+        return 0
+
+    async def cmd_studio(self) -> int:
+        import subprocess
+        import webbrowser
+        studio_dir = Path(__file__).parent.parent.parent / "studio-ui"
+        if not studio_dir.exists():
+            print(f"Studio UI not found at {studio_dir}")
+            print("Please install: cd studio-ui && npm install")
+            return 1
+        api_port = getattr(self.args, "api_port", 8080)
+        port = getattr(self.args, "port", 5174)
+        print(f"Starting COGU Studio UI...")
+        print(f"  Backend API: http://127.0.0.1:{api_port}")
+        print(f"  Studio UI:   http://localhost:{port}")
+        print(f"  (Make sure 'cogu serve --port {api_port}' is running)")
+        try:
+            webbrowser.open(f"http://localhost:{port}")
+        except Exception:
+            pass
+        try:
+            subprocess.run(["npm", "run", "dev"], cwd=str(studio_dir), check=False)
+        except FileNotFoundError:
+            print("Node.js not found. Please install Node.js and run: cd studio-ui && npm install")
+        return 0
+
+    async def cmd_loop(self) -> int:
+        action = getattr(self.args, "loop_action", None)
+        if action == "start":
+            return await cmd_loop_start(self.args, self.workspace, self.settings)
+        print("Usage: cogu loop start <pattern> [--once] [--level L0-L3]")
+        return 1
+
+    async def cmd_loop_audit_handler(self) -> int:
+        return await cmd_loop_audit(self.args, self.workspace, self.settings)
+
+    async def cmd_loop_cost_handler(self) -> int:
+        return await cmd_loop_cost(self.args, self.workspace, self.settings)
+
+    async def cmd_version(self) -> int:
+        print(f"cogu v{__version__}")
+        return 0
+
+    async def cmd_config(self) -> int:
+        cc = self.args.config_command
+        if cc == "list":
+            providers = self.config_mgr.list_providers()
+            print(f"{'Provider':<15} {'Configured':<12} {'Key':<16} {'Models'}")
+            print("-" * 72)
+            for p in providers:
+                status = "Yes" if p["configured"] else "No"
+                key_info = p["key_preview"] or "-"
+                models = ", ".join(p["models"][:3])
+                print(f"{p['name']:<15} {status:<12} {key_info:<16} {models}")
+        elif cc == "set":
+            provider = self.args.provider
+            key = self.args.api_key
+            try:
+                self.config_mgr.set_api_key(provider, key)
+                print(f"✅ API key set for {provider}")
+            except ValueError as e:
+                print(f"❌ {e}")
+                return 1
+        elif cc == "remove":
+            provider = self.args.provider
+            self.config_mgr.remove_api_key(provider)
+            print(f"API key removed for {provider}")
+        elif cc == "model":
+            model = self.args.model
+            provider = getattr(self.args, "provider", "deepseek")
+            self.config_mgr.set_default_model(provider, model)
+            print(f"Default model set: {model} (provider: {provider})")
+        elif cc == "env":
+            cfg_dir = self.config_mgr.config_dir
+            print(f"Config directory: {cfg_dir}")
+            print(f"Secrets file:    {cfg_dir / 'secrets.json'}")
+            print(f"Config file:     {cfg_dir / 'config.json'}")
+            dotenv_path = Path(self.workspace) / ".env"
+            print(f".env file:       {dotenv_path} {'(exists)' if dotenv_path.exists() else '(not found)'}")
+        else:
+            print("Usage: cogu config {list|set|remove|model|env}")
+            return 1
+        return 0
+
+    async def cmd_pangu_mini(self) -> int:
+        pc = getattr(self.args, "pangu_command", None)
+        if pc == "serve":
+            from cogu.config.settings import PanguMiniConfig
+            mini_dir = Path(self.workspace).parent / "MINI"
+            if not mini_dir.exists():
+                mini_dir = Path(__file__).resolve().parents[3] / "MINI"
+            sys.path.insert(0, str(mini_dir))
+            from engine.server import main as serve_main
+            import importlib
+            sys.argv = ["engine.server", "--port", str(self.args.port),
+                        "--backend", self.args.backend, "--device", self.args.device]
+            serve_main()
+        elif pc == "status":
+            cfg = self.settings.pangu_mini
+            if cfg.enabled:
+                print("openPangu-Embedded-1B: ENABLED (not recommended)")
+            else:
+                print("openPangu-Embedded-1B: disabled (hidden)")
+            print(f"  Backend: {cfg.backend}")
+            print(f"  Port:    {cfg.api_port}")
+        elif pc == "memorial":
+            from cogu.config.settings import PanguMiniConfig
+            cfg = PanguMiniConfig()
+            print()
+            print("  " + "=" * 60)
+            print("  " + cfg._memorial)
+            print("  " + "=" * 60)
+            print()
+        else:
+            print("Usage: cogu pangu-mini {serve|status|memorial}")
+        return 0
+
+    async def run(self) -> int:
+        if not self.args.command:
+            print("COGU AGENT v{__version__}")
+            print("Use --help for available commands")
+            return 0
+
+        handlers = {
+            "run": self.cmd_run,
+            "goal": self.cmd_goal,
+            "loop": self.cmd_loop,
+            "loop-audit": self.cmd_loop_audit_handler,
+            "loop-cost": self.cmd_loop_cost_handler,
+            "debate": self.cmd_debate,
+            "skills": self.cmd_skills,
+            "memory": self.cmd_memory,
+            "serve": self.cmd_serve,
+            "tui": self.cmd_tui,
+            "studio": self.cmd_studio,
+            "version": self.cmd_version,
+            "config": self.cmd_config,
+            "pangu-mini": self.cmd_pangu_mini,
+        }
+
+        handler = handlers.get(self.args.command)
+        if handler:
+            return await handler()
+        print(f"Unknown command: {self.args.command}")
+        return 1
+
+
+def main():
+    parser = create_parser()
+    args = parser.parse_args()
+    cli = CLI(args)
+    
+    # ✅ 生命周期管理：确保退出时清理资源
+    try:
+        exit_code = asyncio.run(cli.run())
+    finally:
+        # ✅ 关闭 Agent，清理资源
+        if hasattr(cli, 'agent') and cli.agent:
+            try:
+                asyncio.run(cli.agent.shutdown())
+            except Exception as e:
+                print(f"Warning: Error during agent shutdown: {e}", file=sys.stderr)
+    
+    sys.exit(exit_code)
+
+
+if __name__ == "__main__":
+    main()

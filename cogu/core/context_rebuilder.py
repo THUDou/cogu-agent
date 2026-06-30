@@ -1,3 +1,9 @@
+"""Context Rebuilder — 上下文重建
+
+基于小米 MiMo-Code 智能上下文管理方案：
+当上下文接近 token 限制时，从 checkpoint + memory + task progress
+重建精简上下文，使用 budget 分配策略确保关键信息不丢失。
+"""
 from __future__ import annotations
 
 import json
